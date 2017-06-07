@@ -1,0 +1,85 @@
+<root>
+  <library>
+    <name>common</name>
+    <blockdata>
+      <blockname>Const</blockname>
+      <inputs>0</inputs>
+      <outputs>1</outputs>
+      <settable>0</settable>
+      <icon>CONST</icon>
+      <params>constBlk|Value: 0</params>
+    </blockdata>
+    <blockdata>
+      <blockname>PulseGenerator</blockname>
+      <inputs>0</inputs>
+      <outputs>1</outputs>
+      <settable>0</settable>
+      <icon>SQUARE</icon>
+      <params>squareBlk|Amplitude: 1|Period: 4|Width: 2|Bias: 0|Delay: 0</params>
+    </blockdata>
+    <blockdata>
+      <blockname>Step</blockname>
+      <inputs>0</inputs>
+      <outputs>1</outputs>
+      <settable>0</settable>
+      <icon>STEP</icon>
+      <params>stepBlk|Step Time: 1|Step Value: 1</params>
+    </blockdata>
+    <blockdata>
+      <blockname>LTI_continous</blockname>
+      <inputs>1</inputs>
+      <outputs>1</outputs>
+      <settable>1</settable>
+      <icon>CSS</icon>
+      <params>cssBlk|System: sys|Initial conditions: 0</params>
+    </blockdata>
+    <blockdata>
+      <blockname>LTI_discrete</blockname>
+      <inputs>1</inputs>
+      <outputs>1</outputs>
+      <settable>1</settable>
+      <icon>DSS</icon>
+      <params>dssBlk|System: sys|Initial conditions: 0</params>
+    </blockdata>
+    <blockdata>
+      <blockname>Gain</blockname>
+      <inputs>1</inputs>
+      <outputs>1</outputs>
+      <settable>1</settable>
+      <icon>MULT</icon>
+      <params>matmultBlk|Gains: 1</params>
+    </blockdata>
+    <blockdata>
+      <blockname>Sub</blockname>
+      <inputs>2</inputs>
+      <outputs>1</outputs>
+      <settable>0</settable>
+      <icon>PM</icon>
+      <params>sumBlk|Gains: [1,-1]</params>
+    </blockdata>
+    <blockdata>
+      <blockname>Sum</blockname>
+      <inputs>2</inputs>
+      <outputs>1</outputs>
+      <settable>1</settable>
+      <icon>SUM</icon>
+      <params>sumBlk|Gains: [1,-1]</params>
+    </blockdata>
+    <blockdata>
+      <blockname>Print</blockname>
+      <inputs>1</inputs>
+      <outputs>0</outputs>
+      <settable>1</settable>
+      <icon>PRINT</icon>
+      <params>printBlk</params>
+    </blockdata>    
+    <blockdata>
+      <blockname>Saturation</blockname>
+      <inputs>1</inputs>
+      <outputs>1</outputs>
+      <settable>0</settable>
+      <icon>SATUR</icon>
+      <params>saturBlk|Upper saturation:10|Lower saturation: -10</params>
+    </blockdata>
+  </library>
+</root>

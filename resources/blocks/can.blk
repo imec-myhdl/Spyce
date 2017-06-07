@@ -1,0 +1,101 @@
+<root>
+  <library>
+    <name>can</name>
+    <blockdata>
+      <blockname>Baumer_enc</blockname>
+      <inputs>0</inputs>
+      <outputs>1</outputs>
+      <settable>0</settable>
+      <icon>ENC</icon>
+      <params>baumer_EncBlk|Device ID: 0x01|Resolution: 500</params>
+    </blockdata>
+    <blockdata>
+      <blockname>Epos_AD</blockname>
+      <inputs>0</inputs>
+      <outputs>1</outputs>
+      <settable>0</settable>
+      <icon>AD</icon>
+      <params>epos_areadBlk|Device ID: 0x01|Channel [0/1]: 0</params>
+    </blockdata>
+    <blockdata>
+      <blockname>Epos_enc</blockname>
+      <inputs>0</inputs>
+      <outputs>1</outputs>
+      <settable>0</settable>
+      <icon>ENC</icon>
+      <params>epos_EncBlk|Device ID: 0x01|Resolution: 1000</params>
+    </blockdata>
+    <blockdata>
+      <blockname>Epos_mot_I</blockname>
+      <inputs>1</inputs>
+      <outputs>0</outputs>
+      <settable>0</settable>
+      <icon>MOT_I</icon>
+      <params>epos_MotIBlk|Device ID: 0x01|Prop. gain: 2200|Integ. gain: 500</params>
+    </blockdata>
+    <blockdata>
+      <blockname>Epos_mot_X</blockname>
+      <inputs>1</inputs>
+      <outputs>0</outputs>
+      <settable>0</settable>
+      <icon>MOT_X</icon>
+      <params>epos_MotXBlk|Device ID: 0x01|Prop. gain: 126|Integ. gain: 325|Deriv. gain: 238|Vel. FeedForw: 0|Acc. Feed Forw.:1</params>
+    </blockdata>
+    <blockdata>
+      <blockname>Maxon_enc</blockname>
+      <inputs>0</inputs>
+      <outputs>1</outputs>
+      <settable>0</settable>
+      <icon>ENC</icon>
+      <params>maxon_EncBlk|Device ID: 0x01|Resolution: 1000</params>
+    </blockdata>
+    <blockdata>
+      <blockname>Maxon_mot_I</blockname>
+      <inputs>1</inputs>
+      <outputs>0</outputs>
+      <settable>0</settable>
+      <icon>MOT_I</icon>
+      <params>maxon_MotBlk|Device ID: 0x01|Prop. gain: 2200|Integ. gain: 500</params>
+    </blockdata>
+    <blockdata>
+      <blockname>Mclm_AD</blockname>
+      <inputs>0</inputs>
+      <outputs>1</outputs>
+      <settable>0</settable>
+      <icon>AD</icon>
+      <params>MCLM_ADBlk|Device ID: 0x01</params>
+    </blockdata>
+    <blockdata>
+      <blockname>Mclm_enc</blockname>
+      <inputs>0</inputs>
+      <outputs>1</outputs>
+      <settable>0</settable>
+      <icon>ENC</icon>
+      <params>MCLM_EncBlk|Device ID: 0x01|Resolution: 125000</params>
+    </blockdata>
+    <blockdata>
+      <blockname>Mclm_mot_X</blockname>
+      <inputs>1</inputs>
+      <outputs>0</outputs>
+      <settable>0</settable>
+      <icon>MOT_X</icon>
+      <params>MCLM_MotXBlk|Device ID: 0x01|Resolution: 125000</params>
+    </blockdata>
+    <blockdata>
+      <blockname>Mclm_CO_enc</blockname>
+      <inputs>0</inputs>
+      <outputs>1</outputs>
+      <settable>0</settable>
+      <icon>ENC</icon>
+      <params>MCLM_CO_EncBlk|Device ID: 0x01|Resolution: 125000</params>
+    </blockdata>
+    <blockdata>
+      <blockname>Mclm_CO_mot_X</blockname>
+      <inputs>1</inputs>
+      <outputs>0</outputs>
+      <settable>0</settable>
+      <icon>MOT_X</icon>
+      <params>MCLM_CO_MotXBlk|Device ID: 0x01|Resolution: 125000</params>
+    </blockdata>
+  </library>
+</root>

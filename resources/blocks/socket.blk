@@ -1,0 +1,21 @@
+<root>
+  <library>
+    <name>Socket</name>
+    <blockdata>
+      <blockname>socket</blockname>
+      <inputs>1</inputs>
+      <outputs>0</outputs>
+      <settable>1</settable>
+      <icon>SOCK</icon>
+      <params>unixsocketCBlk|Socket: 'bsock'</params>
+    </blockdata>
+    <blockdata>
+      <blockname>Socket</blockname>
+      <inputs>0</inputs>
+      <outputs>1</outputs>
+      <settable>1</settable>
+      <icon>SOCK</icon>
+      <params>unixsocketSBlk|Socket: 'ssock'|Default outputs:[0.]</params>
+    </blockdata>
+  </library>
+</root>

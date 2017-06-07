@@ -1,0 +1,18 @@
+d:D-D0;
+R:RW+RB;
+xd:R*sin(phi);
+yd:R*cos(phi);
+eq:(d-xd)^2+(R-yd)^2=RB^2;
+sol:solve(eq,phi);
+sol:rhs(sol[2]);
+
+
+RW:4;
+RB:3;
+R:RW+RB;
+phi:%pi/6;
+x:R*sin(phi);
+y:R*cos(phi);
+xd:x-RB*cos(phi);
+yd:y+RB*sin(phi);
+yd-R, numer;

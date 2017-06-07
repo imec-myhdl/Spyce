@@ -1,0 +1,30 @@
+pyCodeGenCenter.py is a utility which allows t0 generate 
+realtime code starting from a gEDA schematic and a script
+with variables initialization.
+
+Special blocks have been developped for generating control
+schematic in the gEDA schem environment.
+
+HOW TO USE THE TOOL
+1) pyCodeGenCenter
+2) 2 Menus are available:
+   SCH->PY: 
+      gEDA schem:open the gEDA schematic gschem
+      gEDA attrib: open the gEDA gattrib application
+      Code Generation: open a dialog to generate the executable by passing:
+      	   the gschem schematic file
+	   the sampling time
+	   additionals python scripts (for example with var initialization)
+	   the template makefile (sim.tmf for simulation or rt.tmf for RT code)
+	 The configuration on the dialog can be saved and loaded (.cfg file)
+
+   File:
+     Open:Open a schematic file and write the python corresponding code
+          into the text window; the text can be modified
+     Save: Save the code into a python script
+     Save As: Save the code into a python script
+
+
+
+Roberto Bucher, 12.04.2014
+roberto.bucher@supsi.ch

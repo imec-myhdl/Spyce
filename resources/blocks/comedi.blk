@@ -1,0 +1,37 @@
+<root>
+  <library>
+    <name>comedi</name>
+    <blockdata>
+      <blockname>AD</blockname>
+      <inputs>0</inputs>
+      <outputs>1</outputs>
+      <settable>0</settable>
+      <icon>AD</icon>
+      <params>comediADBlk|Device: '/dev/comedi0'|Channel: 0|Range: 0</params>
+    </blockdata>
+    <blockdata>
+      <blockname>DA</blockname>
+      <inputs>1</inputs>
+      <outputs>0</outputs>
+      <settable>0</settable>
+      <icon>DA</icon>
+      <params>comediDABlk|Device: '/dev/comedi0'|Channel: 0|Range: 0</params>
+    </blockdata>
+    <blockdata>
+      <blockname>DI</blockname>
+      <inputs>0</inputs>
+      <outputs>1</outputs>
+      <settable>0</settable>
+      <icon>DI</icon>
+      <params>comediDIBlk|Device: '/dev/comedi0'|Channel: 0</params>
+    </blockdata>
+    <blockdata>
+      <blockname>DO</blockname>
+      <inputs>1</inputs>
+      <outputs>0</outputs>
+      <settable>0</settable>
+      <icon>DO</icon>
+      <params>comediDOBlk|Device: '/dev/comedi0'|Channel: 0|Threshold: 1.0</params>
+    </blockdata>
+  </library>
+</root>

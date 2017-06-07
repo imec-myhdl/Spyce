@@ -1,0 +1,61 @@
+<root>
+  <library>
+    <name>nonlin</name>
+    <blockdata>
+      <blockname>Abs</blockname>
+      <inputs>1</inputs>
+      <outputs>1</outputs>
+      <settable>0</settable>
+      <icon>ABS</icon>
+      <params>absBlk</params>
+    </blockdata>
+    <blockdata>
+      <blockname>FMU</blockname>
+      <inputs>1</inputs>
+      <outputs>1</outputs>
+      <settable>1</settable>
+      <icon>FMU</icon>
+      <params>FmuBlk|IN_REF: ['u']|OUT_REF: ['y']|FMU_NAME: ''|Major step: 0.01|Feedthrough: 0</params>
+    </blockdata>
+    <blockdata>
+      <blockname>Lookup</blockname>
+      <inputs>1</inputs>
+      <outputs>1</outputs>
+      <settable>0</settable>
+      <icon>LOOKUP</icon>
+      <params>lutBlk|Coeff : [1,0]</params>
+    </blockdata>
+    <blockdata>
+      <blockname>Saturation</blockname>
+      <inputs>1</inputs>
+      <outputs>1</outputs>
+      <settable>0</settable>
+      <icon>SATUR</icon>
+      <params>saturBlk|Upper saturation:10|Lower saturation: -10</params>
+    </blockdata>
+    <blockdata>
+      <blockname>Switch</blockname>
+      <inputs>3</inputs>
+      <outputs>1</outputs>
+      <settable>0</settable>
+      <icon>SWITCH</icon>
+      <params>switchBlk|Condition [0 &lt; or 1 &gt;] : 0|Compare Value: 0.5|Persistence [0 no or 1 yes]: 0</params>
+    </blockdata>
+    <blockdata>
+      <blockname>Trig</blockname>
+      <inputs>1</inputs>
+      <outputs>1</outputs>
+      <settable>0</settable>
+      <icon>TRIG</icon>
+      <params>trigBlk|sin-&gt;1 cos-&gt;2 tan-&gt;3: 1</params>
+    </blockdata>
+    <blockdata>
+      <blockname>Generic_C_Block</blockname>
+      <inputs>1</inputs>
+      <outputs>1</outputs>
+      <settable>1</settable>
+      <icon>CBLOCK</icon>
+      <params>genericBlk|States: [0,0]|FeedForw: 0|Real pars: []| Int pars:[]|String: ''| Function name: 'test'</params>
+    </blockdata>
+  </library>
+</root>

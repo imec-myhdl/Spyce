@@ -1,0 +1,53 @@
+<root>
+  <library>
+    <name>linear</name>
+    <blockdata>
+      <blockname>LTI_continous</blockname>
+      <inputs>1</inputs>
+      <outputs>1</outputs>
+      <settable>1</settable>
+      <icon>CSS</icon>
+      <params>cssBlk|System: sys|Initial conditions: 0</params>
+    </blockdata>
+    <blockdata>
+      <blockname>LTI_discrete</blockname>
+      <inputs>1</inputs>
+      <outputs>1</outputs>
+      <settable>1</settable>
+      <icon>DSS</icon>
+      <params>dssBlk|System: sys|Initial conditions: 0</params>
+    </blockdata>
+    <blockdata>
+      <blockname>Init_enc</blockname>
+      <inputs>1</inputs>
+      <outputs>1</outputs>
+      <settable>0</settable>
+      <icon>INIT</icon>
+      <params>init_encBlk|Trigger Time: 1|Default Output: 0|Offset: 0</params>
+    </blockdata>
+    <blockdata>
+      <blockname>Integral</blockname>
+      <inputs>1</inputs>
+      <outputs>1</outputs>
+      <settable>0</settable>
+      <icon>INTG</icon>
+      <params>intgBlk|Initial conditions: 0</params>
+    </blockdata>
+    <blockdata>
+      <blockname>Gain</blockname>
+      <inputs>1</inputs>
+      <outputs>1</outputs>
+      <settable>1</settable>
+      <icon>MULT</icon>
+      <params>matmultBlk|Gains: 1</params>
+    </blockdata>
+    <blockdata>
+      <blockname>Delay</blockname>
+      <inputs>1</inputs>
+      <outputs>1</outputs>
+      <settable>0</settable>
+      <icon>DELAY</icon>
+      <params>zdelayBlk|Initial conditions: 0</params>
+    </blockdata>
+  </library>
+</root>

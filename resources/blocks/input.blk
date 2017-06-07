@@ -1,0 +1,45 @@
+<root>
+  <library>
+    <name>input</name>
+    <blockdata>
+      <blockname>Const</blockname>
+      <inputs>0</inputs>
+      <outputs>1</outputs>
+      <settable>0</settable>
+      <icon>CONST</icon>
+      <params>constBlk|Value: 0</params>
+    </blockdata>
+    <blockdata>
+      <blockname>Extdata</blockname>
+      <inputs>0</inputs>
+      <outputs>1</outputs>
+      <settable>0</settable>
+      <icon>EXTDATA</icon>
+      <params>extdataBlk|Data length: 1000|File name: data</params>
+    </blockdata>
+    <blockdata>
+      <blockname>Sine_wave</blockname>
+      <inputs>0</inputs>
+      <outputs>1</outputs>
+      <settable>0</settable>
+      <icon>SINUS</icon>
+      <params>sineBlk|Amplitude: 1|Freq: 1|Phase: 0|Bias: 0|Delay: 0</params>
+    </blockdata>
+    <blockdata>
+      <blockname>PulseGenerator</blockname>
+      <inputs>0</inputs>
+      <outputs>1</outputs>
+      <settable>0</settable>
+      <icon>SQUARE</icon>
+      <params>squareBlk|Amplitude: 1|Period: 4|Width: 2|Bias: 0|Delay: 0</params>
+    </blockdata>
+    <blockdata>
+      <blockname>Step</blockname>
+      <inputs>0</inputs>
+      <outputs>1</outputs>
+      <settable>0</settable>
+      <icon>STEP</icon>
+      <params>stepBlk|Step Time: 1|Step Value: 1</params>
+    </blockdata>
+  </library>
+</root>

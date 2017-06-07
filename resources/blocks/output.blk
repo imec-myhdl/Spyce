@@ -1,0 +1,13 @@
+<root>
+  <library>
+    <name>output</name>
+    <blockdata>
+      <blockname>Plot</blockname>
+      <inputs>1</inputs>
+      <outputs>0</outputs>
+      <settable>1</settable>
+      <icon>PRINT</icon>
+      <params>printBlk</params>
+    </blockdata>
+  </library>
+</root>

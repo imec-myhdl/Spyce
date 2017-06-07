@@ -1,0 +1,29 @@
+<root>
+  <library>
+    <name>math</name>
+    <blockdata>
+      <blockname>Sub</blockname>
+      <inputs>2</inputs>
+      <outputs>1</outputs>
+      <settable>0</settable>
+      <icon>PM</icon>
+      <params>sumBlk|Gains: [1,-1]</params>
+    </blockdata>
+    <blockdata>
+      <blockname>Sum</blockname>
+      <inputs>2</inputs>
+      <outputs>1</outputs>
+      <settable>1</settable>
+      <icon>SUM</icon>
+      <params>sumBlk|Gains: [1,-1]</params>
+    </blockdata>
+    <blockdata>
+      <blockname>Prod</blockname>
+      <inputs>2</inputs>
+      <outputs>1</outputs>
+      <settable>1</settable>
+      <icon>PROD</icon>
+      <params>prodBlk</params>
+    </blockdata>
+  </library>
+</root>

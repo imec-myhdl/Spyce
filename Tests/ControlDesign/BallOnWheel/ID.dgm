@@ -1,0 +1,68 @@
+<root>
+  <Date>
+    <SavingDate>23.08.2016 - 07:46:06</SavingDate>
+  </Date>
+  <Simulation>
+    <Template>rt.tmf</Template>
+    <Ts>0.01</Ts>
+    <AddObj></AddObj>
+    <ParScript></ParScript>
+    <Tf>10</Tf>
+  </Simulation>
+  <block>
+    <name>Step</name>
+    <inp>0</inp>
+    <outp>1</outp>
+    <ioset>0</ioset>
+    <icon>STEP</icon>
+    <params>stepBlk|Step Time: 0|Step Value: 1000</params>
+    <flip>0</flip>
+    <posX>-350.0</posX>
+    <posY>-110.0</posY>
+  </block>
+  <block>
+    <name>Epos_enc</name>
+    <inp>0</inp>
+    <outp>1</outp>
+    <ioset>0</ioset>
+    <icon>ENC</icon>
+    <params>epos_EncBlk|Device ID: 0x01|Resolution: 1000</params>
+    <flip>0</flip>
+    <posX>-170.0</posX>
+    <posY>40.0</posY>
+  </block>
+  <block>
+    <name>Plot</name>
+    <inp>1</inp>
+    <outp>0</outp>
+    <ioset>1</ioset>
+    <icon>PRINT</icon>
+    <params>printBlk</params>
+    <flip>0</flip>
+    <posX>-20.0</posX>
+    <posY>40.0</posY>
+  </block>
+  <block>
+    <name>Epos_mot_I</name>
+    <inp>1</inp>
+    <outp>0</outp>
+    <ioset>0</ioset>
+    <icon>MOT_I</icon>
+    <params>epos_MotIBlk|Device ID: 0x01|Prop. gain: 2200|Integ. gain: 500</params>
+    <flip>0</flip>
+    <posX>-170.0</posX>
+    <posY>-110.0</posY>
+  </block>
+  <connection>
+    <pos1X>-306.0</pos1X>
+    <pos1Y>-110.0</pos1Y>
+    <pos2X>-214.0</pos2X>
+    <pos2Y>-110.0</pos2Y>
+  </connection>
+  <connection>
+    <pos1X>-126.0</pos1X>
+    <pos1Y>40.0</pos1Y>
+    <pos2X>-64.0</pos2X>
+    <pos2Y>40.0</pos2Y>
+  </connection>
+</root>
