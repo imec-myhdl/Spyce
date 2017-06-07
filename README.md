@@ -48,8 +48,8 @@ pip install git+https://github.com/jgoppert/Slycot
 4) install supsi modules
 ```
 # control module
-cd toolbox/supsictrl; python setup.py install --user --record installed-files.txt
-cd toolbox/supsisim; python setup.py install --user --record installed-files.txt
+cd toolbox/supsictrl; python setup.py install --record installed-files.txt
+cd toolbox/supsisim; python setup.py install --record installed-files.txt
 ```
    A later uninstall can be done with:
 ```
