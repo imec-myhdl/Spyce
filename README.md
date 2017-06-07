@@ -18,11 +18,11 @@ The following packages should be installed on your PC
 Install the packages:
 1) untar pycontrol.tgz ("tar xvfz pycontrol.tgz")
 2) Become superuser
-3) Install the files
-   enter the xxxxxxxx/pycontrol folder
+3) Install the files:  
+   cd path_to_pycontrol_gui_folder  
    make install
-4) Define this environment variables in your .bashrc file:
-   export PYSUPSICTRL=xxxxxxxx/pycontrol
+4) Define this environment variables in your .bashrc file:  
+   export PYSUPSICTRL=path_to_pycontrol_gui_folder  
    export PYEDITOR=emacs
 
 "emacs" can be substituted by another editor
