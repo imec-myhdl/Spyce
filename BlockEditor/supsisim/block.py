@@ -1,33 +1,40 @@
-import sys
+import sys, os
 if sys.version_info>(3,0):
     import sip
     sip.setapi('QString', 1)
-from PyQt4 import QtGui, QtCore
+
+from pyqt45  import QGraphicsPathItem, QGraphicsTextItem, QPainterPath, \
+                    QPen, QImage, QtCore
+
 
 from supsisim.port import Port, InPort, OutPort
 from supsisim.const import GRID, PW, LW, BWmin, BHmin, PD, respath
 
 from lxml import etree
 
-class Block(QtGui.QGraphicsPathItem):
+class Block(QGraphicsPathItem):
     """A block holds ports that can be connected to."""
     def __init__(self, *args):
         parent = args[0]
         scene = args[1]
-        super(Block, self).__init__(parent, scene)
+        if QtCore.qVersion().startswith('5'):
+            super(Block, self).__init__(parent)
+            scene.addItem(self)
+        else:
+            super(Block, self).__init__(parent, scene)
         self.scene = scene
         if len(args) == 9:
             parent, self.scene, self.name, self.inp, self.outp, self.iosetble, self.icon, self.params, self.flip = args
         elif len(args) == 3:
             parent, self.scene, strBlk = args
             ln = strBlk.split('@')
-            self.name = str(ln[0])
-            self.inp, ok = ln[1].toInt()
-            self.outp, ok = ln[2].toInt()
-            self.icon = str(ln[4])
+            self.name   = str(ln[0])
+            self.inp    = int(ln[1])
+            self.outp   = int(ln[2])
+            self.icon   = str(ln[4])
             self.params = str(ln[5])
-            self.flip = False
-            io, ok = ln[3].toInt()
+            self.flip   = False
+            io          = int(ln[3])
             iosetble = (io==1)
             self.iosetble = iosetble
         else:
@@ -54,10 +61,10 @@ class Block(QtGui.QGraphicsPathItem):
         self.w = BWmin
         self.h = BHmin+PD*(max(Nports-1,0))
 
-        p = QtGui.QPainterPath()
+        p = QPainterPath()
         
         p.addRect(-self.w/2, -self.h/2, self.w, self.h)
-        self.label = QtGui.QGraphicsTextItem(self)
+        self.label = QGraphicsTextItem(self)
         self.label.setPlainText(self.name)
         w = self.label.boundingRect().width()
         self.label.setPos(-w/2, self.h/2+5)
@@ -104,14 +111,14 @@ class Block(QtGui.QGraphicsPathItem):
         return ports
 
     def paint(self, painter, option, widget):
-        pen = QtGui.QPen()
+        pen = QPen()
         pen.setBrush(self.line_color)
         pen.setWidth = LW
         if self.isSelected():
             pen.setStyle(QtCore.Qt.DotLine)
         painter.setPen(pen)
         painter.drawPath(self.path())
-        img = QtGui.QImage(respath + 'blocks/' + self.icon + '.svg')
+        img = QImage(os.path.join(respath, 'blocks' , self.icon + '.svg'))
         if self.flip:
             img = img.mirrored(True, False)
         rect = img.rect()

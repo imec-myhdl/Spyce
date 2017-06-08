@@ -2,19 +2,23 @@ import sys
 if sys.version_info>(3,0):
     import sip
     sip.setapi('QString', 1)
-from PyQt4 import QtGui, QtCore
+
+from pyqt45  import QGraphicsPathItem, QGraphicsItem, QPainterPath, QtCore
 
 from supsisim.const import PW
 
-class Port(QtGui.QGraphicsPathItem):
+class Port(QGraphicsPathItem):
     """A block holds ports that can be connected to."""
     def __init__(self, parent, scene, name = ''):
-        super(Port, self).__init__(parent, scene)
+        if QtCore.qVersion().startswith('5'):
+            super(Port, self).__init__(parent)
+        else:
+            super(Port, self).__init__(parent, scene)
         self.block = None
         self.name = ''
         self.line_color = QtCore.Qt.black
         self.fill_color = QtCore.Qt.black
-        self.p = QtGui.QPainterPath()
+        self.p = QPainterPath()
         self.connections = []
         self.nodeID = '0'
         self.parent = parent
@@ -71,7 +75,7 @@ class InPort(Port):
         self.setBrush(self.fill_color)
         self.p.addRect(-PW/2, -PW/2, PW, PW)
         self.setPath(self.p)
-        self.setFlag(QtGui.QGraphicsItem.ItemSendsScenePositionChanges)
+        self.setFlag(QGraphicsItem.ItemSendsScenePositionChanges)
 
 class OutPort(Port):
     def __init__(self, parent, scene):
@@ -90,7 +94,7 @@ class OutPort(Port):
         self.setBrush(self.fill_color)
         self.p.addEllipse(-PW/2, -PW/2, PW, PW)
         self.setPath(self.p)
-        self.setFlag(QtGui.QGraphicsItem.ItemSendsScenePositionChanges)
+        self.setFlag(QGraphicsItem.ItemSendsScenePositionChanges)
          
 class InNodePort(Port):
     def __init__(self, parent, scene):
@@ -103,7 +107,7 @@ class InNodePort(Port):
         return txt
 
     def setup(self):
-        self.setFlag(QtGui.QGraphicsItem.ItemSendsScenePositionChanges)
+        self.setFlag(QGraphicsItem.ItemSendsScenePositionChanges)
 
 class OutNodePort(Port):
     def __init__(self, parent, scene):
@@ -116,5 +120,5 @@ class OutNodePort(Port):
         return txt
 
     def setup(self):
-        self.setFlag(QtGui.QGraphicsItem.ItemSendsScenePositionChanges)
+        self.setFlag(QGraphicsItem.ItemSendsScenePositionChanges)
 

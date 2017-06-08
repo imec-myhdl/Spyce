@@ -3,7 +3,7 @@ if sys.version_info>(3,0):
     import sip
     sip.setapi('QString', 1)
 
-from PyQt4 import QtGui, QtCore
+from pyqt45 import QGraphicsPathItem, QPainterPath, QPen, QtCore
 
 import numpy as np
 from supsisim.const import LW
@@ -11,11 +11,15 @@ from supsisim.port import InPort, OutPort
 from supsisim.node import Node
 from lxml import etree
 
-class Connection(QtGui.QGraphicsPathItem):
+class Connection(QGraphicsPathItem):
     """Connects one port to another."""
 
     def __init__(self, parent, scene):
-        super(Connection, self).__init__(parent, scene)
+        if QtCore.qVersion().startswith('5'):
+            super(Connection, self).__init__(parent)
+            scene.addItem(self)
+        else:
+            super(Connection, self).__init__(parent, scene)
         self.scene = scene
 
         self.pos1 = None
@@ -39,7 +43,7 @@ class Connection(QtGui.QGraphicsPathItem):
         return txt
         
     def setup(self):
-        pen = QtGui.QPen(self.line_color)
+        pen = QPen(self.line_color)
         pen.setWidth(LW)
         self.setPen(pen)
 
@@ -63,7 +67,7 @@ class Connection(QtGui.QGraphicsPathItem):
         self.update_path()
         
     def update_path(self):
-        p = QtGui.QPainterPath()
+        p = QPainterPath()
         item = None
         if self.port2 == None:
             item = self.scene.find_itemAt(self.pos2)
@@ -86,7 +90,7 @@ class Connection(QtGui.QGraphicsPathItem):
 
     '''
     def paint(self, painter, option, widget):
-        pen = QtGui.QPen()
+        pen = QPen()
         pen.setBrush(self.line_color)
         pen.setWidth(LW)
         if self.isSelected():

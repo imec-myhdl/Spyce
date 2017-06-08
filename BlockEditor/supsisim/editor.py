@@ -3,7 +3,8 @@ if sys.version_info>(3,0):
     import sip
     sip.setapi('QString', 1)
 
-from PyQt4 import QtGui, QtCore
+from pyqt45  import QMenu, QGraphicsItem, QtCore
+
 
 from supsisim.port import Port, InPort, OutPort
 from supsisim.connection import Connection
@@ -24,7 +25,7 @@ class Editor(QtCore.QObject):
         self.event = None
         self.connFromNode = False
 
-        self.menuIOBlk = QtGui.QMenu()
+        self.menuIOBlk = QMenu()
         parBlkAction = self.menuIOBlk.addAction('Block I/Os')
         paramsBlkAction = self.menuIOBlk.addAction('Block Parameters')
         flpBlkAction = self.menuIOBlk.addAction('Flip Block')
@@ -39,13 +40,13 @@ class Editor(QtCore.QObject):
         cloneBlkAction.triggered.connect(self.cloneBlock)
         deleteBlkAction.triggered.connect(self.deleteBlock)
 
-        self.subMenuNode = QtGui.QMenu()
+        self.subMenuNode = QMenu()
         nodeDelAction = self.subMenuNode.addAction('Delete node')
         nodeBindAction = self.subMenuNode.addAction('Bind node')
         nodeDelAction.triggered.connect(self.deleteNode)
         nodeBindAction.triggered.connect(self.bindNode)
         
-        self.subMenuConn = QtGui.QMenu()
+        self.subMenuConn = QMenu()
         connDelAction = self.subMenuConn.addAction('Delete connection')
         connInsAction = self.subMenuConn.addAction('Insert node')
         connDelAction.triggered.connect(self.deleteConn)
@@ -135,14 +136,14 @@ class Editor(QtCore.QObject):
     def blockAt(self, pos):
         items = self.scene.items(QtCore.QRectF(pos-QtCore.QPointF(DB,DB), QtCore.QSizeF(2*DB,2*DB)))
         for item in items:
-            if isinstance(item, QtGui.QGraphicsItem) and not isinstance(item, Connection):
+            if isinstance(item, QGraphicsItem) and not isinstance(item, Connection):
                 return item
         return None
     
     def itemAt(self, pos):
         items = self.scene.items(QtCore.QRectF(pos-QtCore.QPointF(DB,DB), QtCore.QSizeF(2*DB,2*DB)))
         for item in items:
-            if isinstance(item, QtGui.QGraphicsItem):
+            if isinstance(item, QGraphicsItem):
                 if isinstance(item,Node):
                     pass
                 return item

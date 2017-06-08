@@ -4,7 +4,11 @@ import sys
 if sys.version_info>(3,0):
     import sip
     sip.setapi('QString', 1)
-from PyQt4 import QtGui, QtCore
+
+from pyqt45 import QGraphicsScene, QMainWindow, QWidget, QVBoxLayout, \
+                   QHBoxLayout, QGraphicsView,QTabWidget, QApplication, \
+                   QTransform, QDrag, QtCore
+
 #import dircache
 import os
 
@@ -12,7 +16,7 @@ from supsisim.block import Block
 from supsisim.const import respath
 from lxml import etree
 
-class CompViewer(QtGui.QGraphicsScene):
+class CompViewer(QGraphicsScene):
     def __init__(self, parent=None):
         super(CompViewer, self).__init__()
         self.parent = parent
@@ -36,7 +40,7 @@ class CompViewer(QtGui.QGraphicsScene):
         x = event.scenePos().x()
         y = event.scenePos().y()
 
-        t = QtGui.QTransform()
+        t = QTransform()
         self.actComp = self.itemAt(x, y, t)
 
     def mouseMoveEvent(self, event):
@@ -48,32 +52,32 @@ class CompViewer(QtGui.QGraphicsScene):
                 io = '0'
             data = self.actComp.name+'@'+self.actComp.inp.__str__()+'@'+self.actComp.outp.__str__() + '@' + io +'@' + self.actComp.icon + '@' + self.actComp.params
             mimeData.setText(data)
-            drag = QtGui.QDrag(self.parent)
+            drag = QDrag(self.parent)
             drag.setMimeData(mimeData)
             drag.exec_(QtCore.Qt.CopyAction)
 
     def mouseReleaseEvent(self, event):
         pass
         
-class Library(QtGui.QMainWindow):
+class Library(QMainWindow):
     '''
     '''
 
     def __init__(self, parent=None):
-        QtGui.QMainWindow.__init__(self, parent)
+        QMainWindow.__init__(self, parent)
 
-        self.centralWidget = QtGui.QWidget()
+        self.centralWidget = QWidget()
         self.resize(800, 500)
         self.setWindowTitle('Library')
         self.libConfig = ()
         self.readLib()
         self.closeFlag = False
 
-        self.tabs = QtGui.QTabWidget()
+        self.tabs = QTabWidget()
 
         for p in self.libConfig:
             diagram = CompViewer(self)
-            view = QtGui.QGraphicsView(diagram)
+            view = QGraphicsView(diagram)
             diagram.compLock = True
 
             for i in range(1, len(p)):
@@ -83,25 +87,25 @@ class Library(QtGui.QMainWindow):
                 py = (i-1)/2
                 b.setPos(px*150,py*150)
 
-            tab = QtGui.QWidget()
-            layout = QtGui.QVBoxLayout()
+            tab = QWidget()
+            layout = QVBoxLayout()
             layout.addWidget(view)
             tab.setLayout(layout)
 
             self.tabs.addTab(tab, p[0])
 
-        layout = QtGui.QHBoxLayout()
+        layout = QHBoxLayout()
         layout.addWidget(self.tabs)
-        self.widget = QtGui.QWidget()
+        self.widget = QWidget()
         self.widget.setLayout(layout)
         self.setCentralWidget(self.widget)
         self.tabs.setCurrentIndex(2)
         
     def readLib(self):
-        files = os.listdir(respath+'blocks/')
+        files = os.listdir(os.path.join(respath,'blocks'))
         for f in sorted(files):
             if f.endswith('.blk'):
-                tree = etree.parse(respath +'blocks/' + f)
+                tree = etree.parse(os.path.join(respath, 'blocks', f))
                 root = tree.getroot()
                 line = root.findtext('library/name')
                 b = (line, )
@@ -127,7 +131,7 @@ if __name__ == '__main__':
     import sys
     import logging
     logging.basicConfig()
-    app = QtGui.QApplication(sys.argv)
+    app = QApplication(sys.argv)
 
     library = Library()
     library.setGeometry(20, 20, 400, 500)

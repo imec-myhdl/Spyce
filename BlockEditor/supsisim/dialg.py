@@ -1,26 +1,28 @@
-import sys
+import sys, os
 if sys.version_info>(3,0):
     import sip
     sip.setapi('QString', 1)
-from PyQt4 import QtGui, QtCore
+
+from pyqt45  import QDialog, QGridLayout, QSpinBox, QLabel, QPushButton, \
+                    QLineEdit, QFileDialog, QtCore
 
 from supsisim.const import path
 
-class IO_Dialog(QtGui.QDialog):
+class IO_Dialog(QDialog):
     def __init__(self,parent=None):
         super(IO_Dialog, self).__init__(parent)
-        layout = QtGui.QGridLayout()
+        layout = QGridLayout()
         self.setWindowModality(QtCore.Qt.ApplicationModal)
         self.resize(380, 180)
-        self.spbInput = QtGui.QSpinBox()
-        self.spbOutput = QtGui.QSpinBox()
+        self.spbInput = QSpinBox()
+        self.spbOutput = QSpinBox()
         self.spbInput.setValue(1)
         self.spbOutput.setValue(1)
 
-        label2 = QtGui.QLabel('Number of inputs:')
-        label3 = QtGui.QLabel('Number of outputs')
-        self.pbOK = QtGui.QPushButton('OK')
-        self.pbCANCEL = QtGui.QPushButton('CANCEL')
+        label2 = QLabel('Number of inputs:')
+        label3 = QLabel('Number of outputs')
+        self.pbOK = QPushButton('OK')
+        self.pbCANCEL = QPushButton('CANCEL')
         layout.addWidget(self.spbInput,0,1)
         layout.addWidget(self.spbOutput,1,1)
         layout.addWidget(label2,0,0)
@@ -31,17 +33,17 @@ class IO_Dialog(QtGui.QDialog):
         self.pbOK.clicked.connect(self.accept)
         self.pbCANCEL.clicked.connect(self.reject)
         
-class BlockName_Dialog(QtGui.QDialog):
+class BlockName_Dialog(QDialog):
     def __init__(self,parent=None):
         super(BlockName_Dialog, self).__init__(parent)
-        layout = QtGui.QGridLayout()
+        layout = QGridLayout()
         self.setWindowModality(QtCore.Qt.ApplicationModal)
         self.resize(380, 100)
-        self.name = QtGui.QLineEdit()
+        self.name = QLineEdit()
 
-        label1 = QtGui.QLabel('Block ID:')
-        self.pbOK = QtGui.QPushButton('OK')
-        self.pbCANCEL = QtGui.QPushButton('CANCEL')
+        label1 = QLabel('Block ID:')
+        self.pbOK = QPushButton('OK')
+        self.pbCANCEL = QPushButton('CANCEL')
         layout.addWidget(label1,0,0)
         layout.addWidget(self.name,0,1)
         layout.addWidget(self.pbOK,2,0)
@@ -50,27 +52,27 @@ class BlockName_Dialog(QtGui.QDialog):
         self.pbOK.clicked.connect(self.accept)
         self.pbCANCEL.clicked.connect(self.reject)
 
-class RTgenDlg(QtGui.QDialog):
+class RTgenDlg(QDialog):
     def __init__(self, parent=None):
         super(RTgenDlg, self).__init__(None)
         self.setWindowModality(QtCore.Qt.ApplicationModal)
         self.resize(380, 100)
-        lab1 = QtGui.QLabel('Template Makefile')
-        self.template = QtGui.QLineEdit('')
-        btn_template = QtGui.QPushButton('BROWSE...')
-        lab2 = QtGui.QLabel('Additional Objs')
-        self.addObjs = QtGui.QLineEdit('')
-        btn_addObjs = QtGui.QPushButton('BROWSE...')
-        lab3 = QtGui.QLabel('Sampling Time')
-        self.Ts = QtGui.QLineEdit('')
-        lab4 = QtGui.QLabel('Parameter script')
-        self.parscript = QtGui.QLineEdit('')
-        btn_script = QtGui.QPushButton('BROWSE...')
-        lab5 = QtGui.QLabel('Final Time')
-        self.Tf = QtGui.QLineEdit('')
-        pbOK = QtGui.QPushButton('OK')
-        pbCANCEL = QtGui.QPushButton('CANCEL')
-        grid = QtGui.QGridLayout()
+        lab1 = QLabel('Template Makefile')
+        self.template = QLineEdit('')
+        btn_template = QPushButton('BROWSE...')
+        lab2 = QLabel('Additional Objs')
+        self.addObjs = QLineEdit('')
+        btn_addObjs = QPushButton('BROWSE...')
+        lab3 = QLabel('Sampling Time')
+        self.Ts = QLineEdit('')
+        lab4 = QLabel('Parameter script')
+        self.parscript = QLineEdit('')
+        btn_script = QPushButton('BROWSE...')
+        lab5 = QLabel('Final Time')
+        self.Tf = QLineEdit('')
+        pbOK = QPushButton('OK')
+        pbCANCEL = QPushButton('CANCEL')
+        grid = QGridLayout()
         grid.addWidget(lab1,0,0)
         grid.addWidget(self.template,0,1)
         grid.addWidget(btn_template,0,2)
@@ -94,26 +96,29 @@ class RTgenDlg(QtGui.QDialog):
         self.setLayout(grid)
 
     def getTemplate(self):
-        fname = QtGui.QFileDialog.getOpenFileName(self,'Open Template Makefile',
-                                                  path+'CodeGen/templates', 'Template (*.tmf)')
+        fname = QFileDialog.getOpenFileName(self,'Open Template Makefile',
+                                                  os.path.join(path,'CodeGen','templates'), 'Template (*.tmf)')
+        if isinstance(fname, tuple): # PqQt5 returns a tuple (filename, filter), PyQt4 apparently not
+            fname = fname[0]
         if len(fname) != 0:
-            ln = fname.split('/')
-            templ = ln[-1].__str__()
+            head, templ = os.path.split(fname)
             self.template.setText(templ)
 
     def getObjs(self):
-        fname = QtGui.QFileDialog.getOpenFileName(self,'Additional libraries',
+        fname = QFileDialog.getOpenFileName(self,'Additional libraries',
                                                   '.','Dynamic libraries (*.so)')
+        if isinstance(fname, tuple): # PqQt5 returns a tuple (filename, filter)
+            fname = fname[0]
         if len(fname) != 0:
-            ln = fname.split('/')
-            libname = ln[-1].__str__()
+            head, libname = os.path.split(fname)
             self.addObjs.setText(libname)
 
     def getScript(self):
-        fname = QtGui.QFileDialog.getOpenFileName(self,'Open Python script',
+        fname = QFileDialog.getOpenFileName(self,'Open Python script',
                                                   '.', 'Python file (*.py)')
+        if isinstance(fname, tuple): # PqQt5 returns a tuple (filename, filter)
+            fname = fname[0]
         if len(fname) != 0:
-            ln = fname.split('/')
-            script = ln[-1].__str__()
+            head, script = os.path.split(fname)
             self.parscript.setText(script)
 

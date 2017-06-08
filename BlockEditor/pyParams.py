@@ -1,18 +1,22 @@
 #!/usr/bin/python
 
 import sys
-from PyQt4 import QtGui, QtCore
-from PyQt4.QtGui import *
-from PyQt4.QtCore import *
+
+from pyqt45 import QMainWindow, QLabel, QLineEdit, QApplication, use_pyqt
+
+if use_pyqt == 5:  
+    from uiParams5 import Ui_Dialog
+else:
+    from uiParams import Ui_Dialog
+    
 import supsictrl.unixsocket as sk
 
-import socket
+#import socket
 import struct
 import time
 
-import numpy as np
+#import numpy as np
 
-from uiParams import *
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -58,7 +62,7 @@ class MainWindow(QMainWindow):
         time.sleep(1)
         sk.close_client(self.sock, '/tmp/ssock')
 
-app = QtGui.QApplication(sys.argv)
+app = QApplication(sys.argv)
 frame = MainWindow()
 frame.show()
 sys.exit(app.exec_())

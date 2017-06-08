@@ -2,27 +2,30 @@ import sys
 if sys.version_info>(3,0):
     import sip
     sip.setapi('QString', 1)
-from PyQt4 import QtGui, QtCore
+
+from pyqt45 import QDialog, QGridLayout, QLabel, QLineEdit, QPushButton, QListWidget, QtCore
+
+
 from supsisim.const import respath
 
-class BlkDlg(QtGui.QDialog):
+class BlkDlg(QDialog):
     def __init__(self, line):
         super(BlkDlg, self).__init__(None)
-        grid = QtGui.QGridLayout()
+        grid = QGridLayout()
         self.line = line
         self.blkID = ''
         self.labels, self.params = self.parseParams(line)
         N = len(self.labels)
         self.Values = []
         for n in range(0,N):
-            Lab = QtGui.QLabel(self.labels[n])
-            Val = QtGui.QLineEdit(self.params[n].__str__())
+            Lab = QLabel(self.labels[n])
+            Val = QLineEdit(self.params[n].__str__())
             self.Values.append(Val)
             grid.addWidget(Lab,n,0)
             grid.addWidget(Val,n,1)
         
-        self.pbOK = QtGui.QPushButton('OK')
-        self.pbCANCEL = QtGui.QPushButton('CANCEL')
+        self.pbOK = QPushButton('OK')
+        self.pbCANCEL = QPushButton('CANCEL')
         grid.addWidget(self.pbOK,N,0)
         grid.addWidget(self.pbCANCEL,N,1)
         self.pbOK.clicked.connect(self.accept)
@@ -50,18 +53,18 @@ class BlkDlg(QtGui.QDialog):
             self.line += '|' + self.labels[n] +': ' + str(self.Values[n].text())
         super(BlkDlg, self).accept()
 
-class ListDlg(QtGui.QDialog):
+class ListDlg(QDialog):
     def __init__(self, list, parent=None):
         super(ListDlg, self).__init__(parent)
-        layout = QtGui.QGridLayout()
+        layout = QGridLayout()
         self.setWindowModality(QtCore.Qt.ApplicationModal)
         self.resize(380, 180)
-        self.listWdg = QtGui.QListWidget()
+        self.listWdg = QListWidget()
         for item in list:
             self.listWdg.addItem(item)
         layout.addWidget(self.listWdg,0,0)
-        self.pbOK = QtGui.QPushButton('OK')
-        self.pbCANCEL = QtGui.QPushButton('CANCEL')
+        self.pbOK = QPushButton('OK')
+        self.pbCANCEL = QPushButton('CANCEL')
         layout.addWidget(self.pbOK,0,1)
         layout.addWidget(self.pbCANCEL,1,1)
         self.pbOK.clicked.connect(self.accept)
@@ -70,7 +73,7 @@ class ListDlg(QtGui.QDialog):
         self.setLayout(layout)
 
 def parsDialog(pars):
-    #app = app = QtGui.QApplication(sys.argv)
+    #app = app = QApplication(sys.argv)
     dialog = BlkDlg(pars)
     res = dialog.exec_()
     return dialog.line

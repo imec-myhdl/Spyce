@@ -3,7 +3,8 @@ if sys.version_info>(3,0):
     import sip
     sip.setapi('QString', 1)
 
-from PyQt4 import QtGui, QtCore
+
+from pyqt45 import QGraphicsView, QGraphicsScene, QGraphicsItem, QPainter, QtCore
 
 from supsisim.block import Block
 from supsisim.port import Port, InPort, OutPort
@@ -16,20 +17,20 @@ import os
 import subprocess
 import time
 
-class GraphicsView(QtGui.QGraphicsView):
+class GraphicsView(QGraphicsView):
     def __init__(self, parent=None):
         super(GraphicsView, self).__init__(parent)
-        self.setDragMode(QtGui.QGraphicsView.RubberBandDrag)
+        self.setDragMode(QGraphicsView.RubberBandDrag)
         self.setSceneRect(QtCore.QRectF(-2000, -2000, 4000, 4000))
-        self.setRenderHint(QtGui.QPainter.Antialiasing)
-        self.setRenderHint(QtGui.QPainter.TextAntialiasing)
+        self.setRenderHint(QPainter.Antialiasing)
+        self.setRenderHint(QPainter.TextAntialiasing)
         self.setAcceptDrops(True)
         
     def wheelEvent(self, event):
         factor = 1.41 ** (-event.delta() / 240.0)
         self.scale(factor, factor)
 
-class Scene(QtGui.QGraphicsScene):
+class Scene(QGraphicsScene):
     def __init__(self, main, parent=None):
         super(Scene,self).__init__(parent)
         self.mainw = main
@@ -153,7 +154,7 @@ class Scene(QtGui.QGraphicsScene):
     def find_itemAt(self, pos):
         items = self.items(QtCore.QRectF(pos-QtCore.QPointF(1,1), QtCore.QSizeF(3,3)))
         for item in items:
-            if isinstance(item, QtGui.QGraphicsItem) and not isinstance(item, Connection):
+            if isinstance(item, QGraphicsItem) and not isinstance(item, Connection):
                 return item
         return None
     
