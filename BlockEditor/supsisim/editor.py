@@ -1,9 +1,9 @@
 import sys
-if sys.version_info>(3,0):
-    import sip
-    sip.setapi('QString', 1)
+#if sys.version_info>(3,0):
+#    import sip
+#    sip.setapi('QString', 1)
 
-from pyqt45  import QMenu, QGraphicsItem, QtCore
+from pyqt45  import QMenu, QGraphicsItem, QtCore, set_orient, QTransform
 
 
 from supsisim.port import Port, InPort, OutPort
@@ -61,11 +61,17 @@ class Editor(QtCore.QObject):
             item.flip = False
         else:
             item.flip = True
-        item.scale(-1,1)
-        item.translate(0,0)
-        item.label.scale(-1,1)
-        w = item.label.boundingRect().width()
-        item.label.translate(-w,0)
+        item.setTransform(QTransform.fromScale(-1, 1))
+        item.setTransform(QTransform.fromTranslate(0,0))
+        item.label.setTransform(QTransform.fromScale(1,1))
+#        w = item.label.boundingRect().width()
+#        item.label.setTransform(QTransform.fromTranslate(w*(1-2*item.flip),0))
+
+#        set_orient(item, flip=item.flip)
+##        item.translate(0,0)
+#        set_orient(item.label, flip=item.flip)
+#        w = item.label.boundingRect().width()
+##        item.label.translate(-w,0)
 
     def nameBlock(self):
         item = self.scene.item
@@ -93,6 +99,7 @@ class Editor(QtCore.QObject):
     def cloneBlock(self):
         item = self.scene.item
         item.clone(QtCore.QPointF(100,100))
+
 
     def deleteBlock(self):
         item = self.scene.item

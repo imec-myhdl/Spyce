@@ -18,6 +18,7 @@ else:
     try:
         import PyQt5
         use_pyqt = 5
+#        print('using Pyqt5')
     except ImportError:
         import PyQt4
         use_pyqt = 4
@@ -38,6 +39,7 @@ if use_pyqt == 4:
         QPen, QTransform
         
     from PyQt4 import QtCore
+#    print('using Pyqt4')
         
 
 #==============================================================================
@@ -56,9 +58,18 @@ elif use_pyqt == 5:
         QPen, QTransform
 
     from PyQt5 import QtCore
+#    print('using Pyqt5')
         
 #==============================================================================
 # no PyQt found
 #==============================================================================
 else:
     raise Exception('No PyQt4 or PyQt5 found')
+    
+def set_orient(item, flip=False, scale=0, rotate=0, combine=False):
+    '''returns QTransform, operation order: flip (mirror in Y axis), scale, rorate (in degrees)'''
+    if flip:
+        item.setTransform(QTransform.fromScale(-scale, scale).rotate(rotate), combine)
+    else:
+         item.setTransform(QTransform.fromScale(scale, scale).rotate(rotate), combine)
+       

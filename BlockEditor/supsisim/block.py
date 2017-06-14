@@ -1,10 +1,10 @@
 import sys, os
-if sys.version_info>(3,0):
-    import sip
-    sip.setapi('QString', 1)
+#if sys.version_info>(3,0):
+#    import sip
+#    sip.setapi('QString', 1)
 
 from pyqt45  import QGraphicsPathItem, QGraphicsTextItem, QPainterPath, \
-                    QPen, QImage, QtCore
+                    QPen, QImage, QtCore, QTransform, set_orient
 
 
 from supsisim.port import Port, InPort, OutPort
@@ -14,15 +14,19 @@ from lxml import etree
 
 class Block(QGraphicsPathItem):
     """A block holds ports that can be connected to."""
-    def __init__(self, *args):
-        parent = args[0]
-        scene = args[1]
+    def __init__(self, *args, **kwargs):
+        if len(args) >= 2:
+            parent, self.scene = args[0], args[1]
+        elif len(args) == 1:
+            parent, self.scene = args[0], None
+        else:
+            parent, self.scene = None, None
         if QtCore.qVersion().startswith('5'):
             super(Block, self).__init__(parent)
-            scene.addItem(self)
+            if self.scene:
+                self.scene.addItem(self)
         else:
-            super(Block, self).__init__(parent, scene)
-        self.scene = scene
+            super(Block, self).__init__(parent, self.scene)
         if len(args) == 9:
             parent, self.scene, self.name, self.inp, self.outp, self.iosetble, self.icon, self.params, self.flip = args
         elif len(args) == 3:
@@ -37,12 +41,26 @@ class Block(QGraphicsPathItem):
             io          = int(ln[3])
             iosetble = (io==1)
             self.iosetble = iosetble
+        elif len(args) <= 2:
+            self.name     = kwargs.pop('name')     if 'name' in kwargs else ''
+            self.inp      = kwargs.pop('inp')      if 'inp' in kwargs else 0
+            self.outp     = kwargs.pop('outp')     if 'outp' in kwargs else 0
+            self.icon     = kwargs.pop('icon')     if 'icon' in kwargs else ''
+            self.params   = kwargs.pop('params')   if 'params' in kwargs else ''
+            self.flip     = kwargs.pop('flip')     if 'flip' in kwargs else False
+            self.iosetble = kwargs.pop('iosetble') if 'iosetble' in kwargs else False
+            x             = float(kwargs.pop('x')) if 'x' in kwargs else 0.0
+            y             = float(kwargs.pop('y')) if 'y' in kwargs else 0.0
+            self.setPos(x, y)
+            self.flip     = kwargs.pop('flip')     if 'flip' in kwargs else False
+#            self.__dict__.update(kwargs) # update the block attributes, maybe a bit dangerous
         else:
             raise ValueError('Needs 9 or 3 arguments; received %i.' % len(args))
         
         self.line_color = QtCore.Qt.black
         self.fill_color = QtCore.Qt.black
-        self.setup()
+        if self.scene:
+            self.setup()
         
     def __str__(self):
         txt  = 'Name         :' + self.name.__str__() +'\n'
@@ -54,6 +72,23 @@ class Block(QGraphicsPathItem):
             print(thing)
         return txt
         
+    def __repr__(self):
+        fmt = 'Block(None, scene, {kwargs})'
+        kwargs = []
+        x, y, flip = int(self.x()), int(self.y()), self.flip        
+        if x:
+            kwargs.append('x={}'.format(x))
+        if y:
+            kwargs.append('y={}'.format(y))
+        if flip:
+            kwargs.append('flip=True')
+        for k in 'name inp outp iosetble icon params'.split():
+            v = self.__dict__[k]
+            if v:
+                kwargs.append('{}={}'.format(k, repr(v)))
+
+        return fmt.format(kwargs=', '.join(kwargs))
+        
     def setup(self):
         self.ports_in = []
         self.name = self.scene.setUniqueName(self)
@@ -64,10 +99,6 @@ class Block(QGraphicsPathItem):
         p = QPainterPath()
         
         p.addRect(-self.w/2, -self.h/2, self.w, self.h)
-        self.label = QGraphicsTextItem(self)
-        self.label.setPlainText(self.name)
-        w = self.label.boundingRect().width()
-        self.label.setPos(-w/2, self.h/2+5)
 
         self.setPath(p)
 
@@ -77,13 +108,20 @@ class Block(QGraphicsPathItem):
         for n in range(0,self.outp):
             self.add_outPort(n)
 
-        if self.flip:
-            self.scale(-1,1)
-            self.translate(0,0)
-            self.label.scale(-1,1)
-            w = self.label.boundingRect().width()
-            self.label.translate(-w,0)          
+#        set_orient(self, flip=True)
+#        self.setTransform(QTransform.fromScale((1-2*self.flip),1))
+#            set_orient(self.label, flip=True)
+#            w = self.label.boundingRect().width()
+#            self.label.setTransform(QTransform.fromTranslate(-w,0))        
 
+        self.label = QGraphicsTextItem(self)
+        self.label.setPlainText(self.name)
+        w = self.label.boundingRect().width()
+        self.label.setPos(-w/2, self.h/2+5)
+        if self.flip:
+            self.setTransform(QTransform.fromScale(-1,1))
+#            self.label.setTransform(QTransform.fromScale(1,1), False)
+        self.setTransform(QTransform.fromTranslate(0,0))
         self.setFlag(self.ItemIsMovable)
         self.setFlag(self.ItemIsSelectable)
         
@@ -153,7 +191,7 @@ class Block(QGraphicsPathItem):
 
     def clone(self, pt):
         b = Block(None, self.scene, self.name, self.inp, self.outp,
-                      self.iosetble, self.icon, self.params, self.flip)
+                      self.iosetble, self.icon, self.params,  self.flip)
         b.setPos(self.scenePos().__add__(pt))
        
     def save(self, root):

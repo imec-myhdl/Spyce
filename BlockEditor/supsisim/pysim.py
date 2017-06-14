@@ -1,18 +1,19 @@
 import sys
 import os
 
-if sys.version_info>(3,0):
-    import sip
-    if sip.getapi('QString') < 1:
-        sip.setapi('QString', 1)
+import sip
+#try:
+#    sip.setapi('QString', 1)
+#except ValueError: 
+#    sip.setapi('QString', 2)
 
 from pyqt45  import QApplication, QtCore
     
 
 import threading
 
-from pyEdit import SupsiSimMainWindow
-from library import Library
+from supsisim.pyEdit import SupsiSimMainWindow
+from supsisim.library import Library
 
 class supsisimul(threading.Thread):
     def __init__(self, filename = 'untitled', runflag = False):

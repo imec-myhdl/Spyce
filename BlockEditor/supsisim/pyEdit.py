@@ -2,9 +2,9 @@
 
 import sys
 import os
-if sys.version_info>(3,0):
-    import sip
-    sip.setapi('QString', 1)
+#if sys.version_info>(3,0):
+#    import sip
+#    sip.setapi('QString', 1)
 
 from pyqt45 import QMainWindow, QWidget, QVBoxLayout,  QAction, QMessageBox, \
                    QFileDialog, QDialog, QPainter, QIcon, QPrinter, \

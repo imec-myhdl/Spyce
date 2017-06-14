@@ -1,10 +1,10 @@
 import sys
-if sys.version_info>(3,0):
-    import sip
-    sip.setapi('QString', 1)
+#if sys.version_info>(3,0):
+#    import sip
+#    sip.setapi('QString', 1)
 
 
-from pyqt45 import QGraphicsView, QGraphicsScene, QGraphicsItem, QPainter, QtCore
+from pyqt45 import QGraphicsView, QGraphicsScene, QGraphicsItem, QPainter, QtCore, use_pyqt
 
 from supsisim.block import Block
 from supsisim.port import Port, InPort, OutPort
@@ -27,9 +27,19 @@ class GraphicsView(QGraphicsView):
         self.setAcceptDrops(True)
         
     def wheelEvent(self, event):
-        factor = 1.41 ** (-event.delta() / 240.0)
+        if use_pyqt == 5:
+            factor = 1.41 ** (-event.angleDelta().y()/ 240.0)
+        else:
+            factor = 1.41 ** (-event.delta() / 240.0)
+        
+        # zoom around mouse position, not the anchor
+        self.setTransformationAnchor(QGraphicsView.NoAnchor)
+        self.setResizeAnchor(QGraphicsView.NoAnchor)
+        pos = self.mapToScene(event.pos())
         self.scale(factor, factor)
-
+        delta =  self.mapToScene(event.pos()) - pos
+        self.translate(delta.x(), delta.y())
+        
 class Scene(QGraphicsScene):
     def __init__(self, main, parent=None):
         super(Scene,self).__init__(parent)
@@ -55,7 +65,7 @@ class Scene(QGraphicsScene):
         cnt = 1
         nm = block.name
         while self.getIndex(nm) != -1:
-            nm = block.name + str(cnt)
+            nm = nm.rstrip('0123456789') + str(cnt)
             cnt += 1
         self.nameList.append(nm)
         self.nameList.sort()
