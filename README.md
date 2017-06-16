@@ -1,4 +1,5 @@
-# pycontrol-gui
+pycontrol-gui
+=============
 a pycontrol distro with a simulink like editor
 
 The following packages should be installed on your PC
@@ -15,7 +16,8 @@ The following packages should be installed on your PC
 * python-lxml
 * liblapack-dev
 
-##Installing as super user:
+Installing as super user:
+-------------------------
 1) download and untar pycontrol-gui.tgz ("tar xvfz pycontrol-gui.tgz")  
    alternatively you could use (needs git installed):  
    git clone https://github.com/imec-myhdl/pycontrol-gui.git
@@ -27,7 +29,8 @@ The following packages should be installed on your PC
    export PYSUPSICTRL=path_to_pycontrol_gui_folder  
    export PYEDITOR=emacs # or any other editor
 
-##Installing as normal user:
+Installing as normal user:
+--------------------------
 1) download and untar pycontrol-gui.tgz ("tar xvfz pycontrol-gui.tgz")  
    alternatively you could use (needs git installed):  
    git clone https://github.com/imec-myhdl/pycontrol-gui.git
@@ -52,8 +55,15 @@ cat installed-files.txt|xargs rm # remove the files
 pip uninstall python-control
 pip uninstall Slycot
 ```
-##Editor (standalone)
-The editor does not need to be installed. It can directly be run:
+You need to manually edit Makefile if you want to run the 'make' step (not needed if you just want the editor)
+
+* adjust BINDIR to the required location e.g. to ${HOME}/bin
+* add '--user' to the python setup lines
+
+
+Editor (standalone)
+-------------------
+If you just want the editor you do not need the setup/make step. You can run it can directly without installing:
 ```
 cd ${PYSUPSICTRL}/BlockEditor
 ./pyEdit.py # or 'python pyEdit.py'
