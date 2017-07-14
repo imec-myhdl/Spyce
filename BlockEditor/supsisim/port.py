@@ -59,8 +59,9 @@ class Port(QGraphicsPathItem):
                 pass
 
 class InPort(Port):
-    def __init__(self, parent, scene):
+    def __init__(self, parent, scene, name=''):
         super(InPort, self).__init__(parent, scene)
+        self.name = name
         self.setup()
 
     def __str__(self):
@@ -78,8 +79,9 @@ class InPort(Port):
         self.setFlag(QGraphicsItem.ItemSendsScenePositionChanges)
 
 class OutPort(Port):
-    def __init__(self, parent, scene):
+    def __init__(self, parent, scene, name=''):
         super(OutPort, self).__init__(parent, scene)
+        self.name = name
         self.setup()
 
     def __str__(self):

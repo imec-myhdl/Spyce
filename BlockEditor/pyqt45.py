@@ -31,7 +31,8 @@ if use_pyqt == 4:
         QGraphicsItem, QGraphicsPathItem, QGraphicsScene, QGraphicsTextItem, \
         QGraphicsView, QGridLayout, QHBoxLayout, QLabel, QLineEdit, \
         QListWidget, QMainWindow, QMenu, QMessageBox, QPushButton, \
-        QSpinBox, QTabWidget, QVBoxLayout, QWidget
+        QSpinBox, QTabWidget, QVBoxLayout, QWidget, \
+        QTableWidget, QTableWidgetItem, QLayout, QTextEdit, QFont, QDialogButtonBox
 
     from PyQt4.QtGui import QPrinter, QPrintDialog
 
@@ -50,7 +51,9 @@ elif use_pyqt == 5:
         QGraphicsItem, QGraphicsPathItem, QGraphicsScene, QGraphicsTextItem, \
         QGraphicsView, QGridLayout, QHBoxLayout, QLabel, QLineEdit, \
         QListWidget, QMainWindow, QMenu, QMessageBox, QPushButton, \
-        QSpinBox, QTabWidget, QVBoxLayout, QWidget
+        QSpinBox, QTabWidget, QVBoxLayout, QWidget, \
+        QTableWidget, QTableWidgetItem, QLayout, QTextEdit, QFont, QDialogButtonBox
+
 
     from PyQt5.QtPrintSupport import QPrinter, QPrintDialog
 

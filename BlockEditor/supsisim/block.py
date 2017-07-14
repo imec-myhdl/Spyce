@@ -1,16 +1,22 @@
-import sys, os
+import sys, os, ast
 #if sys.version_info>(3,0):
 #    import sip
 #    sip.setapi('QString', 1)
 
+#import sip
+
 from pyqt45  import QGraphicsPathItem, QGraphicsTextItem, QPainterPath, \
-                    QPen, QImage, QtCore, QTransform, set_orient
+                    QPen, QImage, QtCore, QTransform, QApplication
 
 
 from supsisim.port import Port, InPort, OutPort
 from supsisim.const import GRID, PW, LW, BWmin, BHmin, PD, respath
 
 from lxml import etree
+import tempfile
+
+
+    
 
 class Block(QGraphicsPathItem):
     """A block holds ports that can be connected to."""
@@ -18,7 +24,7 @@ class Block(QGraphicsPathItem):
         if len(args) >= 2:
             parent, self.scene = args[0], args[1]
         elif len(args) == 1:
-            parent, self.scene = args[0], None
+            parent, self.scene = None, args[0]
         else:
             parent, self.scene = None, None
         if QtCore.qVersion().startswith('5'):
@@ -33,8 +39,8 @@ class Block(QGraphicsPathItem):
             parent, self.scene, strBlk = args
             ln = strBlk.split('@')
             self.name   = str(ln[0])
-            self.inp    = int(ln[1])
-            self.outp   = int(ln[2])
+            self.inp    = ast.literal_eval(ln[1]) # ast.literal_eval is a lot safer than 'eval'
+            self.outp   = ast.literal_eval(ln[2])
             self.icon   = str(ln[4])
             self.params = str(ln[5])
             self.flip   = False
@@ -61,6 +67,9 @@ class Block(QGraphicsPathItem):
         self.fill_color = QtCore.Qt.black
         if self.scene:
             self.setup()
+            
+    def from_txt(s):
+        '''convert text to int or list'''
         
     def __str__(self):
         txt  = 'Name         :' + self.name.__str__() +'\n'
@@ -73,16 +82,21 @@ class Block(QGraphicsPathItem):
         return txt
         
     def __repr__(self):
-        fmt = 'Block(None, scene, {kwargs})'
+        return self.toPython()
+        
+    def toPython(self, lib=False):
+        fmt = 'Block({kwargs})'
+        fields = 'name inp outp iosetble icon params'.split()
         kwargs = []
-        x, y, flip = int(self.x()), int(self.y()), self.flip        
-        if x:
-            kwargs.append('x={}'.format(x))
-        if y:
-            kwargs.append('y={}'.format(y))
-        if flip:
-            kwargs.append('flip=True')
-        for k in 'name inp outp iosetble icon params'.split():
+        x, y, flip = int(self.x()), int(self.y()), self.flip
+        if not lib: # add x, y, flip for schematic(diagrams)
+            if x:
+                fields.append('x')
+            if y:
+                fields.append('y')
+            if flip:
+                fields.append('flip')
+        for k in fields:
             v = self.__dict__[k]
             if v:
                 kwargs.append('{}={}'.format(k, repr(v)))
@@ -92,7 +106,9 @@ class Block(QGraphicsPathItem):
     def setup(self):
         self.ports_in = []
         self.name = self.scene.setUniqueName(self)
-        Nports = max(self.inp, self.outp)
+        Ni = self.inp if isinstance(self.inp, int) else len(self.inp)
+        No = self.outp if isinstance(self.outp, int) else len(self.outp)
+        Nports = max(Ni, No)
         self.w = BWmin
         self.h = BHmin+PD*(max(Nports-1,0))
 
@@ -102,43 +118,61 @@ class Block(QGraphicsPathItem):
 
         self.setPath(p)
 
-        self.port_in = []
-        for n in range(0,self.inp):
-            self.add_inPort(n)
-        for n in range(0,self.outp):
-            self.add_outPort(n)
+        if isinstance(self.inp, int):
+            for n in range(0,self.inp): # legacy: self.inp is integer number
+                self.add_inPort(n)
+        else:
+            for n in self.inp: # new: self.inp is list of tuples (x,y)
+                self.add_inPort(n)
 
-#        set_orient(self, flip=True)
-#        self.setTransform(QTransform.fromScale((1-2*self.flip),1))
-#            set_orient(self.label, flip=True)
-#            w = self.label.boundingRect().width()
-#            self.label.setTransform(QTransform.fromTranslate(-w,0))        
+        if isinstance(self.outp, int):
+            for n in range(0,self.outp):# legacy: self.out = integer number
+                self.add_outPort(n)
+        else:
+            for n in self.outp: # new: self.outp is list of tuples (x,y)
+                self.add_outPort(n)
 
         self.label = QGraphicsTextItem(self)
         self.label.setPlainText(self.name)
         w = self.label.boundingRect().width()
-        self.label.setPos(-w/2, self.h/2+5)
         if self.flip:
             self.setTransform(QTransform.fromScale(-1,1))
-#            self.label.setTransform(QTransform.fromScale(1,1), False)
-        self.setTransform(QTransform.fromTranslate(0,0))
+            self.label.setTransform(QTransform.fromScale(-1,1))
+            self.label.setPos(w/2, self.h/2+5)
+        else:
+            self.label.setPos(-w/2, self.h/2+5)
+
         self.setFlag(self.ItemIsMovable)
         self.setFlag(self.ItemIsSelectable)
         
+        svgfilename = os.path.join(respath, 'blocks' , self.icon + '.svg')
+        self.img = QImage(svgfilename)
+        f = self.create_svg_mirror_txt(svgfilename)
+        self.img_flippedtext = QImage(f)
+
+        
     def add_inPort(self, n):
-        pos = -PD*(self.inp-1)/2
-        port = InPort(self, self.scene)
+        if isinstance(n, int):
+            ypos = -PD*(self.inp-1)/2 + n*PD
+            xpos = -(self.w+PW)/2
+            name = 'i_pin{}'.format(n)
+        else: # tuple (x, y)
+            xpos, ypos, name = n
+        port = InPort(self, self.scene, name=name)
         port.block = self
-        xpos = -(self.w+PW)/2
-        port.setPos(xpos, pos+n*PD)
+        port.setPos(xpos, ypos)
         return port
 
     def add_outPort(self, n):
-        pos = -PD*(self.outp-1)/2
-        port = OutPort(self, self.scene)
+        if isinstance(n, int):
+            xpos = (self.w+PW)/2
+            ypos = -PD*(self.outp-1)/2 + n*PD
+            name = 'o_pin{}'.format(n)
+        else: # tuple (x, y)
+            xpos, ypos, name = n
+        port = OutPort(self, self.scene, name=name)
         port.block = self
-        xpos = (self.w+PW)/2
-        port.setPos(xpos, pos+n*PD)
+        port.setPos(xpos, ypos)
         return port
 
     def ports(self):
@@ -147,6 +181,22 @@ class Block(QGraphicsPathItem):
             if isinstance(thing, Port):
                 ports.append(thing)
         return ports
+        
+    def pins(self):
+        '''return (inputs, outputs, inouts) that lists of tuples (io, x, y, name)'''
+        inputs, outputs, inouts  = [], [], []
+        ports = self.ports()
+        for p in ports:
+            x, y = p.x(), p.y()
+            name = p.name
+            if isinstance(p, InPort):
+                 inputs.append(('i', x, y, name))
+            elif isinstance(p, OutPort):
+                outputs.append(('o', x, y, name))
+            else:
+                inouts.append(('io', x, y, name))
+        return inputs, outputs, inouts
+
 
     def paint(self, painter, option, widget):
         pen = QPen()
@@ -156,11 +206,13 @@ class Block(QGraphicsPathItem):
             pen.setStyle(QtCore.Qt.DotLine)
         painter.setPen(pen)
         painter.drawPath(self.path())
-        img = QImage(os.path.join(respath, 'blocks' , self.icon + '.svg'))
         if self.flip:
-            img = img.mirrored(True, False)
+            img = self.img_flippedtext
+#            img = img.mirrored(True, False)
+        else:
+            img = self.img
         rect = img.rect()
-        painter.drawImage(-rect.width()/2,-rect.height()/2,img)
+        painter.drawImage(-rect.width()/2,-rect.height()/2, img)
 
     def itemChange(self, change, value):
         return value
@@ -211,4 +263,61 @@ class Block(QGraphicsPathItem):
             etree.SubElement(blk,'flip').text = '0'
         etree.SubElement(blk,'posX').text = self.pos().x().__str__()
         etree.SubElement(blk,'posY').text = self.pos().y().__str__()
+
+    def create_svg_mirror_txt(self, svgfilename):
+        #generate an svg flie that has text-labels flipped
+        dirpath, fname = os.path.split(svgfilename)
+        svgflipped = os.path.join(dirpath, 'flipped', fname)
+#        if os.path.exists(svgflipped):
+#            return svgflipped
+        parser = etree.XMLParser(remove_blank_text=True)
+        tree = etree.parse(svgfilename, parser)
+        root = tree.getroot()
+        svg_namespace = root.nsmap[None]
+        svg_path = '{{{}}}'.format(svg_namespace)
+    #    texts = [dom2dict(el) for el in doc.getElementsByTagName('text')]
+        texts = root.findall(svg_path+'text')
+        for e in texts:
+            ff = 'x y text-anchor style'.split()
+            rr = []
+            for k in ff:
+                try:
+                    v = e.attrib[k]
+                    del e.attrib[k]
+                except KeyError:
+                    v = '0'
+                rr.append(v)
+            x, y, anchor, style = rr
+            
+            
+
+            if style != '0':
+                ix = -1
+                styleelmnts = style.split(';')
+                if 'text-anchor' in style:
+                     for ix, se in enumerate(styleelmnts):
+                        k, summy, v = se.partition(':')
+                        if k == 'text-anchor':
+                            anchor = v
+                            styleelmnts.pop(ix)
+                            break
+
+            if anchor in ['0', 'start'] :
+                anchor = 'end'
+            elif anchor == 'end':
+                anchor = ''
+
+            if anchor:
+                if style != '0':
+                    styleelmnts.append('text-anchor:'+anchor)
+                    e.attrib['style'] = ';'.join(styleelmnts)
+                else:
+                    e.attrib['text-anchor'] = anchor
+
+            e.attrib['transform'] = 'translate({},{})scale(-1,1)'.format(x, y)
+
+        tree.write(svgflipped, pretty_print=True)
+        return svgflipped
+
+
 

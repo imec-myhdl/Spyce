@@ -71,7 +71,16 @@ class Scene(QGraphicsScene):
         self.nameList.sort()
         return nm
         
+    def dragEnterEvent(self, event):
+        event.accept()
+
+    def dragMoveEvent(self, event):
+        event.accept()
+          
     def dragLeaveEvent(self, event):
+        event.accept()
+        
+    def dropEvent(self, event):
         data = event.mimeData().text()
         b = Block(None, self, data)
         b.setPos(event.scenePos())

@@ -5,38 +5,55 @@ import sys
 #    import sip
 #    sip.setapi('QString', 1)
 
+import tempfile
+import subprocess
+import shutil
+
+import svgwrite
+
 from pyqt45 import QGraphicsScene, QMainWindow, QWidget, QVBoxLayout, \
                    QHBoxLayout, QGraphicsView,QTabWidget, QApplication, \
-                   QTransform, QDrag, QtCore, set_orient
+                   QTransform, QDrag, QtCore, QMenu, QMessageBox, set_orient
+                   
+from const import DB, PD, respath
 
 #import dircache
 import os
 
 from supsisim.block import Block
-from supsisim.const import respath
+from supsisim.dialg import txtDialog
+
 from lxml import etree
 
-from  supsisim import imeclib
+import imeclib
 
 class CompViewer(QGraphicsScene):
     def __init__(self, parent=None):
         super(CompViewer, self).__init__()
         self.parent = parent
+        self.actComp = None
 
         self.componentList = []	 
         self.activeComponent = None 
 
+        self.menuBlk = QMenu()
+        editIconAction   = self.menuBlk.addAction('Edit Icon')
+        editPinsAction    = self.menuBlk.addAction('Edit pins')
+        editIconAction.triggered.connect(self.editIcon)
+        editPinsAction.triggered.connect(self.editPins)
+
+    def contextMenuEvent(self, event):
+        pos = event.scenePos()
+        for item in self.items(QtCore.QRectF(pos-QtCore.QPointF(DB,DB), QtCore.QSizeF(2*DB,2*DB))):
+            if isinstance(item, Block):
+                self.menuBlk.exec_(event.screenPos())
+                break
+        else:
+            print('ja daar is niks ?!?')
+
     def setUniqueName(self, block):
         return block.name
-        
-    def dropEvent(self, event):
-        event.accept()
 
-    def dragEnterEvent(self, event):
-        event.accept()
-
-    def dragMoveEvent(self, event):
-        event.accept()
 
     def mousePressEvent(self, event):
         x = event.scenePos().x()
@@ -44,6 +61,7 @@ class CompViewer(QGraphicsScene):
 
         t = QTransform()
         self.actComp = self.itemAt(x, y, t)
+        
 
     def mouseMoveEvent(self, event):
         if event.buttons() == QtCore.Qt.LeftButton and isinstance(self.actComp, Block):
@@ -52,14 +70,175 @@ class CompViewer(QGraphicsScene):
                 io = '1'
             else:
                 io = '0'
-            data = self.actComp.name+'@'+self.actComp.inp.__str__()+'@'+self.actComp.outp.__str__() + '@' + io +'@' + self.actComp.icon + '@' + self.actComp.params
+            c = self.actComp
+            data = '@'.join([c.name, str(c.inp), str(c.outp), io, c.icon, c.params])
             mimeData.setText(data)
             drag = QDrag(self.parent)
             drag.setMimeData(mimeData)
             drag.exec_(QtCore.Qt.CopyAction)
+            
+            
 
     def mouseReleaseEvent(self, event):
         pass
+
+        
+    def editPins(self):
+        block = self.actComp
+        inputs, outputs, inouts = block.pins()
+        d = txtDialog('Pins of {}'.format(block.name))
+        pinlist = d.editList(inputs + outputs + inouts, header='io x y name')
+        
+        for p in block.ports():
+            p.setParentItem(None) # effectively removing port
+            
+        block.inp  = []
+        block.outp = []
+        for tp, x, y, name in pinlist:
+            if tp == 'i':
+                block.add_inPort([x, y, name])
+                block.inp.append([x, y, name])
+            elif tp == 'o':
+                block.add_outPort([x, y, name])
+                block.outp.append([x, y, name])
+            else:
+                print '{} is not an implemented io type'.format(tp)
+        block.update()
+
+
+    def editIcon(self):
+        '''generate svg file'''
+        block = self.actComp
+        blockname = block.name
+        inputs, outputs, inouts = block.pins()
+        pinlist = inputs + outputs + inouts
+        
+        # find bounding box
+        x0, y0, x1, y1 = None, None, None, None
+        for tp, x, y, pname in pinlist:
+            x0 = x if x0 == None else min(x0, x)
+            x1 = x if x1 == None else max(x1, x)
+            y0 = y if y0 == None else min(y0, y)
+            y1 = y if y1 == None else max(y1, y)
+        
+        w = x1-x0 + PD
+        h = max(50, y1 - y0 + PD) # block height
+        dh2 = (h - (y1 - y0))/2
+        y0 = y0 - dh2
+        y1 = y1 + dh2
+        
+        
+        # defaults to be moved to conf
+        margin    = 10
+        font_size = 10 # height
+        pin_size  = 10 # length of line segment 
+        
+        #generate a tempfile
+        f = tempfile.NamedTemporaryFile(suffix='.svg', delete=False)
+        svgtempfilename = f.name
+        f.close()
+                
+        dwg = svgwrite.Drawing(filename=svgtempfilename, size=(2*margin+x1-x0,2*margin+y1-y0), profile='tiny', debug=False)
+        dwg.attribs['xmlns:sodipodi'] = "http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"  
+        dwg.attribs['xmlns:inkscape'] = "http://www.inkscape.org/namespaces/inkscape"
+        dwg.attribs['id'] = "svg2"
+        dwg.attribs['inkscape:version'] = "0.91 r13725"
+        dwg.attribs['sodipodi:docname'] = blockname
+        
+        sodipodi = svgwrite.base.BaseElement(debug=False)
+        sodipodi.elementname = 'sodipodi:namedview'
+        t = '''objecttolerance="10"
+               gridtolerance="10000"
+               guidetolerance="10"
+               showgrid="true"
+               inkscape:snap-grids="true"
+               inkscape:current-layer="svg2"
+               inkscape:window-width="{w}"
+               inkscape:window-height="{h}"'''.format(w=w, h=h)
+        g =  svgwrite.base.BaseElement(type="xygrid", units="px", spacingx="10", spacingy="10", debug=False)
+        g.elementname = 'inkscape:grid'
+        sodipodi.elements.append(g)
+        
+        for line in t.splitlines():
+            k, v = line.split('=')
+            sodipodi.attribs[k.strip()] = v.strip().strip('"')
+        dwg.elements.append(sodipodi)
+        
+        for tp, x, y, name in pinlist:
+            extra = dict()
+            extra['font-size'] = '{}px'.format(font_size)
+            x -= x0 - margin
+            y -= y0 - margin
+            if tp == 'i': # left align
+                dx, dy = pin_size, 0
+                tx, ty = x + dx + font_size*0.35, y + font_size*0.35
+            elif tp == 'o': # right align
+                extra['text-anchor'] = "end"
+                dx, dy = -pin_size, 0
+                tx, ty = x + dx - font_size*0.35, y + dy + font_size*0.35
+            elif tp == 'io': # mid align
+                extra['text-anchor'] = "mid"
+                dx, dy = 0, -pin_size
+                tx, ty = dx, dy
+
+            dwg.add(dwg.text(name, id='{}-portlabel_{}'.format(tp, name), insert=(tx, ty), **extra))
+            dwg.add(dwg.line(id='{}-port_{}'.format(tp, name), start=(x, y), end=(x+dx, y+dy), stroke='darkGreen'))
+        
+        
+        dwg.add(dwg.rect(insert=(margin+pin_size, margin+pin_size), size=(x1-x0-2*pin_size, y1-y0-2*pin_size),
+                            fill='none', stroke='darkGreen', stroke_width=1))
+        
+        dwg.save(pretty=True)
+        
+        try:
+            timestamp0 = os.stat(svgtempfilename).st_mtime
+            subprocess.call('inkscape {}'.format(svgtempfilename).split())
+            timestamp1 = os.stat(svgtempfilename).st_mtime
+            svgfilename = os.path.join(respath, 'blocks', blockname+'.svg')
+            if not os.path.exists(svgfilename):
+                print 'debug, not existing => copy'
+                shutil.move(svgtempfilename, svgfilename)
+                
+            elif  timestamp0 < timestamp1:
+                print 'debug, newer => copy'
+                shutil.move(svgtempfilename, svgfilename)
+            else:
+                msg = "Not modified: Do you want to store the auto-generated icon??"
+                reply = QMessageBox.question(None, 'Message', 
+                                 msg, QMessageBox.Yes, QMessageBox.No)
+
+                if reply == QMessageBox.Yes:
+                    print 'debug, auto => copy'
+                    shutil.move(svgtempfilename, svgfilename)
+                else:
+                    print 'debug, cancel => skip'
+            if os.path.exists(svgtempfilename):
+                os.remove(svgtempfilename)
+                
+                
+            
+            t = ['# -*- coding: utf-8 -*-']
+            t.append('# auto-saved file')
+            t.append('# edits outside blocks will be lost')
+            t.append('')
+            t.append('from supsisim.block import Block')
+            t.append('from collections import OrderedDict')
+            t.append('')
+            t.append('libs = OrderedDict()')
+            for c in imeclib.libs:
+                bb = []
+                for block in imeclib.libs[c]:
+                    bb.append(block.toPython(lib=True))
+                t.append('libs[{}] = [ \\\n    {}]'.format(repr(c), ', \n    '.join(bb)))
+            
+            print '\n'.join(t)+'\n'
+                        
+        except OSError:
+            raise Exception('Inkscape is not installed')
+        
+        return dwg
+
+
         
 class Library(QMainWindow):
     '''
@@ -102,33 +281,14 @@ class Library(QMainWindow):
             self.tabs.addTab(tab, libname)
             
                 
-
-#        for p in self.libConfig:
-#            diagram = CompViewer(self)
-#            view = QGraphicsView(diagram)
-#            diagram.compLock = True
-#
-#            for i in range(1, len(p)):
-#                io = (p[i][3] == 1)
-#                b = Block(None, diagram, p[i][0], p[i][1], p[i][2], io, p[i][4], p[i][5], False)
-#                px = (i-1) % 2
-#                py = (i-1)/2
-#                b.setPos(px*150,py*150)
-#                print 'debug',p[0], repr(b)
-#
-#            tab = QWidget()
-#            layout = QVBoxLayout()
-#            layout.addWidget(view)
-#            tab.setLayout(layout)
-#
-#            self.tabs.addTab(tab, p[0])
-
         layout = QHBoxLayout()
         layout.addWidget(self.tabs)
         self.widget = QWidget()
         self.widget.setLayout(layout)
         self.setCentralWidget(self.widget)
         self.tabs.setCurrentIndex(2)
+
+
         
     def readLib(self):
         files = os.listdir(os.path.join(respath,'blocks'))
@@ -157,8 +317,20 @@ class Library(QMainWindow):
         else:
             event.ignore()
 
+
+    def mouseRightButtonPressed(self, obj, event):
+        item = self.itemAt(event.scenePos())
+        if isinstance(item, Block):
+            print 'debug, rightmouse' 
+            self.menuBlk.exec_(event.screenPos())
+        else:
+            pass
+
+
+
+
+
 if __name__ == '__main__':
-    import sys
     import logging
     logging.basicConfig()
     app = QApplication(sys.argv)

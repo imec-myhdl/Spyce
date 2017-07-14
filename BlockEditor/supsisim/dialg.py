@@ -4,7 +4,8 @@ import sys, os
 #    sip.setapi('QString', 1)
 #
 from pyqt45  import QDialog, QGridLayout, QSpinBox, QLabel, QPushButton, \
-                    QLineEdit, QFileDialog, QtCore
+                    QLineEdit, QFileDialog, QtCore, QVBoxLayout, QTextEdit, \
+                    QFont, QDialogButtonBox, QApplication
 
 from supsisim.const import path
 
@@ -122,3 +123,116 @@ class RTgenDlg(QDialog):
             head, script = os.path.split(fname)
             self.parscript.setText(script)
 
+class txtDialog(QDialog):
+    def __init__(self, title='TextEditor', size=(400, 300), parent=None): # pins is a listof tuples: (name, type, x, y)
+        '''display text, and edit the contents'''
+        super(txtDialog, self).__init__(parent)
+        self.layout = QVBoxLayout()
+        self.setLayout(self.layout)
+
+        # edit widget
+        self.text_edit = QTextEdit(parent)
+        font = QFont()
+        font.setFamily('Lucida')
+        font.setFixedPitch(True)
+        font.setPointSize(12)
+        self.text_edit.setFont(font)
+        self.layout.addWidget(self.text_edit)
+        
+        # Cancel and OK buttons
+        buttons = QDialogButtonBox.Ok|QDialogButtonBox.Cancel
+        self.bbox = QDialogButtonBox(buttons)
+        self.bbox.accepted.connect(self.accept)
+        self.bbox.rejected.connect(self.reject)
+        self.layout.addWidget(self.bbox)
+
+        # set window title and window size
+        self.setWindowTitle(title)
+        self.resize(size[0], size[1])
+        
+    def editTxt(self, txt):
+        '''display txt and return edited txt'''
+        self.text_edit.setText(txt)
+        if self.exec_(): #Ok
+            return self.text_edit.toPlainText()
+        else: # Cancel   
+            return txt 
+   
+    def editList(self, llist, header=''):
+        '''display the list in tabular format and return edited list'''
+        col_w = [] # widths
+        col_t = [] # types
+
+        if header:
+            for c in ('#'+header).split():
+                col_w.append(len(c))
+
+        for line in llist:
+            for ix, c in enumerate(line):
+                if ix >= len(col_t):
+                    col_w.append(1)
+                    col_t.append(type(c))
+                
+                col_w[ix] = max(len('{}'.format(c)), col_w[ix])
+                if not isinstance(col_t[ix], float):
+                    col_t[ix] = c
+        t = []
+        for w, tp in zip(col_w, col_t):
+            if isinstance(tp, (int, float)):
+                t.append('{: '+str(w)+'}')
+            else:
+                t.append('{:^'+str(w)+'}')
+                
+        t[-1] = '{}'
+        fmt = ' '.join(t)+'\n'
+        fmt1 = fmt.replace(': ', ':')
+        fmt0 = fmt.replace(': ', ':^')
+        
+        txt = fmt0.format(*('#'+header).split()) if header else ''
+        for line in llist:
+            try:
+                txt += fmt.format(*line)
+            except ValueError:
+                txt += fmt1.format(*line)
+                
+        txt = self.editTxt(txt)
+        lres = []
+        for line in txt.splitlines():
+            if line.strip() and not line.strip().startswith('#'):
+                try:
+                    cres = [type(col_t[ix])(c) for ix, c in enumerate(line.split())]
+                    lres.append(cres)
+                except:
+                    print 'ignored:', line
+        return lres
+            
+
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+    pins = [('i', -10, 10, 'pin1'), 
+            ('i', -10, 50, 'pin2'), 
+            ('o',  10, 30, 'pin3'),
+            ('i', -10, 50, 'pin4'), 
+            ('o',  10, 30, 'pin5'),
+            ('i', -10, 50, 'pin6'), 
+            ('o',  10, 30, 'bizarre_pin_name')]
+            
+    fmt = '{:^3} {: ^4} {: ^4} {}'
+    t = [fmt.format(*'#io x y name'.split())]
+    for pt, x, y, pn in pins:
+        t.append(fmt.format(pt, x, y, pn))
+    txt = '\n'.join(t)+ '\n'
+        
+    pe = txtDialog('Pineditor for block X')
+#    txt = pe.editTxt(txt)
+#    for line in txt.splitlines():
+#        try:
+#            pt, x, y, pn = line.split()
+#            if not pt.startswith('#'):
+#                print pt, x, y, pn
+#        except:
+#            print 'ignored: ' + line
+            
+    res = pe.editList(pins, header='io x y pinname')
+    print res
+    sys.exit(app.exec_())

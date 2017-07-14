@@ -70,3 +70,8 @@ libs['Socket'] = [ \
     Block(name='socket', inp=1, iosetble=True, icon='SOCK', params="unixsocketCBlk|Socket: 'bsock'"),
     Block(name='Socket', outp=1, iosetble=True, icon='SOCK', params="unixsocketSBlk|Socket: 'ssock'|Default outputs:[0.]") ]
         
+libs['testlib'] = [ \
+    Block(name='test1', inp=[(-40, -20, 'a'), (-40, 20, 'b')], outp=[(40, 0, 'z')], iosetble=True, icon='test1', params='sumBlk|Gains: [1,-1]')]
+
+
+
