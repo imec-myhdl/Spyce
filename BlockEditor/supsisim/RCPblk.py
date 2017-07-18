@@ -48,7 +48,13 @@ The following commands are provided:
   MCLM_ADBlk     - Create FAULHABER AD block
   FmuBlk         - Create an interface to a FMU element
   FmuInBlk       - Create an interface to a FMU element
-  genericBlk      - Create an interface to a generic C function
+  genericBlk     - Create an interface to a generic C function
+  init_maxon_MotBlk     - Initialize a Maxon CAN device
+  init_epos_MotIBlk     - Initialize an Epos CAN device for torque control
+  can_sdo_sendBlk     - Send a standard can message
+  can_sdo_sendThBlk   - Send a standard can message
+  can_sdo_recvBlk     - Receive a standard can message
+  can_gen_recvBlk     - Receive a generic can message
   
 """
 from control import *
@@ -810,7 +816,7 @@ def baumer_EncBlk(pout, ID, res):
     if(size(pout) != 1):
         raise ValueError("Block should have 1 output port; received %i." % size(pout))
 
-    blk = RCPblk('baumer_enc',[],pout,[0,0],0,[2*res],[ID])
+    blk = RCPblk('baumer_enc',[],pout,[0,0],0,[4*res],[ID])
     return blk
 
 def switchBlk(pin,pout, cond, val, pers):
@@ -1002,7 +1008,7 @@ def unixsocketSBlk(pout,sockname,defvals):
     blk = RCPblk('unixsockS',[],pout,[0,0],0,defvals,[0,0],'/tmp/'+sockname)
     return blk
 
-def MCLM_MotXBlk(pin, ID, res):
+def MCLM_MotXBlk(pin, ID, res, kp, kd, zero):
     """Create MCLM_MOTX block 
 
     Get input data from an external file
@@ -1014,6 +1020,8 @@ def MCLM_MotXBlk(pin, ID, res):
     pin: connected input port
     ID: CAN node ID
     res: encoder resolution
+    kp:  Proportional gain
+    ki:  Derivative gain
 
     Returns
     -------
@@ -1022,7 +1030,7 @@ def MCLM_MotXBlk(pin, ID, res):
     if(size(pin) != 1):
         raise ValueError("Block should have 1 input port; received %i." % size(pout))
 
-    blk = RCPblk('MCLM_can_motX',pin,[],[0,0],1,[res],[ID])
+    blk = RCPblk('MCLM_can_motX',pin,[],[0,0],1,[res, kp, kd],[ID, zero])
     return blk
 
 def MCLM_EncBlk(pout, ID, res):
@@ -1248,4 +1256,894 @@ def genericBlk(pin, pout, nx, uy, rP, iP, strP, fname):
     blk  : RCPblk
 """
     blk = RCPblk(fname,pin,pout,nx,uy,rP,iP, strP)
+    return blk
+
+def epos_MotIBlk(pin, ID, propGain, intGain):
+    """Create EPOS_MOTI block 
+
+    Get input data from an external file
+    
+    Call: epos_MotIBlk(pin, ID, PropGain, IntgGain)
+
+    Parameters
+    ----------
+    pin: connected input port
+    ID: CAN node ID
+    PropGain: Proportional gain of the epos torque controller
+    IntgGain: Integral gain of the epos torque controller
+
+    Returns
+    -------
+    blk  : RCPblk
+"""
+    if(size(pin) != 1):
+        raise ValueError("Block should have 1 input port; received %i." % size(pout))
+
+    blk = RCPblk('epos_canopen_motI',pin,[],[0,0],1,[propGain, intGain],[ID])
+    return blk
+
+def epos_MotXBlk(pin, ID, propGain, intGain, derGain, Vff, Aff):
+    """Create EPOS_MOTI block 
+
+    Get input data from an external file
+    
+    Call: epos_MotXBlk(pin, ID, propGain, intgGain, derGain, Vff, Aff)
+
+    Parameters
+    ----------
+    pin: connected input port
+    ID: CAN node ID
+    propGain: Proportional gain of the epos position controller
+    intgGain: Integral gain of the epos position controller
+    derGain:  Derivative gain of the epos position controller
+    Vff    : Velocity Fedd Forward Factor
+    Aff    : Acceleration Feed Forward Factor
+
+    Returns
+    -------
+    blk  : RCPblk
+"""
+    if(size(pin) != 1):
+        raise ValueError("Block should have 1 input port; received %i." % size(pout))
+
+    blk = RCPblk('epos_canopen_motX',pin,[],[0,0],1,[propGain, intGain, derGain, Vff, Aff],[ID])
+    return blk
+
+def epos_EncBlk(pout, ID, res):
+    """Create EPOS_ENC block 
+
+    Get encoder value from an maxon epos driver
+
+    Call: epos_EncBlk(pout, ID, res)
+
+    Parameters
+    ----------
+    pout: connected output port
+    ID: CAN node ID
+    res: encoder resolution
+
+    Returns
+    -------
+    blk  : RCPblk
+"""
+    if(size(pout) != 1):
+        raise ValueError("Block should have 1 output port; received %i." % size(pout))
+
+    blk = RCPblk('epos_canopen_enc',[],pout,[0,0],0,[4*res],[ID])
+    return blk
+
+def maxon_MotBlk(pin, ID, propGain, intGain):
+    """Create MAXON_MOT block 
+
+    Maxon driver for torque control
+
+    Call: maxon_MotBlk(pin, ID)
+
+    Parameters
+    ----------
+    pin: connected input port
+    ID: CAN node ID
+
+    Returns
+    -------
+    blk  : RCPblk
+"""
+    if(size(pin) != 1):
+        raise ValueError("Block should have 1 input port; received %i." % size(pout))
+
+    blk = RCPblk('maxon_mot',pin,[],[0,0],1,[propGain, intGain],[ID])
+    return blk
+
+def maxon_EncBlk(pout, ID, res):
+    """Create MAXON_ENC block 
+
+    Maxon driver for encoder
+
+    Call: maxon_EncBlk(pout, ID, res)
+
+    Parameters
+    ----------
+    pout: connected output port
+    ID: CAN node ID
+    res: encoder resolution
+
+    Returns
+    -------
+    blk  : RCPblk
+"""
+    if(size(pout) != 1):
+        raise ValueError("Block should have 1 output port; received %i." % size(pout))
+
+    blk = RCPblk('maxon_enc',[],pout,[0,0],0,[4*res],[ID])
+    return blk
+
+def epos_areadBlk(pout, ID, ch):
+    """Create EPOS_ANALOG READ block 
+
+    Get analog value from an maxon epos driver
+
+    Call: epos_areadBlk(pout, ID, ch)
+
+    Parameters
+    ----------
+    pout: connected output port
+    ID: CAN node ID
+    ch : Analog input channel
+
+    Returns
+    -------
+    blk  : RCPblk
+"""
+    if(size(pout) != 1):
+        raise ValueError("Block should have 1 output port; received %i." % size(pout))
+
+    blk = RCPblk('epos_canopen_aread',[],pout,[0,0],0,[],[ID, ch])
+    return blk
+
+def init_encBlk(pin, pout, trgtime, defv, offset):
+    """Create INIT OUTPUT block 
+
+    Initialize the output of a block to a given value
+
+    Call: init_encBlk(pin, pout, trgtime, defv, offset)
+
+    Parameters
+    ----------
+    pin: connected input port
+    pout: connected output port
+    trgtime: time to fix the output
+    defv : default value up to trigger time
+    offset: offset to add to the output
+
+    Returns
+    -------
+    blk  : RCPblk
+"""
+    if (size(pout) != 1) or (size(pin) != 1):
+        raise ValueError("Block should have 1 input and 1 output port; received %i and %i." % (size(pin),size(pout)))
+
+    blk = RCPblk('init_enc',pin,pout,[0,0],1,[trgtime, defv, offset, 0.0],[])
+    return blk
+
+def rtxmlServerBlk(P1, P2, P3, Par, port):
+    """Create RTXMLSERVER block 
+
+    Initialize the rtxml http server
+
+    Call: rtxmlserverBlk(P1, P2, P3, Par, port)
+
+    Parameters
+    ----------
+    P1   : list of Signals for Plot 1
+    P2   : list of Signals for Plot 2
+    P3   : list of Signals for Plot 3
+    Par  : Additional parameters
+    port : HTTP port
+
+        Returns
+    -------
+    blk  : RCPblk
+"""
+    xmlsettings = '<PLOT1>'
+    plt = P1.split()
+    for n in range(0,size(plt)):
+        xmlsettings += '<SIGNAL' + str(n+1) + '>'+plt[n] + '</SIGNAL' + str(n+1) + '>'
+    xmlsettings += '</PLOT1><PLOT2>'
+    plt = P2.split()
+    for n in range(0,size(plt)):
+        xmlsettings += '<SIGNAL' + str(n+1) + '>'+plt[n] + '</SIGNAL' + str(n+1) + '>'
+    xmlsettings += '</PLOT2><PLOT3>'
+    plt = P3.split()
+    for n in range(0,size(plt)):
+        xmlsettings += '<SIGNAL' + str(n+1) + '>'+plt[n] + '</SIGNAL' + str(n+1) + '>'
+    xmlsettings += '</PLOT3>'
+    xmlsettings += Par
+        
+    blk = RCPblk('rtxmlserver_fnc',[],[],[0,0],0,[],[3140,port],xmlsettings)
+    return blk
+
+def rtxmlSigInBlk(pout, Sig, defV):
+    """Create XML SIGNAL block 
+
+    Block to send signals to HTTP server
+
+    Call: rtxmlSigInBlk(pin, Sig, DefV)
+
+    Parameters
+    ----------
+    pin: connected input port
+    Sig: Signal name
+    DefV: Default Value
+
+    Returns
+    -------
+    blk  : RCPblk
+"""
+    if size(pout) != 1:
+        raise ValueError("Block should have 1 input port; received %i !" % size(pin))
+
+    blk = RCPblk('rtxmlsignal_fnc',[],pout,[0,0],0,[defV],[0],Sig)
+    return blk
+
+def rtxmlSigOutBlk(pin, Sig, defV):
+    """Create XML SIGNAL block 
+
+    Block to send signals to HTTP server
+
+    Call: rtxmlSigOutBlk(pin, Sig)
+
+    Parameters
+    ----------
+    pin: connected input port
+    Sig: Signal name
+    DefV: Default Value
+
+    Returns
+    -------
+    blk  : RCPblk
+"""
+    if size(pin) != 1:
+        raise ValueError("Block should have 1 input port; received %i !" % size(pin))
+
+    blk = RCPblk('rtxmlsignal_fnc',pin,[],[0,0],1,[defV],[1],Sig)
+    return blk
+
+def comediADBlk(pout, dev, ch, cr):
+    """Create Comedi Analog to Digital block
+    Call: comediADBlk(pout,dev,ch,range,ref)
+
+    Parameters
+    ----------
+    pout   -  output pin 
+    dev    -  Comedi device
+    ch     -  Channel
+    cr     -  analog range
+    
+    Returns
+    -------
+    blk  : RCPblk
+"""
+    if size(pout) != 1:
+        raise ValueError("Block should have 1 input port; received %i !" % size(pout))
+
+    blk = RCPblk('comedi_analog_input',[],pout,[0,0],0,[],[ch, cr],dev)
+    return blk
+
+def comediDABlk(pin, dev, ch, cr):
+    """Create Comedi Digital to Analog block
+    Call: comediDABlk(pin, dev,ch,range,ref)
+
+    Parameters
+    ----------
+    pin    -  input pin
+    dev    -  Comedi device
+    ch     -  Channel
+    cr     -  analog range
+    
+    Returns
+    -------
+    blk  : RCPblk
+"""
+    if size(pin) != 1:
+        raise ValueError("Block should have 1 input port; received %i !" % size(pin))
+
+    blk = RCPblk('comedi_analog_output',pin,[],[0,0],1,[],[ch, cr],dev)
+    return blk
+
+def comediDIBlk(pout, dev, ch):
+    """Create Comedi Digital Input block
+    Call: comediDIBlk(pout, dev,ch)
+
+    Parameters
+    ----------
+    pout   -  output pin 
+    dev    -  Comedi device
+    ch     -  Channel
+    
+    Returns
+    -------
+    blk  : RCPblk
+"""
+    if size(pout) != 1:
+        raise ValueError("Block should have 1 input port; received %i !" % size(pout))
+
+    blk = RCPblk('comedi_digital_input',[],pout,[0,0],0,[],[ch],dev)
+    return blk
+
+def comediDOBlk(pin, dev, ch, thr):
+    """Create Comedi Digital Output block
+    Call: comediDOBlk(pin,dev,ch)
+
+    Parameters
+    ----------
+    pin    -  Input pin
+    dev    -  Comedi device
+    ch     -  Channel
+    
+    Returns
+    -------
+    blk  : RCPblk
+"""
+    if size(pin) != 1:
+        raise ValueError("Block should have 1 input port; received %i !" % size(pin))
+
+    blk = RCPblk('comedi_digital_output',pin,[],[0,0],1,[thr],[ch],dev)
+    return blk
+
+def switchBlk(pin,pout, cond, val, pers):
+    """Create switch block 
+
+    Call: switchBlk(pin, pout, cond, val, pers)
+
+    Parameters
+    ----------
+    pin: connected input ports (3)
+    pout: connected output port
+    cond:  0 >, 1 <
+    val:   value to compare
+    pers:  switch can change again (0) or is fixed (1)
+
+    Output switches from input 1 to input 2 if the condition is reached
+    (input 3 > or <) than val;
+    If pers is 1 the system doesn't switch back again if the condition is
+    no more satisfied
+    
+    Returns
+    -------
+    blk  : RCPblk
+"""
+    if(size(pin) != 3):
+        raise ValueError("Block should have 3 input ports; received %i." % size(pin))
+
+    if(size(pout) != 1):
+        raise ValueError("Block should have 1 output port; received %i." % size(pout))
+
+    blk = RCPblk('switcher',pin,pout,[0,0],1,[val],[cond, pers])
+    return blk
+
+def lutBlk(pin, pout, coeff):
+    """Create a Look Up Table block with polynomial curve 
+
+    Call: lutBlk(pin, pout, coeff)
+
+    Parameters
+    ----------
+    pin: connected input ports (3)
+    pout: connected output port
+    coeff:  polynomial coefficients
+    
+    Returns
+    -------
+    blk  : RCPblk
+"""
+    if(size(pin) != 1):
+        raise ValueError("Block should 1 input port; received %i." % size(pin))
+
+    if(size(pout) != 1):
+        raise ValueError("Block should have 1 output port; received %i." % size(pout))
+
+    blk = RCPblk('lut',pin,pout,[0,0],1,[coeff],[size(coeff)])
+    return blk
+
+def intgBlk(pin,pout,X0=0.0):
+    """Create integral block 
+
+    Continous integral block
+
+    Call: intgBlk(pin,pout,X0)
+
+    Parameters
+    ----------
+    pin : connected input port
+    pout: connected output port
+    X0: Initial conditions
+
+    Returns
+    -------
+    blk  : RCPblk
+"""
+    nin = size(pin)
+    if (nin != 1):
+        raise ValueError("Block have 1 input: received %i input ports" % nin)
+    
+    nout = size(pout)
+    if(nout != 1):
+        raise ValueError("Block have 1 output1: received %i output ports" % nout)
+        
+    blk = RCPblk('integral',pin,pout,[1,0],0,[0.0 ,X0],[])
+    return blk
+
+
+def zdelayBlk(pin,pout,X0=0.0):
+    """Create unit delay block 
+
+    Continous integral block
+
+    Call: zdelayBlk(pin,pout,X0)
+
+    Parameters
+    ----------
+    pin : connected input port
+    pout: connected output port
+    X0: Initial conditions
+
+    Returns
+    -------
+    blk  : RCPblk
+"""
+    nin = size(pin)
+    if (nin != 1):
+        raise ValueError("Block have 1 input: received %i input ports" % nin)
+    
+    nout = size(pout)
+    if(nout != 1):
+        raise ValueError("Block have 1 output1: received %i output ports" % nout)
+        
+    blk = RCPblk('unitDelay',pin,pout,[0,1],0,[X0],[])
+    return blk
+
+def trigBlk(pin,pout,tp):
+    """Create trigonometric block 
+
+    Trigonometric block
+
+    Call: intgBlk(pin,pout,type sin=1 cos=2 tan=3)
+
+    Parameters
+    ----------
+    pin : connected input port
+    pout: connected output port
+    type: Math function
+
+    Returns
+    -------
+    blk  : RCPblk
+"""
+    nin = size(pin)
+    if (nin != 1):
+        raise ValueError("Block have 1 input: received %i input ports" % nin)
+    
+    nout = size(pout)
+    if(nout != 1):
+        raise ValueError("Block have 1 output1: received %i output ports" % nout)
+        
+    blk = RCPblk('trigo',pin,pout,[0,0],1,[],[tp])
+    return blk
+
+def unixsocketCBlk(pin,sockname):
+    """Create Unix Socket block 
+
+    Unix Socket block - Client
+
+    Call: unixsocketBlk(pin,socketname)
+
+    Parameters
+    ----------
+    pin : connected input port
+    type: Socket name (string)
+
+    Returns
+    -------
+    blk  : RCPblk
+"""
+    blk = RCPblk('unixsockC',pin,[],[0,0],1,[],[0],'/tmp/'+sockname)
+    return blk
+
+def unixsocketSBlk(pout,sockname,defvals):
+    """Create Unix Socket block - Server 
+
+    Unix Socket block
+
+    Call: unixsocketBlk(pin,socketname)
+
+    Parameters
+    ----------
+    pin      : connected input port
+    type     : Socket name (string)
+    defvals  : Default outputs
+
+    Returns
+    -------
+    blk  : RCPblk
+"""
+    outputs = len(pout)
+    vals = zeros(outputs,float)
+    if len(defvals) > outputs:
+        N=outputs
+    else:
+        N = len(defvals)
+
+    for n in range(N):
+        vals[n]=defvals[n]
+        
+    blk = RCPblk('unixsockS',[],pout,[0,0],0,defvals,[0,0],'/tmp/'+sockname)
+    return blk
+
+def MCLM_MotXBlk(pin, ID, res, kp, kd, zero):
+    """Create MCLM_MOTX block 
+
+    Get input data from an external file
+    
+    Call: MCLM_MotXBlk(pin, ID, res)
+
+    Parameters
+    ----------
+    pin: connected input port
+    ID: CAN node ID
+    res: encoder resolution
+    kp:  Proportional gain
+    ki:  Derivative gain
+
+    Returns
+    -------
+    blk  : RCPblk
+"""
+    if(size(pin) != 1):
+        raise ValueError("Block should have 1 input port; received %i." % size(pout))
+
+    blk = RCPblk('MCLM_can_motX',pin,[],[0,0],1,[res, kp, kd],[ID, zero])
+    return blk
+
+def MCLM_EncBlk(pout, ID, res):
+    """Create MCLM_ENC block 
+
+    Get encoder value from an maxon epos driver
+
+    Call: MCLM_EncBlk(pout, ID, res)
+
+    Parameters
+    ----------
+    pout: connected output port
+    ID: CAN node ID
+    res: encoder resolution
+
+    Returns
+    -------
+    blk  : RCPblk
+"""
+    if(size(pout) != 1):
+        raise ValueError("Block should have 1 output port; received %i." % size(pout))
+
+    blk = RCPblk('MCLM_can_enc',[],pout,[0,0],0,[res],[ID])
+    return blk
+
+def MCLM_ADBlk(pout, ID):
+    """Create MCLM_AD block 
+
+    Get encoder value from an maxon epos driver
+
+    Call: MCLM_DABlk(pout, ID)
+
+    Parameters
+    ----------
+    pout: connected output port
+    ID: CAN node ID
+
+    Returns
+    -------
+    blk  : RCPblk
+"""
+    if(size(pout) != 1):
+        raise ValueError("Block should have 1 output port; received %i." % size(pout))
+
+    blk = RCPblk('MCLM_can_AD',[],pout,[0,0],0,[],[ID])
+    return blk
+
+def MCLM_CO_MotXBlk(pin, ID, res):
+    """Create MCLM_MOTX block 
+
+    Get input data from an external file
+    
+    Call: MCLM_MotXBlk(pin, ID, res)
+
+    Parameters
+    ----------
+    pin: connected input port
+    ID: CAN node ID
+    res: encoder resolution
+
+    Returns
+    -------
+    blk  : RCPblk
+"""
+    if(size(pin) != 1):
+        raise ValueError("Block should have 1 input port; received %i." % size(pout))
+
+    blk = RCPblk('MCLM_canopen_motX',pin,[],[0,0],1,[res],[ID])
+    return blk
+
+def MCLM_CO_EncBlk(pout, ID, res):
+    """Create MCLM_ENC block 
+
+    Get encoder value from an maxon epos driver
+
+    Call: MCLM_EncBlk(pout, ID, res)
+
+    Parameters
+    ----------
+    pout: connected output port
+    ID: CAN node ID
+    res: encoder resolution
+
+    Returns
+    -------
+    blk  : RCPblk
+"""
+    if(size(pout) != 1):
+        raise ValueError("Block should have 1 output port; received %i." % size(pout))
+
+    blk = RCPblk('MCLM_canopen_enc',[],pout,[0,0],0,[res],[ID])
+    return blk
+
+def getXMLindex(file,ref):
+    import xml.etree.ElementTree as ET
+    from os import system
+
+    system('rm -fr binaries sources resources modelDescription.xml')
+    cmd = 'unzip -o ' + file + ".fmu -x 'sources/*' >/dev/null"
+    system(cmd)
+
+    ind = -1;
+    tree = ET.parse('modelDescription.xml')
+    root = tree.getroot()
+    cs=root.findall('./ModelVariables/ScalarVariable')
+    for el in cs:
+        if el.attrib.get('name')==ref:
+            ind = int(el.attrib.get('valueReference'))
+    
+    system('rm -fr binaries/ sources/ resources/ modelDescription.xml')
+    return ind
+
+def getXMGUI(file):
+    import xml.etree.ElementTree as ET
+    from os import system
+
+    system('rm -fr binaries sources resources modelDescription.xml')
+    cmd = 'unzip -o ' + file + ".fmu -x 'sources/*' >/dev/null"
+    system(cmd)
+
+    tree = ET.parse('modelDescription.xml')
+    root = tree.getroot()
+    guid = root.attrib.get('guid')
+    return guid
+
+def FmuBlk(pin, pout, IN_ref, OUT_ref, Path, dt, ft):
+    """Create an interface to a FMU system 
+
+    Call: FmuBlk(pin, pout, ID, IN_ref, OUT_ref, Path)
+
+    Parameters
+    ----------
+    pin     : connected input ports
+    pout    : connected output ports
+    IN_ref  : vector with the references to the FMU inputs
+    OUT_ref : vector with the references to the FMU outputs
+    Path    : Path to the resources folder
+    dt      : Major step for integration (must be equal to the sampling time)
+    ft      : Feedthrough flah
+    
+    Returns
+    -------
+    blk  : RCPblk
+"""
+    if size(pin) != size(IN_ref):
+        raise ValueError("Input references not correct; received %i." % size(IN_ref))
+
+    if size(pout) != size(OUT_ref):
+        raise ValueError("Input references not correct; received %i." % size(OUT_ref))
+    
+    intPar = hstack((size(pin), size(pout)))
+    for ref in IN_ref:
+        ind = getXMLindex(Path,ref)
+        if ind == -1:
+            raise ValueError('Reference value not found!')
+        else:
+            intPar = hstack((intPar, ind))
+
+    for ref in OUT_ref:
+        ind = getXMLindex(Path,ref)
+        if ind == -1:
+            raise ValueError('Reference value not found!')
+        else:
+            intPar = hstack((intPar, ind))
+
+    guid = getXMGUI(Path)
+    strPar =  guid + '|' + Path
+    
+    blk = RCPblk('FMUinterface',pin,pout,[0,0],ft,[dt],intPar, strPar)
+    return blk
+
+def FmuInBlk(pout, OUT_ref, Path, dt):
+    """Create an interface to a FMU system 
+
+    Call: FmuInBlk(pout, ID, IN_ref, OUT_ref, Path)
+
+    Parameters
+    ----------
+    pout    : connected output ports
+    OUT_ref : vector with the references to the FMU outputs
+    Path    : Path to the resources folder
+    dt      : Major step for integration (must be equal to the sampling time)
+    
+    Returns
+    -------
+    blk  : RCPblk
+"""
+    if size(pout) != size(OUT_ref):
+        raise ValueError("Input references not correct; received %i." % size(OUT_ref))
+    
+    intPar = hstack((0, size(pout)))
+    for ref in OUT_ref:
+        ind = getXMLindex(Path,ref)
+        if ind == -1:
+            raise ValueError('Reference value not found!')
+        else:
+            intPar = hstack((intPar, ind))
+
+    guid = getXMGUI(Path)
+    strPar =  guid + '|' + Path
+    
+    blk = RCPblk('FMUinterface',[],pout,[0,0],0,[dt],intPar, strPar)
+    return blk
+
+def genericBlk(pin, pout, nx, uy, rP, iP, strP, fname):
+    """Create an interface to a generic C function 
+
+    Call: genericBlk()
+
+    Parameters
+    ----------
+    pin     : connected input ports
+    pout    : connected output ports
+    nx      : states [cont, disc]
+    uy      : Feedforw input->output
+    rP      : real parameters
+    iP:     : integer parameters
+    strP:   : Block string
+    fname   : filename (implementation file .c)
+    
+    Returns
+    -------
+    blk  : RCPblk
+"""
+    blk = RCPblk(fname,pin,pout,nx,uy,rP,iP, strP)
+    return blk
+
+def init_maxon_MotBlk(ID, propGain, intGain):
+    """Initialize MAXON_MOT block 
+
+    Get input data from an external file
+    
+    Call: epos_MotIBlk(pin, ID, PropGain, IntgGain)
+
+    Parameters
+    ----------
+    ID: CAN node ID
+    PropGain: Proportional gain of the epos torque controller
+    IntgGain: Integral gain of the epos torque controller
+
+    Returns
+    -------
+    blk  : RCPblk
+"""
+    blk = RCPblk('init_maxon_Mot',[],[],[0,0],0,[propGain, intGain],[ID])
+    return blk
+
+def init_epos_MotIBlk(ID, propGain, intGain):
+    """Initialize EPOS_MOT_I block 
+
+    Get input data from an external file
+    
+    Call: epos_MotIBlk(pin, ID, PropGain, IntgGain)
+
+    Parameters
+    ----------
+    ID: CAN node ID
+    PropGain: Proportional gain of the epos torque controller
+    IntgGain: Integral gain of the epos torque controller
+
+    Returns
+    -------
+    blk  : RCPblk
+"""
+    blk = RCPblk('init_epos_MotI',[],[],[0,0],0,[propGain, intGain],[ID])
+    return blk
+
+def can_sdo_sendBlk(pin, ID, index, subindex, data, useInp):
+    """send a standard CAN message
+    
+    Call: can_SDO_sendBlk(pin, ID, index, subindex, data, useInp)
+
+    Parameters
+    ----------
+    ID: CAN node ID
+    index : message index
+    subindex: message subindex
+    data: message data
+    useInp: input go to next block
+
+    Returns
+    -------
+    blk  : RCPblk
+"""
+    blk = RCPblk('can_sdo_send',pin,[],[0,0],1,[],[ID, index, subindex, data, useInp])
+    return blk
+
+def can_sdo_sendThBlk(pin, pout, ID, index, subindex, data, useInp):
+    """send a standard CAN message
+    
+    Call: can_SDO_sendBlk(pin, ID, index, subindex, data, useInp)
+
+    Parameters
+    ----------
+    ID: CAN node ID
+    index : message index
+    subindex: message subindex
+    data: message data
+    useInp: input go to next block
+
+    Returns
+    -------
+    blk  : RCPblk
+"""
+    blk = RCPblk('can_sdo_send',pin,pout,[0,0],1,[],[ID, index, subindex, data, useInp])
+    return blk
+
+def can_sdo_recvBlk(pout, ID, index, subindex, K):
+    """receive a standard CAN message
+    
+    Call: can_SDO_recvBlk(pout, ID, index, subindex, K)
+
+    Parameters
+    ----------
+    ID: CAN node ID
+    index : message index
+    subindex: message subindex
+    K: Multiplicative factor to output value
+
+    Returns
+    -------
+    blk  : RCPblk
+"""
+    retID = 0x580+ID
+    blk = RCPblk('can_sdo_recv',[],pout,[0,0],0,[K],[ID, index, subindex, retID])
+    return blk
+
+def can_gen_recvBlk(pout, ID, retID, index, subindex, K):
+    """receive a standard CAN message
+    
+    Call: can_SDO_recvBlk(pout, ID, index, subindex, K)
+
+    Parameters
+    ----------
+    ID: CAN node ID
+    index : message index
+    subindex: message subindex
+    K: Multiplicative factor to output value
+
+    Returns
+    -------
+    blk  : RCPblk
+"""
+    blk = RCPblk('can_gen_recv',[],pout,[0,0],0,[K],[ID, index, subindex, retID])
     return blk

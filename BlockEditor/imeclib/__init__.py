@@ -41,6 +41,14 @@ libs['common'] = [ \
     Block(name='Print', inp=1, iosetble=True, icon='PRINT', params='printBlk'),
     Block(name='Saturation', inp=1, outp=1, icon='SATUR', params='saturBlk|Upper saturation:10|Lower saturation: -10') ]
 
+libs['input'] = [ \
+    Block(name='Const', outp=1, icon='CONST', params='constBlk|Value: 0'),
+    Block(name='Extdata', outp=1, icon='EXTDATA', params='extdataBlk|Data length: 1000|File name: data'),
+    Block(name='Sine_wave', outp=1, icon='SINUS', params='sineBlk|Amplitude: 1|Freq: 1|Phase: 0|Bias: 0|Delay: 0'),
+    Block(name='PulseGenerator', outp=1, icon='SQUARE', params='squareBlk|Amplitude: 1|Period: 4|Width: 2|Bias: 0|Delay: 0'),
+    Block(name='Step', outp=1, icon='STEP', params='stepBlk|Step Time: 1|Step Value: 1') ]
+                      
+
 libs['linear'] = [ \
     Block(name='LTI_continous', inp=1, outp=1, iosetble=True, icon='CSS', params='cssBlk|System: sys|Initial conditions: 0'),
     Block(name='LTI_discrete', inp=1, outp=1, iosetble=True, icon='DSS', params='dssBlk|System: sys|Initial conditions: 0'),

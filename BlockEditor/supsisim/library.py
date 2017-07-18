@@ -102,7 +102,7 @@ class CompViewer(QGraphicsScene):
                 block.add_outPort([x, y, name])
                 block.outp.append([x, y, name])
             else:
-                print '{} is not an implemented io type'.format(tp)
+                print('{} is not an implemented io type'.format(tp))
         block.update()
 
 
@@ -196,11 +196,11 @@ class CompViewer(QGraphicsScene):
             timestamp1 = os.stat(svgtempfilename).st_mtime
             svgfilename = os.path.join(respath, 'blocks', blockname+'.svg')
             if not os.path.exists(svgfilename):
-                print 'debug, not existing => copy'
+                print('debug, not existing => copy')
                 shutil.move(svgtempfilename, svgfilename)
                 
             elif  timestamp0 < timestamp1:
-                print 'debug, newer => copy'
+                print('debug, newer => copy')
                 shutil.move(svgtempfilename, svgfilename)
             else:
                 msg = "Not modified: Do you want to store the auto-generated icon??"
@@ -208,10 +208,10 @@ class CompViewer(QGraphicsScene):
                                  msg, QMessageBox.Yes, QMessageBox.No)
 
                 if reply == QMessageBox.Yes:
-                    print 'debug, auto => copy'
+                    print('debug, auto => copy')
                     shutil.move(svgtempfilename, svgfilename)
                 else:
-                    print 'debug, cancel => skip'
+                    print('debug, cancel => skip')
             if os.path.exists(svgtempfilename):
                 os.remove(svgtempfilename)
                 
@@ -231,7 +231,7 @@ class CompViewer(QGraphicsScene):
                     bb.append(block.toPython(lib=True))
                 t.append('libs[{}] = [ \\\n    {}]'.format(repr(c), ', \n    '.join(bb)))
             
-            print '\n'.join(t)+'\n'
+            print('\n'.join(t)+'\n')
                         
         except OSError:
             raise Exception('Inkscape is not installed')
@@ -321,7 +321,7 @@ class Library(QMainWindow):
     def mouseRightButtonPressed(self, obj, event):
         item = self.itemAt(event.scenePos())
         if isinstance(item, Block):
-            print 'debug, rightmouse' 
+            print('debug, rightmouse' )
             self.menuBlk.exec_(event.screenPos())
         else:
             pass

@@ -324,102 +324,6 @@ def genMake(model, template, addObj = ''):
     f.write(mf)
     f.close()
 
-def new_detBlkSeq(Nodes, blocks):
-    """Generate the Block sequence for simulation and RT
-
-    Call: detBlkSeq(Nodes, Blocks)
-
-    Parameters
-    ----------
-    Nodes     : Number of total nodes in diagram
-    blocks    : List with the unordered blocks
-
-    Returns
-    -------
-    Blocks    : List with the ordered blocks
-    
-"""
-    class nodeClass:
-        def __init__(self, N):
-            self.PN = N
-            self.connected_in = None
-            self.connected_out = []
-            self.updated = False
-
-        def __str__(self):
-            txt  = 'Node: ' + self.PN.__str__() + '\n'
-            try:
-                txt += 'Block In: ' + self.connected_in.fcn + '\n'
-            except:
-                txt += 'No Block\n'
-
-            txt += ' Blocks out:\n'
-            for item in self.connected_out:
-                try:
-                    txt += item.fcn + '\n'
-                except:
-                    txt += 'None\n'
-            txt += self.updated.__str__() + '\n'
-            return txt
-
-    def fillNodeList(nN,blks):
-        nL = []
-        nL.append(nodeClass(0))
-        for n in range(1, nN+1):
-            node = nodeClass(n)
-            nL.append(node)
-        for blk in blks:
-            for n in blk.pin:
-                nL[n].connected_out.append(blk)
-            for n in blk.pout:
-                nL[n].connected_in = blk
-        return nL
-
-    def checkBlock(blk, nL, bk_in, bk_out):
-        if blk in bk_in:
-            if blk.uy == 1:
-                upd = True
-                for n in blk.pin:
-                    upd = upd and nL[n].updated
-            if blk.uy == 0 or upd:
-                bk_out.append(blk)
-                bk_in.remove(blk)
-                for n in blk.pout:
-                    nd = nL[n]
-                    nd.updated = True
-                if len(blk.pout) != 0:
-                    nn = blk.pout[0]
-                    node = nL[nn]
-                    for item in node.connected_out:
-                        checkBlock(item, nL, bk_in, bk_out)
-
-    nodeList = fillNodeList(Nodes, blocks)
-        
-    blks_in = list(blocks)
-    blks_out = []
-
-    nrec = sys.getrecursionlimit()
-    nb = len(blks_in)
-    if nb > 100:
-        sys.setrecursionlimit(10*nb)
-    nBout = -1
-    while len(blks_out) != nBout:
-        nBout = len(blks_out)
-#        for blk in blks_in:
-#            checkBlock(blk, nodeList, blks_in, blks_out)
-        for item in nodeList:
-            checkBlock(item.connected_in, nodeList, blks_in, blks_out)
-            
-
-    if len(blks_in) != 0:
-        for blk in blks_in:
-            print(blk)
-        raise ValueError("Algeabric loop!")
-
-    sys.setrecursionlimit(nrec)
-    
-    return blks_out
-
 def detBlkSeq(Nodes, blocks):
     """Generate the Block sequence for simulation and RT
 
@@ -435,41 +339,99 @@ def detBlkSeq(Nodes, blocks):
     Blocks    : List with the ordered blocks
     
 """
-    M = size(blocks);
-    seq = []
-    dep = zeros((M,M))
+    class blkDep:
+        def __init__(self, block, blkL, nodeL):
+            self.block = block
+            self.block_in = []
 
-    # Fill the dependency table
-    for n in range(0,Nodes):
-        node = n+1
-        for m in range(0,M):
-            blk1 = blocks[m]
-            linked1 = size(nonzero(blk1.pin==node))
-            if (linked1 != 0) and (blk1.uy == 1):
-                for k in range(0,M):
-                    blk2 = blocks[k]
-                    linked2 = size(nonzero(blk2.pout==node))
-                    if linked2 != 0:
-                        dep[m,k] = 1
-    blks = []
-    m = 0
-    n = M
-    placed_blocks = ones((1,M))
-    while (m != M) and (n != 0):
-        for k in range(0,M):
-            if placed_blocks[0,k] == 1:
-                cnt = size(nonzero(dep[k,:] == 1))
-                if cnt == 0:
-                    blks.append(blocks[k])
+            if len(block.pin) != 0:
+                for node in block.pin:
+                    if nodeL[node].block_in[0].uy == 1:
+                        self.block_in.append(nodeL[node].block_in[0])              
+  
+            
+        def __str__(self):
+            txt  = 'Block: ' + self.block.fcn.__str__() + '\n'
+            txt += 'Inputs\n'
+            for item in self.block_in:
+                txt += item.fcn + '\n'
+            txt += '\n'
+            return txt
 
-                    dep[:,k] = 0
-                    placed_blocks[0,k] = 0
-        m = m+1
-        n = size(nonzero(placed_blocks == 1))
+    class nodeClass:
+        def __init__(self, N):
+            self.PN = N
+            self.block_in = []
+            self.block_out = []
+
+        def __str__(self):
+            txt  = 'Node: ' + self.PN.__str__() + '\n'
+            txt += ' Blocks in:\n'
+            for item in self.block_in:
+                try:
+                    txt += item.fcn + '\n'
+                except:
+                    txt += 'None\n'
+            txt += ' Blocks out:\n'
+            for item in self.block_out:
+                try:
+                    txt += item.fcn + '\n'
+                except:
+                    txt += 'None\n'
+            return txt
+
+    def fillNodeList(nN,blks):
+        nL = []
+        nL.append(nodeClass(0))
+        for n in range(1, nN+1):
+            node = nodeClass(n)
+            nL.append(node)
+        for blk in blks:
+            for n in blk.pin:
+                nL[n].block_out.append(blk)
+            for n in blk.pout:
+                nL[n].block_in.append(blk)
+        return nL
     
-    if n != 0:
-        print(placed_blocks)
+    blks = []
+    blks2order = []
+
+    nodes = fillNodeList(Nodes, blocks)
+
+    for blk in blocks:
+        if blk.uy == 0:
+            blks.append(blk)
+        else:
+            block = blkDep(blk, blocks, nodes)
+            blks2order.append(block)
+   
+    # Order the remaining blocks
+    counter = 0
+    while len(blks2order) != counter:
+        blk = blks2order.pop(0)
+        if len(blk.block_in) == 0:
+            blks.append(blk.block)
+            counter = 0
+
+            try:
+                node = blk.block.pout[0]
+
+                for bk in nodes[node].block_out:
+                    el=[el for el in blks2order if el.block == bk]
+                    try:
+                        el[0].block_in.remove(blk.block)
+                    except:
+                        pass
+            except:
+                pass
+        else:
+            blks2order.append(blk)
+            counter += 1
+
+    # Check if remain blocks in blks2order -> Algeabric loop!
+    if len(blks2order) != 0:
+        for item in blks2order:
+            print(item.block)
         raise ValueError("Algeabric loop!")
     
     return blks
-   

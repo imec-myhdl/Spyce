@@ -244,6 +244,8 @@ class SupsiSimMainWindow(QMainWindow):
         elif ret != QMessageBox.Cancel:
             self.scene.newDgm()
             filename = QFileDialog.getOpenFileName(self, 'Open', '.', filter='*.dgm')
+            if isinstance(filename, tuple):
+                filename = filename[0]
             if filename != '':
                 fname = QtCore.QFileInfo(filename)
                 self.filename = str(fname.baseName())
@@ -253,6 +255,8 @@ class SupsiSimMainWindow(QMainWindow):
         
     def saveFile(self):
         filename = QFileDialog.getSaveFileName(self, 'Save', self.path+'/'+self.filename, filter='*.dgm')
+        if isinstance(filename, tuple):
+                filename = filename[0]
         if filename != '':
             fname = QtCore.QFileInfo(filename)
             self.filename = str(fname.baseName())

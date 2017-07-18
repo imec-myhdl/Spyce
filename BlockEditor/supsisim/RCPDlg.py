@@ -87,7 +87,11 @@ def INT031Dlg(nin, nout, pars):
     dlg = ListDlg(list)
     res = dlg.exec_()
     if res == 1:
-        pass
+        ln = pars.split('|')
+        ln[1] = 'Card ID: ' + str(dlg.listWdg.currentRow()+1)
+        pars = ln[0]
+        for n in range(1,4):
+            pars += '|' + ln[n]
     pars = parsDialog(pars)
     return pars
 

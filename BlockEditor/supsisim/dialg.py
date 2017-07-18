@@ -203,7 +203,7 @@ class txtDialog(QDialog):
                     cres = [type(col_t[ix])(c) for ix, c in enumerate(line.split())]
                     lres.append(cres)
                 except:
-                    print 'ignored:', line
+                    print('ignored:', line)
         return lres
             
 
@@ -231,8 +231,8 @@ if __name__ == "__main__":
 #            if not pt.startswith('#'):
 #                print pt, x, y, pn
 #        except:
-#            print 'ignored: ' + line
+#            print('ignored: ' + line)
             
     res = pe.editList(pins, header='io x y pinname')
-    print res
+    print(res)
     sys.exit(app.exec_())
