@@ -57,18 +57,8 @@ class Editor(QtCore.QObject):
     
     def flpBlock(self):
         item = self.scene.item
-        w = item.label.boundingRect().width()
-        if item.flip:
-            item.flip = False
-            item.setTransform(QTransform.fromScale(1, 1))
-            item.label.setTransform(QTransform.fromScale(1,1))
-            item.label.setPos(-w/2, item.h/2+5)
-        else:
-            item.flip = True
-            item.setTransform(QTransform.fromScale(-1, 1))
-            item.label.setTransform(QTransform.fromTranslate(0,0).scale(-1,1))
-            item.label.setPos(w/2, item.h/2+5)
-
+        item.flip = not item.flip
+        item.setFlip()
 
     def nameBlock(self):
         item = self.scene.item

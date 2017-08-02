@@ -13,9 +13,10 @@ import svgwrite
 
 from pyqt45 import QGraphicsScene, QMainWindow, QWidget, QVBoxLayout, \
                    QHBoxLayout, QGraphicsView,QTabWidget, QApplication, \
-                   QTransform, QDrag, QtCore, QMenu, QMessageBox, set_orient
+                   QTransform, QDrag, QtCore, QMenu, QMessageBox, QComboBox, \
+                   set_orient
                    
-from const import DB, PD, respath
+from supsisim.const import DB, PD, respath, svgpinlabels
 
 #import dircache
 import os
@@ -37,11 +38,17 @@ class CompViewer(QGraphicsScene):
         self.activeComponent = None 
 
         self.menuBlk = QMenu()
-        editIconAction   = self.menuBlk.addAction('Edit Icon')
-        editPinsAction    = self.menuBlk.addAction('Edit pins')
+        
+        # create context menu
+        editIconAction   = self.menuBlk.addAction('edit Icon')
         editIconAction.triggered.connect(self.editIcon)
-        editPinsAction.triggered.connect(self.editPins)
 
+        createIconAction = self.menuBlk.addAction('(re)create Icon')
+        createIconAction.triggered.connect(self.createIcon)
+
+        editPinsAction   = self.menuBlk.addAction('Edit pins')
+        editPinsAction.triggered.connect(self.editPins)
+ 
     def contextMenuEvent(self, event):
         pos = event.scenePos()
         for item in self.items(QtCore.QRectF(pos-QtCore.QPointF(DB,DB), QtCore.QSizeF(2*DB,2*DB))):
@@ -49,7 +56,7 @@ class CompViewer(QGraphicsScene):
                 self.menuBlk.exec_(event.screenPos())
                 break
         else:
-            print('ja daar is niks ?!?')
+            print('Hmmm, here is nothing?!?')
 
     def setUniqueName(self, block):
         return block.name
@@ -96,17 +103,48 @@ class CompViewer(QGraphicsScene):
         block.outp = []
         for tp, x, y, name in pinlist:
             if tp == 'i':
-                block.add_inPort([x, y, name])
-                block.inp.append([x, y, name])
+                block.add_inPort([name, x, y])
+                block.inp.append([name, x, y])
             elif tp == 'o':
-                block.add_outPort([x, y, name])
-                block.outp.append([x, y, name])
+                block.add_outPort([name, x, y])
+                block.outp.append([name, x, y])
             else:
                 print('{} is not an implemented io type'.format(tp))
         block.update()
 
-
     def editIcon(self):
+        '''edit svg file'''
+        block = self.actComp
+        blockname = block.name
+        svgiconname = os.path.join(respath, 'blocks', block.icon+'.svg')
+        svgfilename = os.path.join(respath, 'blocks', blockname+'.svg')
+        with open(svgiconname) as fi:
+            t = fi.read()
+        #generate a tempfile
+        fo = tempfile.NamedTemporaryFile(suffix='.svg', delete=False)
+        svgtempfilename = fo.name
+        fo.write(t)
+        fo.close()
+
+        try:
+            timestamp0 = os.stat(svgtempfilename).st_mtime
+            subprocess.call('inkscape {}'.format(svgtempfilename).split())
+            timestamp1 = os.stat(svgtempfilename).st_mtime
+            if  timestamp0 < timestamp1: # newer => copy'
+                shutil.move(svgtempfilename, svgfilename)
+                block.setIcon()
+                
+            # creanup tempfile
+            if os.path.exists(svgtempfilename):
+                os.remove(svgtempfilename)
+                
+        except OSError:
+            raise Exception('Inkscape is not installed')
+        
+        
+        
+
+    def createIcon(self):
         '''generate svg file'''
         block = self.actComp
         blockname = block.name
@@ -181,7 +219,8 @@ class CompViewer(QGraphicsScene):
                 dx, dy = 0, -pin_size
                 tx, ty = dx, dy
 
-            dwg.add(dwg.text(name, id='{}-portlabel_{}'.format(tp, name), insert=(tx, ty), **extra))
+            if svgpinlabels:
+                dwg.add(dwg.text(name, id='{}-portlabel_{}'.format(tp, name), insert=(tx, ty), **extra))
             dwg.add(dwg.line(id='{}-port_{}'.format(tp, name), start=(x, y), end=(x+dx, y+dy), stroke='darkGreen'))
         
         
@@ -195,23 +234,22 @@ class CompViewer(QGraphicsScene):
             subprocess.call('inkscape {}'.format(svgtempfilename).split())
             timestamp1 = os.stat(svgtempfilename).st_mtime
             svgfilename = os.path.join(respath, 'blocks', blockname+'.svg')
-            if not os.path.exists(svgfilename):
-                print('debug, not existing => copy')
+            if not os.path.exists(svgfilename):# not existing => copy'
                 shutil.move(svgtempfilename, svgfilename)
+                block.setIcon()
                 
-            elif  timestamp0 < timestamp1:
-                print('debug, newer => copy')
+            elif  timestamp0 < timestamp1:# newer => copy'
                 shutil.move(svgtempfilename, svgfilename)
-            else:
+                block.setIcon()
+            else: # ask
                 msg = "Not modified: Do you want to store the auto-generated icon??"
                 reply = QMessageBox.question(None, 'Message', 
                                  msg, QMessageBox.Yes, QMessageBox.No)
 
                 if reply == QMessageBox.Yes:
-                    print('debug, auto => copy')
-                    shutil.move(svgtempfilename, svgfilename)
-                else:
-                    print('debug, cancel => skip')
+                     shutil.move(svgtempfilename, svgfilename)
+                     block.setIcon()
+
             if os.path.exists(svgtempfilename):
                 os.remove(svgtempfilename)
                 
@@ -255,9 +293,13 @@ class Library(QMainWindow):
         self.closeFlag = False
 
         self.tabs = QTabWidget()
+        self.quickSelTab = QComboBox()
         
         libs = imeclib.libs
-        for libname in sorted(libs.keys(), key=lambda s: s.lower()): # case insensitive sorting
+        libnames = sorted(libs.keys(), key=lambda s: s.lower())
+        self.quickSelTab.addItems(libnames)
+        for libname in libnames: # case insensitive sorting
+            
             lib = libs[libname]
             diagram = CompViewer(self)
             view = QGraphicsView(diagram)
@@ -279,16 +321,38 @@ class Library(QMainWindow):
             tab.setLayout(layout)
 
             self.tabs.addTab(tab, libname)
+            self.connect(self.quickSelTab, QtCore.SIGNAL('currentIndexChanged (int)'), self.setCurrentTab)
             
                 
         layout = QHBoxLayout()
+        self.tabs.setCornerWidget(self.quickSelTab, QtCore.Qt.TopLeftCorner)
         layout.addWidget(self.tabs)
         self.widget = QWidget()
         self.widget.setLayout(layout)
         self.setCentralWidget(self.widget)
-        self.tabs.setCurrentIndex(2)
+        ix = self.quickSelTab.findText(imeclib.default)
+        self.tabs.setCurrentIndex(ix)
+        self.quickSelTab.setCurrentIndex (ix)
 
 
+    def wheelEvent(self, event):
+        if use_pyqt == 5:
+            factor = 1.41 ** (-event.angleDelta().y()/ 240.0)
+        else:
+            factor = 1.41 ** (-event.delta() / 240.0)
+        
+        # zoom around mouse position, not the anchor
+        self.setTransformationAnchor(QGraphicsView.NoAnchor)
+        self.setResizeAnchor(QGraphicsView.NoAnchor)
+        pos = self.mapToScene(event.pos())
+        self.scale(factor, factor)
+        delta =  self.mapToScene(event.pos()) - pos
+        self.translate(delta.x(), delta.y())
+
+
+    def setCurrentTab(self, ix):
+        self.tabs.setCurrentIndex(ix)
+#        self.quickSelTab.setEditText(str(ix))
         
     def readLib(self):
         files = os.listdir(os.path.join(respath,'blocks'))
@@ -321,7 +385,6 @@ class Library(QMainWindow):
     def mouseRightButtonPressed(self, obj, event):
         item = self.itemAt(event.scenePos())
         if isinstance(item, Block):
-            print('debug, rightmouse' )
             self.menuBlk.exec_(event.screenPos())
         else:
             pass
