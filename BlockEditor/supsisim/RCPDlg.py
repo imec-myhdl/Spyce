@@ -1,31 +1,30 @@
-import sys
-#if sys.version_info>(3,0):
-#    import sip
-#    sip.setapi('QString', 1)
+#!/usr/bin/python
+# aim for python 2/3 compatibility
+from __future__ import (division, print_function, absolute_import,
+                        unicode_literals)
 
-from pyqt45 import QDialog, QGridLayout, QLabel, QLineEdit, QPushButton, QListWidget, QtCore
-
+from  Qt import QtWidgets, QtCore # see https://github.com/mottosso/Qt.py
 
 from supsisim.const import respath
 
-class BlkDlg(QDialog):
+class BlkDlg(QtWidgets.QDialog):
     def __init__(self, line):
         super(BlkDlg, self).__init__(None)
-        grid = QGridLayout()
+        grid = QtWidgets.QGridLayout()
         self.line = line
         self.blkID = ''
         self.labels, self.params = self.parseParams(line)
         N = len(self.labels)
         self.Values = []
         for n in range(0,N):
-            Lab = QLabel(self.labels[n])
-            Val = QLineEdit(self.params[n].__str__())
+            Lab = QtWidgets.QLabel(self.labels[n])
+            Val = QtWidgets.QLineEdit(self.params[n].__str__())
             self.Values.append(Val)
             grid.addWidget(Lab,n,0)
             grid.addWidget(Val,n,1)
         
-        self.pbOK = QPushButton('OK')
-        self.pbCANCEL = QPushButton('CANCEL')
+        self.pbOK = QtWidgets.QPushButton('OK')
+        self.pbCANCEL = QtWidgets.QPushButton('CANCEL')
         grid.addWidget(self.pbOK,N,0)
         grid.addWidget(self.pbCANCEL,N,1)
         self.pbOK.clicked.connect(self.accept)
@@ -53,18 +52,18 @@ class BlkDlg(QDialog):
             self.line += '|' + self.labels[n] +': ' + str(self.Values[n].text())
         super(BlkDlg, self).accept()
 
-class ListDlg(QDialog):
+class ListDlg(QtWidgets.QDialog):
     def __init__(self, list, parent=None):
         super(ListDlg, self).__init__(parent)
-        layout = QGridLayout()
+        layout = QtWidgets.QGridLayout()
         self.setWindowModality(QtCore.Qt.ApplicationModal)
         self.resize(380, 180)
-        self.listWdg = QListWidget()
+        self.listWdg = QtWidgets.QListWidget()
         for item in list:
             self.listWdg.addItem(item)
         layout.addWidget(self.listWdg,0,0)
-        self.pbOK = QPushButton('OK')
-        self.pbCANCEL = QPushButton('CANCEL')
+        self.pbOK = QtWidgets.QPushButton('OK')
+        self.pbCANCEL = QtWidgets.QPushButton('CANCEL')
         layout.addWidget(self.pbOK,0,1)
         layout.addWidget(self.pbCANCEL,1,1)
         self.pbOK.clicked.connect(self.accept)

@@ -1,3 +1,10 @@
+#!/usr/bin/python
+# aim for python 2/3 compatibility
+from __future__ import (division, print_function, absolute_import,
+                        unicode_literals)
+
+from  Qt import QtGui, QtWidgets, QtCore # see https://github.com/mottosso/Qt.py
+
 import sys, os, ast
 #if sys.version_info>(3,0):
 #    import sip
@@ -5,9 +12,6 @@ import sys, os, ast
 
 #import sip
 from lxml import etree
-
-from pyqt45  import QGraphicsPathItem, QGraphicsTextItem, QPainterPath, \
-                    QPen, QImage, QtCore, QTransform, textItem
 
 
 from supsisim.port import Port, InPort, OutPort
@@ -17,7 +21,7 @@ from supsisim.const import GRID, PW, LW, BWmin, BHmin, PD, respath, qtpinlabels
 
 
 
-class Block(QGraphicsPathItem):
+class Block(QtWidgets.QGraphicsPathItem):
     """A block holds ports that can be connected to."""
     def __init__(self, *args, **kwargs):
         if len(args) >= 2:
@@ -124,7 +128,7 @@ class Block(QGraphicsPathItem):
             self.h = max(50, y1 - y0 + PD) # block height
 
 
-        p = QPainterPath()
+        p = QtGui.QPainterPath()
         
         p.addRect(-self.w/2, -self.h/2, self.w, self.h)
 
@@ -164,7 +168,7 @@ class Block(QGraphicsPathItem):
         
     def setFlip(self):
         if self.flip:
-            self.setTransform(QTransform.fromScale(-1, 1))
+            self.setTransform(QtGui.QTransform.fromScale(-1, 1))
             self.label.setFlipped()
             for c in self.childItems():
                 try:
@@ -174,7 +178,7 @@ class Block(QGraphicsPathItem):
                 except AttributeError:
                     pass
         else:
-            self.setTransform(QTransform.fromScale(1, 1))
+            self.setTransform(QtGui.QTransform.fromScale(1, 1))
             self.label.setNormal()
             for c in self.childItems():
                 try:
@@ -189,7 +193,7 @@ class Block(QGraphicsPathItem):
 
     def setIcon(self):
         svgfilepath = os.path.join(respath, 'blocks' , self.icon + '.svg')
-        self.img = QImage()
+        self.img = QtGui.QImage()
         if self.flip:
             self.img.loadFromData(self.create_svg_mirror_txt(svgfilepath))
         else:
@@ -250,7 +254,7 @@ class Block(QGraphicsPathItem):
 
 
     def paint(self, painter, option, widget):
-        pen = QPen()
+        pen = QtGui.QPen()
         pen.setBrush(self.line_color)
         pen.setWidth = LW
         if self.isSelected():
@@ -366,5 +370,51 @@ class Block(QGraphicsPathItem):
 #        tree.write(svgflipped, pretty_print=True)
         return svgflipped
 
+
+class textItem(QtWidgets.QGraphicsTextItem):
+    '''convenience class, extension of QGraphicsTextItem, that realises aligned text
+    textItem.setFlipped() will mirror the text  (in place)
+    textItem.setNormal() will put txt in normal (non-mirrored) state
+    
+    anchor is (look at numpad):
+    1: bottom-left
+    2: bottom-center
+    3: bottom-right
+    4: center-left
+    5: center-center
+    6: center-right
+    7: top-left
+    8: top-center
+    9: top-right'''
+    def __init__(self, text, anchor=1, parent=None):
+        super(textItem, self).__init__(text, parent)
+        self.anchor = anchor
+        
+        # compute dx, dy absed on anchor
+        self.dx, self.dy = 0, 0
+        if anchor in (4,5,6):
+            self.dy = -0.5*self.boundingRect().height()
+        elif anchor in (1,2,3):
+            self.dy = -self.boundingRect().height()
+        
+        if anchor in (2,5,8):
+            self.dx = -0.5*self.boundingRect().width()
+        if anchor in (3,6,9):
+            self.dx = -self.boundingRect().width()
+            
+        self.setNormal()
+        self.setFlag(self.ItemIsMovable)
+        self.setFlag(self.ItemIsSelectable)
+#        self.setFlag(self.ItemIgnoresTransformations)
+        self.setTextInteractionFlags(QtCore.Qt.TextEditorInteraction)
+
+        
+    def setFlipped(self):
+        '''mirror in place (use when parent is flipped'''
+        self.setTransform(QtGui.QTransform().translate(self.dx, self.dy).scale(-1,1).translate(-self.boundingRect().width(),0))
+
+    def setNormal(self):
+        '''normal orientation'''
+        self.setTransform(QtGui.QTransform.fromScale(1,1).translate(self.dx, self.dy))
 
 

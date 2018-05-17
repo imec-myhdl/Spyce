@@ -1,16 +1,21 @@
-import sys
+#!/usr/bin/python
+# aim for python 2/3 compatibility
+from __future__ import (division, print_function, absolute_import,
+                        unicode_literals)
+
+from  Qt import QtGui, QtWidgets, QtCore # see https://github.com/mottosso/Qt.py
+
 #if sys.version_info>(3,0):
 #    import sip
 #    sip.setapi('QString', 1)
 
-from pyqt45 import QGraphicsPathItem, QPainterPath, QPen, QtCore
 
 from supsisim.port import InNodePort, OutNodePort
 from supsisim.const import GRID, NW
 
 from lxml import etree
 
-class Node(QGraphicsPathItem):
+class Node(QtWidgets.QGraphicsPathItem):
     """A block holds ports that can be connected to."""
     def __init__(self, parent, scene):
         if QtCore.qVersion().startswith('5'):
@@ -30,7 +35,7 @@ class Node(QGraphicsPathItem):
         return txt
         
     def setup(self):
-        p = QPainterPath()
+        p = QtGui.QPainterPath()
         p.addRect(-NW/2, -NW/2, NW, NW)
         self.setPath(p)
 
@@ -53,9 +58,9 @@ class Node(QGraphicsPathItem):
         return self.port
 
     def paint(self, painter, option, widget):
-        painter.setPen(QPen(self.line_color))
+        painter.setPen(QtGui.QPen(self.line_color))
         if self.isSelected():
-            painter.setPen(QPen(QtCore.Qt.red))
+            painter.setPen(QtGui.QPen(QtCore.Qt.red))
         painter.setBrush(self.fill_color)
         painter.drawPath(self.path())
 

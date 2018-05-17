@@ -1,9 +1,14 @@
-import sys
+#!/usr/bin/python
+# aim for python 2/3 compatibility
+from __future__ import (division, print_function, absolute_import,
+                        unicode_literals)
+
+from  Qt import QtGui, QtWidgets, QtCore # see https://github.com/mottosso/Qt.py
+
+#import sys
 #if sys.version_info>(3,0):
 #    import sip
 #    sip.setapi('QString', 1)
-
-from pyqt45 import QGraphicsPathItem, QPainterPath, QPen, QtCore
 
 import numpy as np
 from supsisim.const import LW
@@ -11,7 +16,7 @@ from supsisim.port import InPort, OutPort
 from supsisim.node import Node
 from lxml import etree
 
-class Connection(QGraphicsPathItem):
+class Connection(QtWidgets.QGraphicsPathItem):
     """Connects one port to another."""
 
     def __init__(self, parent, scene):
@@ -43,7 +48,7 @@ class Connection(QGraphicsPathItem):
         return txt
         
     def setup(self):
-        pen = QPen(self.line_color)
+        pen = QtGui.QPen(self.line_color)
         pen.setWidth(LW)
         self.setPen(pen)
 
@@ -67,7 +72,7 @@ class Connection(QGraphicsPathItem):
         self.update_path()
         
     def update_path(self):
-        p = QPainterPath()
+        p = QtGui.QPainterPath()
         item = None
         if self.port2 == None:
             item = self.scene.find_itemAt(self.pos2)

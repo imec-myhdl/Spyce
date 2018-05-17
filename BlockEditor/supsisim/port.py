@@ -1,13 +1,18 @@
-import sys
+#!/usr/bin/python
+# aim for python 2/3 compatibility
+from __future__ import (division, print_function, absolute_import,
+                        unicode_literals)
+
+from  Qt import QtGui, QtWidgets, QtCore # see https://github.com/mottosso/Qt.py
+
+
 #if sys.version_info>(3,0):
 #    import sip
 #    sip.setapi('QString', 1)
 
-from pyqt45  import QGraphicsPathItem, QGraphicsItem, QPainterPath, QtCore
-
 from supsisim.const import PW
 
-class Port(QGraphicsPathItem):
+class Port(QtWidgets.QGraphicsPathItem):
     """A block holds ports that can be connected to."""
     def __init__(self, parent, scene, name = ''):
         if QtCore.qVersion().startswith('5'):
@@ -18,7 +23,7 @@ class Port(QGraphicsPathItem):
         self.name = ''
         self.line_color = QtCore.Qt.black
         self.fill_color = QtCore.Qt.black
-        self.p = QPainterPath()
+        self.p = QtGui.QPainterPath()
         self.connections = []
         self.nodeID = '0'
         self.parent = parent
@@ -76,7 +81,7 @@ class InPort(Port):
         self.setBrush(self.fill_color)
         self.p.addRect(-PW/2, -PW/2, PW, PW)
         self.setPath(self.p)
-        self.setFlag(QGraphicsItem.ItemSendsScenePositionChanges)
+        self.setFlag(QtWidgets.QGraphicsItem.ItemSendsScenePositionChanges)
 
 class OutPort(Port):
     def __init__(self, parent, scene, name=''):
@@ -96,7 +101,7 @@ class OutPort(Port):
         self.setBrush(self.fill_color)
         self.p.addEllipse(-PW/2, -PW/2, PW, PW)
         self.setPath(self.p)
-        self.setFlag(QGraphicsItem.ItemSendsScenePositionChanges)
+        self.setFlag(QtWidgets.QGraphicsItem.ItemSendsScenePositionChanges)
          
 class InNodePort(Port):
     def __init__(self, parent, scene):
@@ -109,7 +114,7 @@ class InNodePort(Port):
         return txt
 
     def setup(self):
-        self.setFlag(QGraphicsItem.ItemSendsScenePositionChanges)
+        self.setFlag(QtWidgets.QGraphicsItem.ItemSendsScenePositionChanges)
 
 class OutNodePort(Port):
     def __init__(self, parent, scene):
@@ -122,5 +127,5 @@ class OutNodePort(Port):
         return txt
 
     def setup(self):
-        self.setFlag(QGraphicsItem.ItemSendsScenePositionChanges)
+        self.setFlag(QtWidgets.QGraphicsItem.ItemSendsScenePositionChanges)
 

@@ -1,10 +1,11 @@
-import sys
-#if sys.version_info>(3,0):
-#    import sip
-#    sip.setapi('QString', 1)
+#!/usr/bin/python
+# aim for python 2/3 compatibility
+from __future__ import (division, print_function, absolute_import,
+                        unicode_literals)
 
+import Qt
+from  Qt import QtGui, QtWidgets, QtCore # see https://github.com/mottosso/Qt.py
 
-from pyqt45 import QGraphicsView, QGraphicsScene, QGraphicsItem, QPainter, QtCore, use_pyqt
 
 from supsisim.block import Block
 from supsisim.port import Port, InPort, OutPort
@@ -17,30 +18,30 @@ import os
 import subprocess
 import time
 
-class GraphicsView(QGraphicsView):
+class GraphicsView(QtWidgets.QGraphicsView):
     def __init__(self, parent=None):
         super(GraphicsView, self).__init__(parent)
-        self.setDragMode(QGraphicsView.RubberBandDrag)
+        self.setDragMode(QtWidgets.QGraphicsView.RubberBandDrag)
         self.setSceneRect(QtCore.QRectF(-2000, -2000, 4000, 4000))
-        self.setRenderHint(QPainter.Antialiasing)
-        self.setRenderHint(QPainter.TextAntialiasing)
+        self.setRenderHint(QtGui.QPainter.Antialiasing)
+        self.setRenderHint(QtGui.QPainter.TextAntialiasing)
         self.setAcceptDrops(True)
         
     def wheelEvent(self, event):
-        if use_pyqt == 5:
+        if Qt.__binding__ in ['PyQt5', 'PySide2']:
             factor = 1.41 ** (-event.angleDelta().y()/ 240.0)
         else:
             factor = 1.41 ** (-event.delta() / 240.0)
         
         # zoom around mouse position, not the anchor
-        self.setTransformationAnchor(QGraphicsView.NoAnchor)
-        self.setResizeAnchor(QGraphicsView.NoAnchor)
+        self.setTransformationAnchor(QtWidgets.QGraphicsView.NoAnchor)
+        self.setResizeAnchor(QtWidgets.QGraphicsView.NoAnchor)
         pos = self.mapToScene(event.pos())
         self.scale(factor, factor)
         delta =  self.mapToScene(event.pos()) - pos
         self.translate(delta.x(), delta.y())
         
-class Scene(QGraphicsScene):
+class Scene(QtWidgets.QGraphicsScene):
     def __init__(self, main, parent=None):
         super(Scene,self).__init__(parent)
         self.mainw = main
@@ -52,7 +53,8 @@ class Scene(QGraphicsScene):
         self.addObjs = ''
         self.Ts = '0.01'
         self.script = ''
-        self.Tf = '10'
+        self.Tf = '10'       
+
 
     def getIndex(self,name):
         try:
@@ -173,7 +175,7 @@ class Scene(QGraphicsScene):
     def find_itemAt(self, pos):
         items = self.items(QtCore.QRectF(pos-QtCore.QPointF(1,1), QtCore.QSizeF(3,3)))
         for item in items:
-            if isinstance(item, QGraphicsItem) and not isinstance(item, Connection):
+            if isinstance(item, QtWidgets.QGraphicsItem) and not isinstance(item, Connection):
                 return item
         return None
     

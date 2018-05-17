@@ -1,13 +1,14 @@
 #!/usr/bin/python
+# aim for python 2/3 compatibility
+from __future__ import (division, print_function, absolute_import,
+                        unicode_literals)
+
+from  Qt import QtWidgets # see https://github.com/mottosso/Qt.py
 
 import sys
 
-from pyqt45 import QMainWindow, QLabel, QLineEdit, QApplication, use_pyqt
-
-if use_pyqt == 5:  
-    from uiParams5 import Ui_Dialog
-else:
-    from uiParams import Ui_Dialog
+# import userinterface generated from SendPars.ui
+from SendPars import Ui_Dialog
     
 import supsictrl.unixsocket as sk
 
@@ -18,9 +19,9 @@ import time
 #import numpy as np
 
 
-class MainWindow(QMainWindow):
+class MainWindow(QtWidgets.QMainWindow):
     def __init__(self):
-        QMainWindow.__init__(self)
+        QtWidgets.QMainWindow.__init__(self)
         # Set up the user interface from Designer.
         self.ui = Ui_Dialog()
         self.ui.setupUi(self)
@@ -38,9 +39,9 @@ class MainWindow(QMainWindow):
         self.ui.gridLayout.setVerticalSpacing(5)
         N = self.ui.spVars.value()
         for n in range(N):
-            lab = QLabel('Parameter ' + str(n+1) + ': ')
+            lab = QtWidgets.QLabel('Parameter ' + str(n+1) + ': ')
             self.ui.gridLayout.addWidget(lab,n,0);
-            ed = QLineEdit('0.0')            
+            ed = QtWidgets.QLineEdit('0.0')            
             self.ui.gridLayout.addWidget(ed,n,1);
         
     def connect_widget(self):

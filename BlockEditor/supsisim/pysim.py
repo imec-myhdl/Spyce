@@ -1,14 +1,18 @@
+#!/usr/bin/python
+# aim for python 2/3 compatibility
+from __future__ import (division, print_function, absolute_import,
+                        unicode_literals)
+
+from  Qt import QtGui, QtWidgets, QtCore # see https://github.com/mottosso/Qt.py
+
 import sys
 import os
 
-import sip
 #try:
 #    sip.setapi('QString', 1)
 #except ValueError: 
 #    sip.setapi('QString', 2)
 
-from pyqt45  import QApplication, QtCore
-    
 
 import threading
 
@@ -28,7 +32,7 @@ class supsisimul(threading.Thread):
         self.runflag = runflag
 
     def run(self):
-        app = QApplication(sys.argv)
+        app = QtWidgets.QApplication(sys.argv)
         library = Library()
         library.setGeometry(20, 20, 400, 500)
         library.show()

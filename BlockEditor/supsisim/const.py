@@ -23,12 +23,12 @@ else:
 # path to resources
 respath = os.path.join(path, 'resources')
 if not os.path.isdir(respath):
-    raise Exception('resource path ({}) not found'.fromat(respath))
+    raise Exception('resource path ({}) not found'.format(respath))
 
 pycmd = 'ipython3 qtconsole &'
 pyrun = 'python'
 TEMP = '.'
 
 # named pins configuration
-qtpinlabels  = False # if set to true named ports will get a pinlabel
+qtpinlabels  = True # if set to true named ports will get a pinlabel
 svgpinlabels = True  # if set to true named ports generate a pinlabel when creating an icon

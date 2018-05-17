@@ -1,14 +1,16 @@
 #!/usr/bin/python
+# aim for python 2/3 compatibility
+from __future__ import (division, print_function, absolute_import,
+                        unicode_literals)
 
-import sys
+from  Qt import QtGui, QtWidgets, QtCore # see https://github.com/mottosso/Qt.py
+from  Qt.QtPrintSupport import QPrinter, QPrintDialog
+
 import os
 #if sys.version_info>(3,0):
 #    import sip
 #    sip.setapi('QString', 1)
 
-from pyqt45 import QMainWindow, QWidget, QVBoxLayout,  QAction, QMessageBox, \
-                   QFileDialog, QDialog, QPainter, QIcon, QPrinter, \
-                   QPrintDialog, QtCore
 
 from supsisim.block import Block
 from supsisim.node import Node
@@ -21,18 +23,18 @@ from supsisim.const import respath, pycmd
 
 DEBUG = False
 
-class SupsiSimMainWindow(QMainWindow):
+class SupsiSimMainWindow(QtWidgets.QMainWindow):
     def __init__(self, library, fname, mypath, runflag, parent=None):
         super(SupsiSimMainWindow, self).__init__(parent)
         self.resize(1024, 768)
-        self.centralWidget = QWidget(self)
-        self.verticalLayout = QVBoxLayout(self.centralWidget)
+        self.centralWidget = QtWidgets.QWidget(self)
+        self.verticalLayout = QtWidgets.QVBoxLayout(self.centralWidget)
         self.verticalLayout.setContentsMargins(0,0,0,0)
         self.view = GraphicsView(self.centralWidget)
         self.view.setMouseTracking(True)
         self.scene = Scene(self)
         self.view.setScene(self.scene)
-        self.view.setRenderHint(QPainter.Antialiasing)
+        self.view.setRenderHint(QtGui.QPainter.Antialiasing)
         self.verticalLayout.addWidget(self.view)
         self.setCentralWidget(self.centralWidget)
         self.addactions()
@@ -55,69 +57,69 @@ class SupsiSimMainWindow(QMainWindow):
     def addactions(self):
         mypath = respath + '/icons/'
 
-        self.newFileAction = QAction(QIcon(mypath+'filenew.png'),
+        self.newFileAction = QtWidgets.QAction(QtGui.QIcon(mypath+'filenew.png'),
                                                 '&Open', self,
                                                 shortcut = 'Ctrl+N',
                                                 statusTip = 'New File',
                                                 triggered = self.newFile)
         
-        self.openFileAction = QAction(QIcon(mypath+'fileopen.png'),
+        self.openFileAction = QtWidgets.QAction(QtGui.QIcon(mypath+'fileopen.png'),
                                                 '&Open', self,
                                                 shortcut = 'Ctrl+O',
                                                 statusTip = 'Open File',
                                                 triggered = self.openFile)
 
-        self.saveFileAction = QAction(QIcon(mypath+'filesave.png'),
+        self.saveFileAction = QtWidgets.QAction(QtGui.QIcon(mypath+'filesave.png'),
                                                 '&Save', self,
                                                 shortcut = 'Ctrl+S',
                                                 statusTip = 'Save File',
                                                 triggered = self.saveFile)
 
-        self.copyAction = QAction(QIcon(mypath+'copy.png'),
+        self.copyAction = QtWidgets.QAction(QtGui.QIcon(mypath+'copy.png'),
                                             '&Copy', self,
                                             shortcut = 'Ctrl+C',
                                             statusTip = 'Copy',
                                             triggered = self.copyAct)
 
-        self.pasteAction = QAction(QIcon(mypath+'paste.png'),
+        self.pasteAction = QtWidgets.QAction(QtGui.QIcon(mypath+'paste.png'),
                                              '&Paste', self,
                                              shortcut = 'Ctrl+V',
                                              statusTip = 'Paste',
                                              triggered = self.pasteAct)
 
-        self.printAction = QAction(QIcon(mypath+'print.png'),
+        self.printAction = QtWidgets.QAction(QtGui.QIcon(mypath+'print.png'),
                                              '&Print', self,
                                              shortcut = 'Ctrl+P',
                                              statusTip = 'Print schematic',
                                              triggered = self.print_scheme)
 
-        self.exitAction = QAction(QIcon(mypath+'exit.png'),
+        self.exitAction = QtWidgets.QAction(QtGui.QIcon(mypath+'exit.png'),
                                             '&Exit',self,
                                             shortcut = 'Ctrl+X',
                                             statusTip = 'Exit Application',
                                             triggered = self.close)
                                             
-        self.startPythonAction = QAction(QIcon(mypath+'python.png'),
+        self.startPythonAction = QtWidgets.QAction(QtGui.QIcon(mypath+'python.png'),
                                                'Start iPython',self,
                                                statusTip = 'Start iPython',
                                                triggered = self.startpythonAct)
 
-        self.runAction = QAction(QIcon(mypath+'run.png'),
+        self.runAction = QtWidgets.QAction(QtGui.QIcon(mypath+'run.png'),
                                            'Simulate',self,
                                            statusTip = 'Simulate',
                                            triggered = self.runAct)
 
-        self.codegenAction = QAction(QIcon(mypath+'codegen.png'),
+        self.codegenAction = QtWidgets.QAction(QtGui.QIcon(mypath+'codegen.png'),
                                                'Generate C-code',self,
                                                statusTip = 'Generate C-Code',
                                                triggered = self.codegenAct)
 
-        self.setCodegenAction = QAction(QIcon(mypath+'settings.png'),
+        self.setCodegenAction = QtWidgets.QAction(QtGui.QIcon(mypath+'settings.png'),
                                                 'Block settings',self,
                                                 statusTip = 'Block settings',
                                                 triggered = self.setcodegenAct)
 
-        self.debugAction = QAction(QIcon(mypath+'debug.png'),
+        self.debugAction = QtWidgets.QAction(QtGui.QIcon(mypath+'debug.png'),
                                              'Debugging',self,
                                              statusTip = 'Debug infos',
                                              triggered = self.debugAct)                                           
@@ -202,15 +204,15 @@ class SupsiSimMainWindow(QMainWindow):
     def askSaving(self):
         items = self.scene.items()
         if len(items) == 0:
-            return QMessageBox.Discard
+            return QtWidgets.QMessageBox.Discard
         
-        msg = QMessageBox()
+        msg = QtWidgets.QMessageBox()
         msg.setText('The Document has been modified')
         msg.setInformativeText('Do you want to save your changes?')
-        msg.setStandardButtons(     QMessageBox.Question |
-                                    QMessageBox.Save |
-                                    QMessageBox.Discard |
-                                    QMessageBox.Cancel)
+        msg.setStandardButtons(     QtWidgets.QMessageBox.Question |
+                                    QtWidgets.QMessageBox.Save |
+                                    QtWidgets.QMessageBox.Discard |
+                                    QtWidgets.QMessageBox.Cancel)
         ret = msg.exec_()
         return ret
             
@@ -221,9 +223,9 @@ class SupsiSimMainWindow(QMainWindow):
         except:
             pass
         ret = self.askSaving()
-        if ret == QMessageBox.Save:
+        if ret == QtWidgets.QMessageBox.Save:
             self.saveFile()
-        elif ret != QMessageBox.Cancel:
+        elif ret != QtWidgets.QMessageBox.Cancel:
             self.scene.newDgm()
             self.filename = 'untitled'
             self.path = os.getcwd()
@@ -236,14 +238,14 @@ class SupsiSimMainWindow(QMainWindow):
         except:
             pass
         ret = self.askSaving()
-        if ret == QMessageBox.Save:
+        if ret == QtWidgets.QMessageBox.Save:
             self.saveFile()
             self.filename = 'untitled'
             self.path = os.getcwd()
             self.setWindowTitle(self.filename)
-        elif ret != QMessageBox.Cancel:
+        elif ret != QtWidgets.QMessageBox.Cancel:
             self.scene.newDgm()
-            filename = QFileDialog.getOpenFileName(self, 'Open', '.', filter='*.dgm')
+            filename = QtWidgets.QFileDialog.getOpenFileName(self, 'Open', '.', filter='*.dgm')
             if isinstance(filename, tuple):
                 filename = filename[0]
             if filename != '':
@@ -254,7 +256,7 @@ class SupsiSimMainWindow(QMainWindow):
                 self.scene.loadDgm(self.getFullFileName())
         
     def saveFile(self):
-        filename = QFileDialog.getSaveFileName(self, 'Save', self.path+'/'+self.filename, filter='*.dgm')
+        filename = QtWidgets.QFileDialog.getSaveFileName(self, 'Save', self.path+'/'+self.filename, filter='*.dgm')
         if isinstance(filename, tuple):
                 filename = filename[0]
         if filename != '':
@@ -267,10 +269,10 @@ class SupsiSimMainWindow(QMainWindow):
     def print_scheme(self):
         self.printer = QPrinter()
         printDialog = QPrintDialog(self.printer)
-        if (printDialog.exec_() == QDialog.Accepted):
-            painter = QPainter(self.printer)
-            painter.setRenderHint(QPainter.Antialiasing)
-            painter.setRenderHint(QPainter.TextAntialiasing)
+        if (printDialog.exec_() == QtWidgets.QDialog.Accepted):
+            painter = QtGui.QPainter(self.printer)
+            painter.setRenderHint(QtGui.QPainter.Antialiasing)
+            painter.setRenderHint(QtGui.QPainter.TextAntialiasing)
             self.scene.clearSelection()
             self.scene.render(painter)
 
@@ -321,12 +323,12 @@ class SupsiSimMainWindow(QMainWindow):
         except:
             pass
         ret = self.askSaving()
-        if ret == QMessageBox.Save:
+        if ret == QtWidgets.QMessageBox.Save:
             self.saveFile()
             Library.closeFlag = True
             Library.close()
             event.accept()
-        elif ret == QMessageBox.Discard:
+        elif ret == QtWidgets.QMessageBox.Discard:
 
             self.library.closeFlag = True
             self.library.close()

@@ -1,20 +1,26 @@
 #!/usr/bin/python
+# aim for python 2/3 compatibility
+from __future__ import (division, print_function, absolute_import,
+                        unicode_literals)
+
+from  Qt import QtWidgets # see https://github.com/mottosso/Qt.py
 
 import sys
-from PyQt4 import QtGui, QtCore
-from PyQt4.QtGui import *
-from PyQt4.QtCore import *
+#from PyQt4 import QtGui, QtCore
+#from PyQt4.QtGui import *
+#from PyQt4.QtCore import *
 from os import system
 from scipy import loadtxt, shape
 
-import matplotlib
+
+#import matplotlib
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt4 import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
 
-class MainWindow(QMainWindow):
+class MainWindow(QtWidgets.QMainWindow):
     def __init__(self,fname, tEnd):
-        QMainWindow.__init__(self)
+        QtWidgets.QMainWindow.__init__(self)
         self.resize(600,400)
         self.setWindowTitle('Simulation')
         self.fname = fname
@@ -23,9 +29,9 @@ class MainWindow(QMainWindow):
         self.Run()
 
     def setGui(self):
-        self.main_frame = QWidget()
+        self.main_frame = QtWidgets.QWidget()
         
-        plot_frame = QWidget()
+        plot_frame = QtWidgets.QWidget()
         
         self.dpi = 100
         self.fig = Figure((6.0, 4.0), dpi=self.dpi)
@@ -35,7 +41,7 @@ class MainWindow(QMainWindow):
         self.axes = self.fig.add_subplot(111)
         self.mpl_toolbar = NavigationToolbar(self.canvas, self.main_frame)
 
-        vbox = QVBoxLayout()
+        vbox = QtWidgets.QVBoxLayout()
         vbox.addWidget(self.canvas)
         vbox.addWidget(self.mpl_toolbar)
         
@@ -58,7 +64,7 @@ class MainWindow(QMainWindow):
             self.canvas.draw()
         system('rm x.x')
                 
-app = QApplication(sys.argv)
+app = QtWidgets.QApplication(sys.argv)
 if len(sys.argv) > 1:
     fname = str(sys.argv[1])
     if len(sys.argv) == 3:

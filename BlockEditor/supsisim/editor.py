@@ -1,10 +1,14 @@
-import sys
+#!/usr/bin/python
+# aim for python 2/3 compatibility
+from __future__ import (division, print_function, absolute_import,
+                        unicode_literals)
+
+from  Qt import QtWidgets, QtCore # see https://github.com/mottosso/Qt.py
+
+#import sys
 #if sys.version_info>(3,0):
 #    import sip
 #    sip.setapi('QString', 1)
-
-from pyqt45  import QMenu, QGraphicsItem, QtCore, set_orient, QTransform
-
 
 from supsisim.port import Port, InPort, OutPort
 from supsisim.connection import Connection
@@ -25,7 +29,7 @@ class Editor(QtCore.QObject):
         self.event = None
         self.connFromNode = False
 
-        self.menuIOBlk = QMenu()
+        self.menuIOBlk = QtWidgets.QMenu()
         parBlkAction = self.menuIOBlk.addAction('Block I/Os')
         paramsBlkAction = self.menuIOBlk.addAction('Block Parameters')
         flpBlkAction = self.menuIOBlk.addAction('Flip Block')
@@ -40,17 +44,18 @@ class Editor(QtCore.QObject):
         cloneBlkAction.triggered.connect(self.cloneBlock)
         deleteBlkAction.triggered.connect(self.deleteBlock)
 
-        self.subMenuNode = QMenu()
+        self.subMenuNode = QtWidgets.QMenu()
         nodeDelAction = self.subMenuNode.addAction('Delete node')
         nodeBindAction = self.subMenuNode.addAction('Bind node')
         nodeDelAction.triggered.connect(self.deleteNode)
         nodeBindAction.triggered.connect(self.bindNode)
         
-        self.subMenuConn = QMenu()
+        self.subMenuConn = QtWidgets.QMenu()
         connDelAction = self.subMenuConn.addAction('Delete connection')
         connInsAction = self.subMenuConn.addAction('Insert node')
         connDelAction.triggered.connect(self.deleteConn)
         connInsAction.triggered.connect(self.insConn)
+        
 
     def parBlock(self):
         self.scene.mainw.parBlock()
@@ -130,14 +135,14 @@ class Editor(QtCore.QObject):
     def blockAt(self, pos):
         items = self.scene.items(QtCore.QRectF(pos-QtCore.QPointF(DB,DB), QtCore.QSizeF(2*DB,2*DB)))
         for item in items:
-            if isinstance(item, QGraphicsItem) and not isinstance(item, Connection):
+            if isinstance(item, QtWidgets.QGraphicsItem) and not isinstance(item, Connection):
                 return item
         return None
     
     def itemAt(self, pos):
         items = self.scene.items(QtCore.QRectF(pos-QtCore.QPointF(DB,DB), QtCore.QSizeF(2*DB,2*DB)))
         for item in items:
-            if isinstance(item, QGraphicsItem):
+            if isinstance(item, QtWidgets.QGraphicsItem):
                 if isinstance(item,Node):
                     pass
                 return item

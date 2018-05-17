@@ -1,4 +1,10 @@
 #!/usr/bin/python
+# aim for python 2/3 compatibility
+from __future__ import (division, print_function, absolute_import,
+                        unicode_literals)
+
+import Qt
+from  Qt import QtGui, QtWidgets, QtCore # see https://github.com/mottosso/Qt.py
 
 import sys
 #if sys.version_info>(3,0):
@@ -10,11 +16,6 @@ import subprocess
 import shutil
 
 import svgwrite
-
-from pyqt45 import QGraphicsScene, QMainWindow, QWidget, QVBoxLayout, \
-                   QHBoxLayout, QGraphicsView,QTabWidget, QApplication, \
-                   QTransform, QDrag, QtCore, QMenu, QMessageBox, QComboBox, \
-                   set_orient
                    
 from supsisim.const import DB, PD, respath, svgpinlabels
 
@@ -28,7 +29,7 @@ from lxml import etree
 
 import imeclib
 
-class CompViewer(QGraphicsScene):
+class CompViewer(QtWidgets.QGraphicsScene):
     def __init__(self, parent=None):
         super(CompViewer, self).__init__()
         self.parent = parent
@@ -37,7 +38,7 @@ class CompViewer(QGraphicsScene):
         self.componentList = []	 
         self.activeComponent = None 
 
-        self.menuBlk = QMenu()
+        self.menuBlk = QtWidgets.QMenu()
         
         # create context menu
         editIconAction   = self.menuBlk.addAction('edit Icon')
@@ -66,7 +67,7 @@ class CompViewer(QGraphicsScene):
         x = event.scenePos().x()
         y = event.scenePos().y()
 
-        t = QTransform()
+        t = QtGui.QTransform()
         self.actComp = self.itemAt(x, y, t)
         
 
@@ -80,7 +81,7 @@ class CompViewer(QGraphicsScene):
             c = self.actComp
             data = '@'.join([c.name, str(c.inp), str(c.outp), io, c.icon, c.params])
             mimeData.setText(data)
-            drag = QDrag(self.parent)
+            drag = QtGui.QDrag(self.parent)
             drag.setMimeData(mimeData)
             drag.exec_(QtCore.Qt.CopyAction)
             
@@ -243,10 +244,10 @@ class CompViewer(QGraphicsScene):
                 block.setIcon()
             else: # ask
                 msg = "Not modified: Do you want to store the auto-generated icon??"
-                reply = QMessageBox.question(None, 'Message', 
-                                 msg, QMessageBox.Yes, QMessageBox.No)
+                reply =QtWidgets. QMessageBox.question(None, 'Message', 
+                                 msg, QtWidgets.QMessageBox.Yes, QtWidgets.QMessageBox.No)
 
-                if reply == QMessageBox.Yes:
+                if reply == QtWidgets.QMessageBox.Yes:
                      shutil.move(svgtempfilename, svgfilename)
                      block.setIcon()
 
@@ -278,22 +279,22 @@ class CompViewer(QGraphicsScene):
 
 
         
-class Library(QMainWindow):
+class Library(QtWidgets.QMainWindow):
     '''
     '''
 
     def __init__(self, parent=None):
-        QMainWindow.__init__(self, parent)
+        QtWidgets.QMainWindow.__init__(self, parent)
 
-        self.centralWidget = QWidget()
+        self.centralWidget = QtWidgets.QWidget()
         self.resize(800, 500)
         self.setWindowTitle('Library')
         self.libConfig = ()
 #        self.readLib()
         self.closeFlag = False
 
-        self.tabs = QTabWidget()
-        self.quickSelTab = QComboBox()
+        self.tabs = QtWidgets.QTabWidget()
+        self.quickSelTab = QtWidgets.QComboBox()
         
         libs = imeclib.libs
         libnames = sorted(libs.keys(), key=lambda s: s.lower())
@@ -302,7 +303,7 @@ class Library(QMainWindow):
             
             lib = libs[libname]
             diagram = CompViewer(self)
-            view = QGraphicsView(diagram)
+            view = QtWidgets.QGraphicsView(diagram)
             diagram.compLock = True
             for i, cell in enumerate(lib):
                 px = i % 2
@@ -314,20 +315,21 @@ class Library(QMainWindow):
                 w = cell.boundingRect().width()
                 h = cell.boundingRect().height()
                 if h > 100.0:
-                    set_orient(cell, scale=min(1.0, 80/w, 100.0/h))
-            tab = QWidget()
-            layout = QVBoxLayout()
+                    set_orient(cell, scale=min(1.0, 80.0/w, 100.0/h))
+            tab = QtWidgets.QWidget()
+            layout = QtWidgets.QVBoxLayout()
             layout.addWidget(view)
             tab.setLayout(layout)
 
             self.tabs.addTab(tab, libname)
-            self.connect(self.quickSelTab, QtCore.SIGNAL('currentIndexChanged (int)'), self.setCurrentTab)
+            self.quickSelTab.currentIndexChanged.connect(self.setCurrentTab)
+#            self.connect(self.quickSelTab, QtCore.SIGNAL('currentIndexChanged (int)'), self.setCurrentTab)
             
                 
-        layout = QHBoxLayout()
+        layout = QtWidgets.QHBoxLayout()
         self.tabs.setCornerWidget(self.quickSelTab, QtCore.Qt.TopLeftCorner)
         layout.addWidget(self.tabs)
-        self.widget = QWidget()
+        self.widget = QtWidgets.QWidget()
         self.widget.setLayout(layout)
         self.setCentralWidget(self.widget)
         ix = self.quickSelTab.findText(imeclib.default)
@@ -336,14 +338,14 @@ class Library(QMainWindow):
 
 
     def wheelEvent(self, event):
-        if use_pyqt == 5:
+        if Qt.__binding__ in ['PyQt5', 'PySide2']:
             factor = 1.41 ** (-event.angleDelta().y()/ 240.0)
         else:
             factor = 1.41 ** (-event.delta() / 240.0)
         
         # zoom around mouse position, not the anchor
-        self.setTransformationAnchor(QGraphicsView.NoAnchor)
-        self.setResizeAnchor(QGraphicsView.NoAnchor)
+        self.setTransformationAnchor(QtWidgets.QGraphicsView.NoAnchor)
+        self.setResizeAnchor(QtWidgets.QGraphicsView.NoAnchor)
         pos = self.mapToScene(event.pos())
         self.scale(factor, factor)
         delta =  self.mapToScene(event.pos()) - pos
@@ -389,6 +391,12 @@ class Library(QMainWindow):
         else:
             pass
 
+def set_orient(item, flip=False, scale=0, rotate=0, combine=False):
+    '''returns QTransform, operation order: flip (mirror in Y axis), scale, rorate (in degrees)'''
+    if flip:
+        item.setTransform(QtGui.QTransform.fromScale(-scale, scale).rotate(rotate), combine)
+    else:
+         item.setTransform(QtGui.QTransform.fromScale(scale, scale).rotate(rotate), combine)
 
 
 
@@ -396,7 +404,7 @@ class Library(QMainWindow):
 if __name__ == '__main__':
     import logging
     logging.basicConfig()
-    app = QApplication(sys.argv)
+    app = QtWidgets.QApplication(sys.argv)
 
     library = Library()
     library.setGeometry(20, 20, 400, 500)
