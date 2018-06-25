@@ -3,7 +3,6 @@
 from __future__ import (division, print_function, absolute_import,
                         unicode_literals)
 
-import Qt
 from  Qt import QtGui, QtWidgets, QtCore # see https://github.com/mottosso/Qt.py
 
 import sys
@@ -323,7 +322,6 @@ class Library(QtWidgets.QMainWindow):
 
             self.tabs.addTab(tab, libname)
             self.quickSelTab.currentIndexChanged.connect(self.setCurrentTab)
-#            self.connect(self.quickSelTab, QtCore.SIGNAL('currentIndexChanged (int)'), self.setCurrentTab)
             
                 
         layout = QtWidgets.QHBoxLayout()
@@ -336,20 +334,6 @@ class Library(QtWidgets.QMainWindow):
         self.tabs.setCurrentIndex(ix)
         self.quickSelTab.setCurrentIndex (ix)
 
-
-    def wheelEvent(self, event):
-        if Qt.__binding__ in ['PyQt5', 'PySide2']:
-            factor = 1.41 ** (-event.angleDelta().y()/ 240.0)
-        else:
-            factor = 1.41 ** (-event.delta() / 240.0)
-        
-        # zoom around mouse position, not the anchor
-        self.setTransformationAnchor(QtWidgets.QGraphicsView.NoAnchor)
-        self.setResizeAnchor(QtWidgets.QGraphicsView.NoAnchor)
-        pos = self.mapToScene(event.pos())
-        self.scale(factor, factor)
-        delta =  self.mapToScene(event.pos()) - pos
-        self.translate(delta.x(), delta.y())
 
 
     def setCurrentTab(self, ix):
