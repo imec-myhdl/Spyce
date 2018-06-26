@@ -41,7 +41,7 @@ class Node(QtWidgets.QGraphicsPathItem):
 
         self.add_inPort()
         self.add_outPort()
-        self.setFlag(self.ItemIsMovable)
+        #self.setFlag(self.ItemIsMovable)
         self.setFlag(self.ItemIsSelectable)
         
     def add_inPort(self):
@@ -71,6 +71,12 @@ class Node(QtWidgets.QGraphicsPathItem):
         except:
           pass
       self.scene.removeItem(self)
+      for item in self.scene.items():
+          if isinstance(item, Connection):
+              if item.port1 in scene.items() and item.port2 in scene.items():
+                  pass
+              else:
+                  item.revome()
 
     def setPos(self, *args):
         if len(args) == 1:

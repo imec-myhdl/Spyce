@@ -37,7 +37,7 @@ class GraphicsView(QtWidgets.QGraphicsView):
         self.setTransformationAnchor(QtWidgets.QGraphicsView.NoAnchor)
         self.setResizeAnchor(QtWidgets.QGraphicsView.NoAnchor)
         pos = self.mapToScene(event.pos())
-        self.scale(factor, factor)
+        self.scale(1/factor, 1/factor)
         delta =  self.mapToScene(event.pos()) - pos
         self.translate(delta.x(), delta.y())
         
@@ -53,7 +53,8 @@ class Scene(QtWidgets.QGraphicsScene):
         self.addObjs = ''
         self.Ts = '0.01'
         self.script = ''
-        self.Tf = '10'       
+        self.Tf = '10'      
+        self.selectionChanged.connect(self.selectionChangedSlot) 
 
 
     def getIndex(self,name):
@@ -72,7 +73,13 @@ class Scene(QtWidgets.QGraphicsScene):
         self.nameList.append(nm)
         self.nameList.sort()
         return nm
-        
+    
+    def selectionChangedSlot(self):
+        for item in self.items():
+            if isinstance(item, Node):
+                if not item in self.selectedItems():
+                    item.setFlag(item.ItemIsMovable,False)
+    
     def dragEnterEvent(self, event):
         event.accept()
 

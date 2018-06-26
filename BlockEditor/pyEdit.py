@@ -15,7 +15,7 @@ exist = subprocess.call('command -v '+ 'inkscape' + '>> /dev/null', shell=True)
 if exist == 0:
     print ('inkscape present')
 else:
-    print ('Warning: inkscape is nor installed, you will not be able to edit icons')
+    print ('Warning: inkscape is not installed, you will not be able to edit icons')
 
 from supsisim.pysim import supsisimul
 #from control import *

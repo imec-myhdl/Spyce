@@ -58,7 +58,7 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
         mypath = respath + '/icons/'
 
         self.newFileAction = QtWidgets.QAction(QtGui.QIcon(mypath+'filenew.png'),
-                                                '&Open', self,
+                                                '&New', self,
                                                 shortcut = 'Ctrl+N',
                                                 statusTip = 'New File',
                                                 triggered = self.newFile)
@@ -184,11 +184,17 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
                         pass
             for item in self.scene.selection:
                 if isinstance(item, Connection):
-                    try:
-                        c = item.clone(QtCore.QPointF(200,200))
-                        c.update_ports_from_pos()
-                    except:
-                        pass        
+                    ports = []
+                    for portItem in self.scene.selection:
+                        if isinstance(portItem, Node):
+                            ports.append(portItem.port_out)
+                            ports.append(portItem.port_in)
+                    if (item.port1 in self.scene.selection or item.port1 in ports) and (item.port2 in ports or item.port2 in self.scene.selection):
+                        try:
+                            c = item.clone(QtCore.QPointF(200,200))
+                            c.update_ports_from_pos()
+                        except:
+                            pass        
 
     def updateAct(self):
         items = self.scene.items()
@@ -281,10 +287,15 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
         dialog = IO_Dialog(self)
         dialog.spbInput.setValue(item.inp)
         dialog.spbOutput.setValue(item.outp)
+        
         if item.inp == 0 or item.iosetble==False:
             dialog.spbInput.setEnabled(False)
+        else:
+            dialog.spbInput.setMinimum(1)
         if item.outp == 0 or item.iosetble==False:
             dialog.spbOutput.setEnabled(False)
+        else:
+            dialog.spbOutput.setMinimum(1)
             
         name = item.name
         flip = item.flip

@@ -135,7 +135,7 @@ class txtDialog(QtWidgets.QDialog):
 
         # edit widget
         self.text_edit = QtWidgets.QTextEdit(parent)
-        font = QtWidgets.QFont()
+        font = QtGui.QFont()
         font.setFamily('Lucida')
         font.setFixedPitch(True)
         font.setPointSize(12)

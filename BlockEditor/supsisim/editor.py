@@ -238,12 +238,15 @@ class Editor(QtCore.QObject):
                                         nd.setPos(pt)
                                         conn.update_pos_from_ports()
                                         conn.update_path()
-            elif isinstance(item, Connection):
-                self.scene.mainw.view.setCursor(QtCore.Qt.PointingHandCursor)
+            #elif isinstance(item, Connection):
+                #self.scene.mainw.view.setCursor(QtCore.Qt.PointingHandCursor)
             elif isinstance(item, OutPort):
                 self.scene.mainw.view.setCursor(QtCore.Qt.CrossCursor)
             elif isinstance(item, Node):
-                self.scene.mainw.view.setCursor(QtCore.Qt.CrossCursor)
+                if item in self.scene.selectedItems():
+                    self.scene.mainw.view.setCursor(QtCore.Qt.PointingHandCursor)
+                else:
+                    self.scene.mainw.view.setCursor(QtCore.Qt.CrossCursor)
             else:
                 self.scene.mainw.view.setCursor(QtCore.Qt.ArrowCursor)
                 
@@ -299,11 +302,18 @@ class Editor(QtCore.QObject):
                     self.conn.pos2 = item.scenePos()
             elif item and isinstance(item, Node):
                 # Try to create new connection starting at selected node
-                self.conn = Connection(None, self.scene)
-                self.connFromNode = True
-                self.conn.port1 = item.port_out
-                self.conn.pos1 = item.scenePos()
-                self.conn.pos2 = item.scenePos()
+                if item in self.scene.selectedItems():
+                    #selected the node to move it
+                    for item in self.scene.selectedItems():
+                        if isinstance(item,Node):
+                            item.setFlag(item.ItemIsMovable)
+                else:
+                    #starting the connection
+                    self.conn = Connection(None, self.scene)
+                    self.connFromNode = True
+                    self.conn.port1 = item.port_out
+                    self.conn.pos1 = item.scenePos()
+                    self.conn.pos2 = item.scenePos()
 
     def mouseRightButtonPressed(self, obj, event):
         if self.conn == None:
@@ -364,14 +374,19 @@ class Editor(QtCore.QObject):
                         item.remove()
                     except:
                         pass
-                self.conn = None
+                if self.conn:
+                    self.conn.remove()
+                #self.conn = None
 
             if event.key() == QtCore.Qt.Key_Escape:
                 if self.conn != None:
                     self.conn.remove()
                 self.conn = None
                 self.scene.mainw.view.setCursor(QtCore.Qt.ArrowCursor)
-    
+            if event.key() == QtCore.Qt.Key_Control:
+                self.scene.mainw.view.setDragMode(QtWidgets.QGraphicsView.ScrollHandDrag)
+        if event.type() == QtCore.QEvent.KeyRelease and event.key() == QtCore.Qt.Key_Control:
+            self.scene.mainw.view.setDragMode(QtWidgets.QGraphicsView.RubberBandDrag)
         return super(Editor, self).eventFilter(obj, event)
 
     def gridPos(self, pt):
