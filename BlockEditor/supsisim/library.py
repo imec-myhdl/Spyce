@@ -22,11 +22,11 @@ from supsisim.const import DB, PD, respath, svgpinlabels
 import os
 
 from supsisim.block import Block
-from supsisim.dialg import txtDialog
+from supsisim.dialg import txtDialog,LibraryChoice_Dialog
 
 from lxml import etree
 
-import imeclib
+import libraries
 
 class CompViewer(QtWidgets.QGraphicsScene):
     def __init__(self, parent=None):
@@ -73,12 +73,9 @@ class CompViewer(QtWidgets.QGraphicsScene):
     def mouseMoveEvent(self, event):
         if event.buttons() == QtCore.Qt.LeftButton and isinstance(self.actComp, Block):
             mimeData = QtCore.QMimeData()
-            if self.actComp.iosetble:
-                io = '1'
-            else:
-                io = '0'
             c = self.actComp
-            data = '@'.join([c.name, str(c.inp), str(c.outp), io, c.icon, c.params])
+            attributes = {'name':c.name,'input':c.inp,'output':c.outp,'icon':c.icon,'flip':c.flip}
+            data = '@'.join([str(attributes),str(c.parameters),str(c.properties),str(c.views)])
             mimeData.setText(data)
             drag = QtGui.QDrag(self.parent)
             drag.setMimeData(mimeData)
@@ -95,29 +92,29 @@ class CompViewer(QtWidgets.QGraphicsScene):
         inputs, outputs, inouts = block.pins()
         d = txtDialog('Pins of {}'.format(block.name))
         pinlist = d.editList(inputs + outputs + inouts, header='io x y name')
-        
-        for p in block.ports():
-            p.setParentItem(None) # effectively removing port
-            
-        block.inp  = []
-        block.outp = []
-        for tp, x, y, name in pinlist:
-            if tp == 'i':
-                block.add_inPort([name, x, y])
-                block.inp.append([name, x, y])
-            elif tp == 'o':
-                block.add_outPort([name, x, y])
-                block.outp.append([name, x, y])
-            else:
-                print('{} is not an implemented io type'.format(tp))
-        block.update()
+        if pinlist:
+            for p in block.ports():
+                p.setParentItem(None) # effectively removing port
+                
+            block.inp  = []
+            block.outp = []
+            for tp, x, y, name in pinlist:
+                if tp == 'i':
+                    block.add_inPort([name, x, y])
+                    block.inp.append([name, x, y])
+                elif tp == 'o':
+                    block.add_outPort([name, x, y])
+                    block.outp.append([name, x, y])
+                else:
+                    print('{} is not an implemented io type'.format(tp))
+            block.update()
 
     def editIcon(self):
         '''edit svg file'''
         block = self.actComp
-        blockname = block.name
+        #blockname = block.name
         svgiconname = os.path.join(respath, 'blocks', block.icon+'.svg')
-        svgfilename = os.path.join(respath, 'blocks', blockname+'.svg')
+        #svgfilename = os.path.join(respath, 'blocks', blockname+'.svg')
         with open(svgiconname) as fi:
             t = fi.read()
         #generate a tempfile
@@ -131,7 +128,7 @@ class CompViewer(QtWidgets.QGraphicsScene):
             subprocess.call('inkscape {}'.format(svgtempfilename).split())
             timestamp1 = os.stat(svgtempfilename).st_mtime
             if  timestamp0 < timestamp1: # newer => copy'
-                shutil.move(svgtempfilename, svgfilename)
+                shutil.move(svgtempfilename, svgiconname)
                 block.setIcon()
                 
             # creanup tempfile
@@ -263,11 +260,13 @@ class CompViewer(QtWidgets.QGraphicsScene):
             t.append('from collections import OrderedDict')
             t.append('')
             t.append('libs = OrderedDict()')
-            for c in imeclib.libs:
+            for libname in libraries.libs:
                 bb = []
-                for block in imeclib.libs[c]:
+                for blockname in libraries.libs[libname]:
+                    print(blockname,libname)
+                    block = libraries.getBlock(blockname,libname)
                     bb.append(block.toPython(lib=True))
-                t.append('libs[{}] = [ \\\n    {}]'.format(repr(c), ', \n    '.join(bb)))
+                t.append('libs[{}] = [ \\\n    {}]'.format(repr(libname), ', \n    '.join(bb)))
             
             print('\n'.join(t)+'\n')
                         
@@ -281,9 +280,57 @@ class CompViewer(QtWidgets.QGraphicsScene):
 class Library(QtWidgets.QMainWindow):
     '''
     '''
+    def __init__(self,parent=None):
+        super(Library, self).__init__(parent)
 
-    def __init__(self, parent=None):
-        QtWidgets.QMainWindow.__init__(self, parent)
+        self.centralWidget = QtWidgets.QWidget()
+        self.resize(800, 500)
+        self.setWindowTitle('Library')
+        self.libConfig = ()
+#        self.readLib()
+        self.closeFlag = False
+        
+        dialog = LibraryChoice_Dialog(self)
+        ret = dialog.exec_()
+        if ret == 0:
+            self.listView()
+            self.type = 'listView'
+        else:
+            self.symbolView()
+            self.type = 'symbolView'
+    
+    def listView(self):
+        self.resize(1500,1500)
+        self.centralWidget = QtWidgets.QWidget()        
+        
+        self.libraries = QtWidgets.QListWidget(self.centralWidget)
+        #self.catogories = QtWidgets.QListWidget(self.centralWidget)
+        self.cells = QtWidgets.QListWidget(self.centralWidget)
+        self.views = QtWidgets.QListWidget(self.centralWidget)
+        
+        self.libraries.currentItemChanged.connect(self.clickLibrary)
+        #self.catogories.currentItemChanged.connect(self.clickCatogory)
+        self.cells.currentItemChanged.connect(self.clickCell)
+        self.views.currentItemChanged.connect(self.clickView)
+        
+        
+        
+        self.libs = libraries.libs
+        libnames = self.libs.keys()
+        self.libraries.addItems(libnames)
+         
+        
+        self.layout = QtWidgets.QHBoxLayout(self.centralWidget)
+        
+        self.layout.addWidget(self.libraries)
+        #self.layout.addWidget(self.catogories)
+        self.layout.addWidget(self.cells)
+        self.layout.addWidget(self.views)
+        
+        self.setCentralWidget(self.centralWidget)
+
+
+    def symbolView(self):
 
         self.centralWidget = QtWidgets.QWidget()
         self.resize(800, 500)
@@ -295,7 +342,7 @@ class Library(QtWidgets.QMainWindow):
         self.tabs = QtWidgets.QTabWidget()
         self.quickSelTab = QtWidgets.QComboBox()
         
-        libs = imeclib.libs
+        libs = libraries.libs
         libnames = sorted(libs.keys(), key=lambda s: s.lower())
         self.quickSelTab.addItems(libnames)
         for libname in libnames: # case insensitive sorting
@@ -304,7 +351,8 @@ class Library(QtWidgets.QMainWindow):
             diagram = CompViewer(self)
             view = QtWidgets.QGraphicsView(diagram)
             diagram.compLock = True
-            for i, cell in enumerate(lib):
+            for i, blockname in enumerate(lib):
+                cell = libraries.getBlock(blockname,libname)
                 px = i % 2
                 py = i/2
                 diagram.addItem(cell)
@@ -330,9 +378,32 @@ class Library(QtWidgets.QMainWindow):
         self.widget = QtWidgets.QWidget()
         self.widget.setLayout(layout)
         self.setCentralWidget(self.widget)
-        ix = self.quickSelTab.findText(imeclib.default)
+        ix = self.quickSelTab.findText(libraries.default)
         self.tabs.setCurrentIndex(ix)
         self.quickSelTab.setCurrentIndex (ix)
+        
+    def clickLibrary(self):
+        library = self.libraries.currentItem()
+        if(library):
+            self.cells.clear()
+            for cell in self.libs[library.text()]:
+                self.cells.addItem(cell)
+        
+    def clickCatogory(self):
+        catogory = self.catogories.currentItem().text()
+        
+    def clickCell(self):
+        cell = self.cells.currentItem()
+        if(cell):
+            mimeData = QtCore.QMimeData()
+            data = '@'.join([self.libraries.currentItem().text(), cell.text()])
+            mimeData.setText(data)
+            drag = QtGui.QDrag(self)
+            drag.setMimeData(mimeData)
+            drag.exec_(QtCore.Qt.CopyAction)
+        
+    def clickView(self):
+        view = self.views.currentItem().text()
 
 
 

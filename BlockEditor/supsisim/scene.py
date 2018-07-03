@@ -18,6 +18,8 @@ import os
 import subprocess
 import time
 
+import libraries
+
 class GraphicsView(QtWidgets.QGraphicsView):
     def __init__(self, parent=None):
         super(GraphicsView, self).__init__(parent)
@@ -90,9 +92,18 @@ class Scene(QtWidgets.QGraphicsScene):
         event.accept()
         
     def dropEvent(self, event):
-        data = event.mimeData().text()
-        b = Block(None, self, data)
-        b.setPos(event.scenePos())
+        if self.mainw.library.type == "symbolView":
+        
+            data = event.mimeData().text().split('@')
+            b = Block(eval(data[0]),eval(data[1]),eval(data[2]),eval(data[3]),None, self)
+            b.setPos(event.scenePos())
+        else:
+            data = event.mimeData().text().split('@')
+            libs = libraries.libs
+            for blockname in libs[data[0]]:
+                if(blockname == data[1]):
+                    b = libraries.getBlock(blockname,data[0],scene=self)                    
+                    b.setPos(event.scenePos())
 
     def newDgm(self):
         items = self.items()
@@ -256,7 +267,7 @@ class Scene(QtWidgets.QGraphicsScene):
                 print('Generate code -> run -i tmp.py')
         
     def blkInstance(self, item):
-        ln = item.params.split('|')
+        ln = item.parameters.split('|')
         txt = item.name.replace(' ','_') + ' = ' + ln[0] + '('
         if item.inp != 0:
             inp = '['

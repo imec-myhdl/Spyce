@@ -78,15 +78,15 @@ class Editor(QtCore.QObject):
         
     def paramsBlock(self):
         item = self.scene.item
-        params = item.params.split('|')
-        blk = params[0]
+        properties = item.properties
+        blk = properties['name']
         blk = blk.replace('Blk','Dlg')
         if blk in dir(pDlg):
-            cmd = 'pDlg.' + blk + '(' + str(item.inp) + ',' + str(item.outp) + ',"' + item.params + '")'
+            cmd = 'pDlg.' + blk + '(' + str(item.inp) + ',' + str(item.outp) + ',"' + str(item.properties) + '")'
             pars = eval(cmd)
         else:
-            pars = pDlg.parsDialog(item.params)
-        item.params = pars        
+            pars = pDlg.parsDialog(item.properties)
+        item.properties = pars        
 
     def cloneBlock(self):
         item = self.scene.item

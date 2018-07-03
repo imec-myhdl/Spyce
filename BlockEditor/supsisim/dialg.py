@@ -12,6 +12,17 @@ import sys, os
 #
 from supsisim.const import path
 
+class LibraryChoice_Dialog(QtWidgets.QMessageBox):
+    def __init__(self,parent=None):
+        super(LibraryChoice_Dialog,self).__init__(parent)
+        self.setWindowModality(QtCore.Qt.ApplicationModal)
+        self.setWindowTitle('Library')
+        self.setText("What library would you like to use")
+        self.addButton('List view',self.YesRole)
+        self.addButton('Symbol view',self.NoRole)
+        
+        
+
 class IO_Dialog(QtWidgets.QDialog):
     def __init__(self,parent=None):
         super(IO_Dialog, self).__init__(parent)
@@ -159,7 +170,7 @@ class txtDialog(QtWidgets.QDialog):
         if self.exec_(): #Ok
             return self.text_edit.toPlainText()
         else: # Cancel   
-            return txt 
+            return False 
    
     def editList(self, llist, header=''):
         '''display the list in tabular format and return edited list'''
@@ -199,15 +210,18 @@ class txtDialog(QtWidgets.QDialog):
                 txt += fmt1.format(*line)
                 
         txt = self.editTxt(txt)
-        lres = []
-        for line in txt.splitlines():
-            if line.strip() and not line.strip().startswith('#'):
-                try:
-                    cres = [type(col_t[ix])(c) for ix, c in enumerate(line.split())]
-                    lres.append(cres)
-                except:
-                    print('ignored:', line)
-        return lres
+        if txt:
+            lres = []
+            for line in txt.splitlines():
+                if line.strip() and not line.strip().startswith('#'):
+                    try:
+                        cres = [type(col_t[ix])(c) for ix, c in enumerate(line.split())]
+                        lres.append(cres)
+                    except:
+                        print('ignored:', line)
+            return lres
+        else:
+            return txt
             
 
 if __name__ == "__main__":

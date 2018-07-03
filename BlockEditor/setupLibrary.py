@@ -4,9 +4,55 @@ Spyder Editor
 
 This is a temporary script file.
 """
-import libraries
+import os
+from libraries import libs
+from imeclib import libs as oldlibs
 
-print(libraries.getBlock('Epos_AD','can'))
+def createStringFile(blockname,libname):
+    for block in oldlibs[libname]:
+        if block.name == blockname:
+            break
+        
+    attributes = {'icon':block.icon,'name':blockname,'output':block.outp,'input':block.inp}
+    
+    properties = {}
+    if block.params:
+        params = block.params.split('|')
+        properties['name'] = params[0]
+        for i in range(1,len(params)):
+            p = params[i].split(':')
+            properties[p[0]] = p[1]
+           
+    if(block.iosetble):
+        parameters = ['inp','outp']
+    else:
+        parameters = None
+        
+    views = []   
+
+    return 'attributes = ' + str(attributes) + '\nproperties = ' + str(properties) + '\nparameters = ' + str(parameters) + '\nviews = ' + str(views) + '\n'
+
+def createFile(blockname,libname):
+    content = createStringFile(blockname,libname)
+    f = open('libraries/library_' + libname + '/block_' +blockname + '.py','w+')
+    f.write(content)
+    f.close()
+    
+def fillLibrary(libname):
+    for block in oldlibs[libname]:
+        createFile(block.name,libname)
+
+def createLibrary(libname):
+    try:
+        os.makedirs('libraries/library_' + libname)
+    except:
+        pass
+    f = open('libraries/library_' + libname + '/__init__.py','w+')
+    f.close()
+    
+for libname in oldlibs.keys():
+    createLibrary(libname)
+    fillLibrary(libname)
 
 #import sys
 #from Qt import QtWidgets,QtCore,QtGui

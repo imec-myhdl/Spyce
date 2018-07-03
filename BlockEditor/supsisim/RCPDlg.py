@@ -32,17 +32,15 @@ class BlkDlg(QtWidgets.QDialog):
         self.setLayout(grid)
 
     def parseParams(self, line):
-        ln = line.split('|')
-        N = len(ln)
         lab = []
         val = []
-        self.blkID = ln[0]
-        for n in range(1,N):
-            ll = ln[n].split(':')
-            lab.append(ll[0].__str__())
-            par = ll[1].__str__()
-            par = par.lstrip(' ')
-            val.append(par)
+        self.blkID = line['name']
+        for name in line.keys():
+            if name != 'name':
+                lab.append(name.__str__())
+                par = line[name].__str__()
+                par = par.lstrip(' ')
+                val.append(par)
         return lab,val
 
     def accept(self):

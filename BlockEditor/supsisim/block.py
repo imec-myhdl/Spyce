@@ -23,53 +23,78 @@ from supsisim.const import GRID, PW, LW, BWmin, BHmin, PD, respath, qtpinlabels
 
 class Block(QtWidgets.QGraphicsPathItem):
     """A block holds ports that can be connected to."""
-    def __init__(self, *args, **kwargs):
-        if len(args) >= 2:
-            parent, self.scene = args[0], args[1]
-        elif len(args) == 1:
-            parent, self.scene = None, args[0]
-        else:
-            parent, self.scene = None, None
+    def __init__(self,attributes,parameters,properties,views,parent=None,scene=None):
+        self.scene = scene
         if QtCore.qVersion().startswith('5'):
             super(Block, self).__init__(parent)
             if self.scene:
                 self.scene.addItem(self)
         else:
             super(Block, self).__init__(parent, self.scene)
-        if len(args) == 9:
-            parent, self.scene, self.name, self.inp, self.outp, self.iosetble, self.icon, self.params, self.flip = args
-        elif len(args) == 3:
-            parent, self.scene, strBlk = args
-            ln = strBlk.split('@')
-            self.name   = str(ln[0])
-            self.inp    = ast.literal_eval(ln[1]) # ast.literal_eval is a lot safer than 'eval'
-            self.outp   = ast.literal_eval(ln[2])
-            self.icon   = str(ln[4])
-            self.params = str(ln[5])
-            self.flip   = False
-            io          = int(ln[3])
-            iosetble = (io==1)
-            self.iosetble = iosetble
-        elif len(args) <= 2:
-            self.name     = kwargs.pop('name')     if 'name' in kwargs else ''
-            self.inp      = kwargs.pop('inp')      if 'inp' in kwargs else 0
-            self.outp     = kwargs.pop('outp')     if 'outp' in kwargs else 0
-            self.icon     = kwargs.pop('icon')     if 'icon' in kwargs else ''
-            self.params   = kwargs.pop('params')   if 'params' in kwargs else ''
-            self.flip     = kwargs.pop('flip')     if 'flip' in kwargs else False
-            self.iosetble = kwargs.pop('iosetble') if 'iosetble' in kwargs else False
-            x             = float(kwargs.pop('x')) if 'x' in kwargs else 0.0
-            y             = float(kwargs.pop('y')) if 'y' in kwargs else 0.0
-            self.setPos(x, y)
-            self.flip     = kwargs.pop('flip')     if 'flip' in kwargs else False
-#            self.__dict__.update(kwargs) # update the block attributes, maybe a bit dangerous
-        else:
-            raise ValueError('Needs 9 or 3 arguments; received %i.' % len(args))
+        
+        
+        self.name = attributes.pop('name')
+        self.inp = attributes.pop('input')
+        self.outp = attributes.pop('output')
+        self.icon = attributes.pop('icon')
+        self.flip = attributes.pop('flip') if 'flip' in attributes else False
+        
+        self.parameters = parameters
+        self.properties = properties
+        self.views = views
         
         self.line_color = QtCore.Qt.black
         self.fill_color = QtCore.Qt.black
         if self.scene:
             self.setup()
+            
+#    def __init__(self,old=True, *args, **kwargs):
+#        if len(args) >= 2:
+#            parent, self.scene = args[0], args[1]
+#        elif len(args) == 1:
+#            parent, self.scene = None, args[0]
+#        else:
+#            parent, self.scene = None, None
+#        if QtCore.qVersion().startswith('5'):
+#            super(Block, self).__init__(parent)
+#            if self.scene:
+#                self.scene.addItem(self)
+#        else:
+#            super(Block, self).__init__(parent, self.scene)
+#        if len(args) == 9:
+#            parent, self.scene, self.name, self.inp, self.outp, self.iosetble, self.icon, self.params, self.flip = args
+#        elif len(args) == 3:
+#            parent, self.scene, strBlk = args
+#            ln = strBlk.split('@')
+#            self.name   = str(ln[0])
+#            self.inp    = ast.literal_eval(ln[1]) # ast.literal_eval is a lot safer than 'eval'
+#            self.outp   = ast.literal_eval(ln[2])
+#            self.icon   = str(ln[4])
+#            self.params = str(ln[5])
+#            self.flip   = False
+#            io          = int(ln[3])
+#            iosetble = (io==1)
+#            self.iosetble = iosetble
+#        elif len(args) <= 2:
+#            self.name     = kwargs.pop('name')     if 'name' in kwargs else ''
+#            self.inp      = kwargs.pop('inp')      if 'inp' in kwargs else 0
+#            self.outp     = kwargs.pop('outp')     if 'outp' in kwargs else 0
+#            self.icon     = kwargs.pop('icon')     if 'icon' in kwargs else ''
+#            self.params   = kwargs.pop('params')   if 'params' in kwargs else ''
+#            self.flip     = kwargs.pop('flip')     if 'flip' in kwargs else False
+#            self.iosetble = kwargs.pop('iosetble') if 'iosetble' in kwargs else False
+#            x             = float(kwargs.pop('x')) if 'x' in kwargs else 0.0
+#            y             = float(kwargs.pop('y')) if 'y' in kwargs else 0.0
+#            self.setPos(x, y)
+#            self.flip     = kwargs.pop('flip')     if 'flip' in kwargs else False
+##            self.__dict__.update(kwargs) # update the block attributes, maybe a bit dangerous
+#        else:
+#            raise ValueError('Needs 9 or 3 arguments; received %i.' % len(args))
+#        
+#        self.line_color = QtCore.Qt.black
+#        self.fill_color = QtCore.Qt.black
+#        if self.scene:
+#            self.setup()
             
     def from_txt(s):
         '''convert text to int or list'''
@@ -79,7 +104,7 @@ class Block(QtWidgets.QGraphicsPathItem):
         txt += 'Input ports  :' + self.inp.__str__() + '\n'
         txt += 'Output ports :' + self.outp.__str__() + '\n'
         txt += 'Icon         :' + self.icon.__str__() + '\n'
-        txt += 'Params       :' + self.params.__str__() + '\n'
+        txt += 'Properties       :' + self.properties.__str__() + '\n'
         for thing in self.childItems():
             print(thing)
         return txt
@@ -89,7 +114,7 @@ class Block(QtWidgets.QGraphicsPathItem):
         
     def toPython(self, lib=False):
         fmt = 'Block({kwargs})'
-        fields = 'name inp outp iosetble icon params'.split()
+        fields = 'name inp outp icon parameters properties views'.split()
         kwargs = []
         x, y, flip = int(self.x()), int(self.y()), self.flip
         if not lib: # add x, y, flip for schematic(diagrams)
@@ -124,8 +149,8 @@ class Block(QtWidgets.QGraphicsPathItem):
                 y0 = y if y0 == None else min(y0, y)
                 y1 = y if y1 == None else max(y1, y)
             
-            self.w = x1-x0 + PD
-            self.h = max(50, y1 - y0 + PD) # block height
+            self.w = max(BWmin, x1-x0 - PW)# + PD
+            self.h = max(BHmin, y1 - y0 + PD) # block height
 
 
         p = QtGui.QPainterPath()
@@ -292,8 +317,8 @@ class Block(QtWidgets.QGraphicsPathItem):
          return QtCore.QPointF(x,y)
 
     def clone(self, pt):
-        b = Block(None, self.scene, self.name, self.inp, self.outp,
-                      self.iosetble, self.icon, self.params,  self.flip)
+        attributes = {'name':self.name,'input':self.inp,'output':self.outp,'icon':self.icon,'flip':self.flip}
+        b = Block(attributes,self.parameters,self.properties,self.views,None, self.scene)
         b.setPos(self.scenePos().__add__(pt))
        
     def save(self, root):
@@ -306,7 +331,7 @@ class Block(QtWidgets.QGraphicsPathItem):
         else:
             etree.SubElement(blk,'ioset').text = '0'
         etree.SubElement(blk,'icon').text = self.icon
-        etree.SubElement(blk,'params').text = self.params
+        etree.SubElement(blk,'parameters').text = self.parameters
         if self.flip:
             etree.SubElement(blk,'flip').text = '1'
         else:

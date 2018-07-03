@@ -285,29 +285,37 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
     def parBlock(self):
         item = self.scene.item
         dialog = IO_Dialog(self)
-        dialog.spbInput.setValue(item.inp)
-        dialog.spbOutput.setValue(item.outp)
+        dialog.spbInput.setValue(item.inp if isinstance(item.inp, int) else len(item.inp))
+        dialog.spbOutput.setValue(item.outp if isinstance(item.outp, int) else len(item.outp))
         
-        if item.inp == 0 or item.iosetble==False:
+        if item.inp == 0 or not item.parameters or not 'inp' in item.parameters:
             dialog.spbInput.setEnabled(False)
         else:
             dialog.spbInput.setMinimum(1)
-        if item.outp == 0 or item.iosetble==False:
+        if item.outp == 0 or not item.parameters or not 'outp' in item.parameters:
+            print(not item.parameters)
             dialog.spbOutput.setEnabled(False)
         else:
             dialog.spbOutput.setMinimum(1)
             
-        name = item.name
-        flip = item.flip
-        icon = item.icon
-        params = item.params
-        iosetble = item.iosetble
+
+
         res = dialog.exec_()
-        if res == 1 and iosetble:
+        if res == 1:
             item.remove()
+            
+            name = item.name
+            flip = item.flip
+            icon = item.icon
             inp = dialog.spbInput.value()
             outp = dialog.spbOutput.value()
-            b = Block(None, self.scene, name, inp, outp, iosetble, icon, params, flip)
+            
+            attributes = {'name':name,'input':inp,'output':outp,'icon':icon,'flip':flip}            
+            parameters = item.parameters
+            properties = item.properties
+            views = item.views
+            
+            b = Block(attributes,parameters,properties,views,None, self.scene)
             b.setPos(self.scene.evpos)
 
     def startpythonAct(self):
