@@ -3,6 +3,7 @@
 from __future__ import (division, print_function, absolute_import,
                         unicode_literals)
 
+import sys
 import Qt
 from  Qt import QtGui, QtWidgets, QtCore # see https://github.com/mottosso/Qt.py
 
@@ -116,7 +117,40 @@ class Scene(QtWidgets.QGraphicsScene):
         self.addObjs=''
         self.script=''
         self.Tf='10.0'
+    
+    def savePython(self,fname):
+        items = []
+        for item in self.items():
+            if isinstance(item,Block) or isinstance(item,Connection) or isinstance(item,Node):
+                items.append(item.toPython())
         
+        f = open(fname,'w+')
+        f.write('items = ' + str(items))
+        f.close()
+    
+    def loadPython(self,fname,path):
+        sys.path.append(path)
+        exec('import ' + fname)
+        items = eval(fname + '.items')
+        for item in items:
+            if item['type'] == 'block':
+                if 'parameters' in item.keys():
+                    block = libraries.getBlock(item['blockname'],item['libname'],scene=self,param=item['parameters'],test=True)
+                else:
+                    block = libraries.getBlock(item['blockname'],item['libname'],scene=self,test=True)
+                block.setPos(item['pos']['x'],item['pos']['y'])
+            elif item['type'] == 'node':
+                node = Node(None,self)
+                node.setPos(item['pos']['x'],item['pos']['y'])
+        for item in items:        
+            if item['type'] == 'connection':
+                conn = Connection(None,self)
+                conn.setPos(item['pos']['x'],item['pos']['y'])
+                conn.pos1 = QtCore.QPointF(item['pos1']['x'],item['pos1']['y'])
+                conn.pos2 = QtCore.QPointF(item['pos2']['x'],item['pos2']['y'])
+                conn.update_ports_from_pos()
+                 
+    
     def saveDgm(self,fname):
         items = self.items()
         dgmBlocks = []

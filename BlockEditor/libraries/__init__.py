@@ -1,11 +1,17 @@
 import os
 from supsisim.block import Block
 
-def getBlock(blockname,libname,parent=None,scene=None):
+def getBlock(blockname,libname,parent=None,scene=None, param=dict(), test=False):
     exec('import libraries.library_' + libname + '.block_' + blockname)
     options = ('attributes','parameters','properties','views')
     for o in options:
         exec(o + ' = libraries.library_' + libname + '.block_' + blockname + '.' + o)
+    attributes = dict(attributes)
+    attributes['libname'] = libname
+    if 'inp' in param.keys():
+        attributes['input'] = param['inp']
+    if 'outp' in param.keys():
+        attributes['output'] = param['outp']
     return Block(attributes,parameters,properties,views,parent,scene)
 
 def readLibrary(libname):

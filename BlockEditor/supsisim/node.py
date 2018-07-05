@@ -34,6 +34,11 @@ class Node(QtWidgets.QGraphicsPathItem):
             print(thing)
         return txt
         
+    def toPython(self):
+        data = dict(type='node',pos=dict(x=self.x(),y=self.y()))
+        return data
+        
+    
     def setup(self):
         p = QtGui.QPainterPath()
         p.addRect(-NW/2, -NW/2, NW, NW)
@@ -72,12 +77,13 @@ class Node(QtWidgets.QGraphicsPathItem):
           pass
       self.scene.removeItem(self)
       for item in self.scene.items():
-          if isinstance(item, Connection):
-              if item.port1 in scene.items() and item.port2 in scene.items():
+          try:
+              if item.port1 in self.scene.items() and item.port2 in self.scene.items():
                   pass
               else:
                   item.revome()
-
+          except:
+              pass
     def setPos(self, *args):
         if len(args) == 1:
             pt = self.gridPos(args[0])

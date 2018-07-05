@@ -4,9 +4,9 @@ Spyder Editor
 
 This is a temporary script file.
 """
-import libraries
+import testSaveFile
 
-print(libraries.getBlock('Epos_AD','can'))
+print(testSaveFile.items)
 
 #import sys
 #from Qt import QtWidgets,QtCore,QtGui

@@ -18,8 +18,10 @@ from supsisim.connection import Connection
 from supsisim.editor import Editor
 from supsisim.library import Library
 from supsisim.scene import Scene, GraphicsView
-from supsisim.dialg import IO_Dialog
+from supsisim.dialg import IO_Dialog, convertSymDialog
 from supsisim.const import respath, pycmd
+from supsisim.port import Port,InPort,OutPort,InNodePort,OutNodePort
+import libraries
 
 DEBUG = False
 
@@ -27,6 +29,16 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
     def __init__(self, library, fname, mypath, runflag, parent=None):
         super(SupsiSimMainWindow, self).__init__(parent)
         self.resize(1024, 768)
+        
+#        self.centralWidget = QtWidgets.QTabWidget()
+#        self.view = GraphicsView(self.centralWidget)
+#        self.view.setMouseTracking(True)
+#        self.scene = Scene(self)
+#        self.view.setScene(self.scene)
+#        self.view.setRenderHint(QtGui.QPainter.Antialiasing)
+#        self.centralWidget.addTab(self.view,fname)
+#        self.setCentralWidget(self.centralWidget)
+        
         self.centralWidget = QtWidgets.QWidget(self)
         self.verticalLayout = QtWidgets.QVBoxLayout(self.centralWidget)
         self.verticalLayout.setContentsMargins(0,0,0,0)
@@ -86,6 +98,11 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
                                              shortcut = 'Ctrl+V',
                                              statusTip = 'Paste',
                                              triggered = self.pasteAct)
+        
+        self.convertSymbolAction = QtWidgets.QAction(QtGui.QIcon(mypath+'paste.png'),
+                                             '&Convert symbol', self,
+                                             statusTip = 'Convert symbol',
+                                             triggered = self.convertSymAct)
 
         self.printAction = QtWidgets.QAction(QtGui.QIcon(mypath+'print.png'),
                                              '&Print', self,
@@ -157,6 +174,7 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
         editMenu = menubar.addMenu('&Edit')
         editMenu.addAction(self.copyAction)
         editMenu.addAction(self.pasteAction)
+        editMenu.addAction(self.convertSymbolAction)
 #        editMenu.addSeparator()
 #        editMenu.addAction(self.updateAction)
 
@@ -166,7 +184,13 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
 
         setMenu = menubar.addMenu('Se&ttings')
         setMenu.addAction(self.setCodegenAction)
-
+        
+    def descend(self,item):
+        pass
+    
+    def ascend(self):
+        pass        
+        
     def copyAct(self):
         self.scene.selection = []
         p = self.scene.selectionArea()
@@ -195,7 +219,64 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
                             c.update_ports_from_pos()
                         except:
                             pass        
+    
+    def convertSymAct(self):
+        items = []
+        inp = 0
+        outp = 0
+        for item in self.scene.items(self.scene.selectionArea()):
+            if isinstance(item,Block) or isinstance(item,Connection) or isinstance(item,Node):
+                items.append(item.toPython())
+            if isinstance(item,Node):
+                if not item.port_in.connections:
+                    inp += 1
+                if not item.port_out.connections:
+                    outp += 1
+            if isinstance(item,Block):
+                for port in item.ports():
+                    if not port.connections:
+                        if isinstance(port,InPort):
+                            inp += 1
+                        elif isinstance(port,OutPort):
+                            outp += 1
+        dialog = convertSymDialog()
+        ret = dialog.getRet()
+        if ret:
+            for item in self.scene.selectedItems():    
+                try:
+                    item.remove()
+                except:
+                    pass
+            name = ret['name']
+            icon = ret['icon']
+            libname = 'library_symbols'
+            
+            attributes = {'name':name,'input':inp,'output':outp,'icon':icon,'libname':libname,'type':'symbol'} 
+                    
+            
+            parameters = ret['parameters']
+            properties = ret['properties']
+            views = []
+            
+            data = 'attributes = ' + str(attributes) + '\nproperties = ' + str(properties) + '\nparameters = ' + str(parameters) + '\nviews = ' + str(views) + '\nitems = ' + str(items)
+            
 
+            self.path = os.getcwd()            
+            f = open(self.path + '/libraries/library_symbols/block_' + name + '.py','w+')
+            f.write(str(data))
+            f.close()
+            
+            libraries.getBlock(name,'symbols',None,self.scene)      
+            
+            if self.library.type == 'symbolView':
+                self.library.symbolView()
+                self.library.tabs.setCurrentWidget(self.library.symbolTab)
+            else:
+                self.library.listView()
+                self.library.libraries.setCurrentItem(self.library.libraries.findItems('symbols',QtCore.Qt.MatchExactly)[0])
+            
+            
+    
     def updateAct(self):
         items = self.scene.items()
         for item in items:
@@ -205,7 +286,7 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
             
     
     def getFullFileName(self):
-        return(self.path + '/' + self.filename + '.dgm')
+        return(self.path + '/' + self.filename + '.py')
 
     def askSaving(self):
         items = self.scene.items()
@@ -224,14 +305,15 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
             
     def newFile(self):
         fname = self.filename
-        try:
-            os.remove(fname+'.py')
-        except:
-            pass
+#        try:
+#            os.remove(fname+'.py')
+#        except:
+#            pass
         ret = self.askSaving()
+        cancel = False
         if ret == QtWidgets.QMessageBox.Save:
-            self.saveFile()
-        elif ret != QtWidgets.QMessageBox.Cancel:
+            cancel = self.saveFile()
+        if ret != QtWidgets.QMessageBox.Cancel and not cancel:
             self.scene.newDgm()
             self.filename = 'untitled'
             self.path = os.getcwd()
@@ -239,30 +321,31 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
         
     def openFile(self):
         fname = self.filename
-        try:
-            os.remove(fname+'.py')
-        except:
-            pass
-        ret = self.askSaving()
-        if ret == QtWidgets.QMessageBox.Save:
-            self.saveFile()
-            self.filename = 'untitled'
-            self.path = os.getcwd()
-            self.setWindowTitle(self.filename)
-        elif ret != QtWidgets.QMessageBox.Cancel:
-            self.scene.newDgm()
-            filename = QtWidgets.QFileDialog.getOpenFileName(self, 'Open', '.', filter='*.dgm')
-            if isinstance(filename, tuple):
-                filename = filename[0]
-            if filename != '':
+#        try:
+#            os.remove(fname+'.py')
+#        except:
+#            pass
+        
+#            self.filename = 'untitled'
+#            self.path = os.getcwd()
+#            self.setWindowTitle(self.filename)
+        filename = QtWidgets.QFileDialog.getOpenFileName(self, 'Open', self.path+'/saves/', filter='*.py')
+        if isinstance(filename, tuple):
+            filename = filename[0]
+        if filename != '':
+            ret = self.askSaving()
+            if ret == QtWidgets.QMessageBox.Save:
+                self.saveFile()
+            if ret != QtWidgets.QMessageBox.Cancel:
+                self.scene.newDgm()
                 fname = QtCore.QFileInfo(filename)
                 self.filename = str(fname.baseName())
                 self.path = str(fname.absolutePath())
                 self.setWindowTitle(self.filename)
-                self.scene.loadDgm(self.getFullFileName())
+                self.scene.loadPython(self.filename,self.path)
         
     def saveFile(self):
-        filename = QtWidgets.QFileDialog.getSaveFileName(self, 'Save', self.path+'/'+self.filename, filter='*.dgm')
+        filename = QtWidgets.QFileDialog.getSaveFileName(self, 'Save', self.path+'/saves/'+self.filename, filter='*.py')
         if isinstance(filename, tuple):
                 filename = filename[0]
         if filename != '':
@@ -270,7 +353,9 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
             self.filename = str(fname.baseName())
             self.path = str(fname.absolutePath())
             self.setWindowTitle(self.filename)
-            self.scene.saveDgm(self.getFullFileName())
+            self.scene.savePython(self.getFullFileName())
+        else:
+            return True
 
     def print_scheme(self):
         self.printer = QPrinter()
@@ -307,10 +392,11 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
             name = item.name
             flip = item.flip
             icon = item.icon
+            libname = item.libname
             inp = dialog.spbInput.value()
             outp = dialog.spbOutput.value()
             
-            attributes = {'name':name,'input':inp,'output':outp,'icon':icon,'flip':flip}            
+            attributes = {'name':name,'input':inp,'output':outp,'icon':icon,'flip':flip,'libname':libname}            
             parameters = item.parameters
             properties = item.properties
             views = item.views

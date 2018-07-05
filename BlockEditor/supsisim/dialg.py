@@ -4,13 +4,12 @@ from __future__ import (division, print_function, absolute_import,
                         unicode_literals)
 
 from  Qt import QtGui, QtWidgets, QtCore # see https://github.com/mottosso/Qt.py
-
 import sys, os
 #if sys.version_info>(3,0):
 #    import sip
 #    sip.setapi('QString', 1)
 #
-from supsisim.const import path
+from supsisim.const import path,respath
 
 class LibraryChoice_Dialog(QtWidgets.QMessageBox):
     def __init__(self,parent=None):
@@ -222,8 +221,84 @@ class txtDialog(QtWidgets.QDialog):
             return lres
         else:
             return txt
-            
 
+class convertSymDialog(QtWidgets.QDialog):
+    def __init__(self, title='Convert Symbol', size=(400, 300), parent=None): 
+        super(convertSymDialog, self).__init__(parent)
+        self.layout = QtWidgets.QVBoxLayout()
+        self.setLayout(self.layout)
+
+        # edit widget
+        self.layout.addWidget(QtWidgets.QLabel('Name'))
+
+        self.text_name = QtWidgets.QLineEdit(parent)
+        font = QtGui.QFont()
+        font.setFamily('Lucida')
+        font.setFixedPitch(True)
+        font.setPointSize(12)
+        self.text_name.setFont(font)
+        self.layout.addWidget(self.text_name)
+        
+        self.layout.addWidget(QtWidgets.QLabel('Icon'))
+        self.text_icon = QtWidgets.QWidget()
+        self.icon_layout = QtWidgets.QHBoxLayout()
+        self.icon_createBtn = QtWidgets.QPushButton('Create Icon')    
+        self.icon_selectIcon = QtWidgets.QPushButton('Select Icon')
+        self.icon_selectIcon.clicked.connect(self.selectIcon)        
+#        self.icon_layout.addWidget(self.icon_createBtn)
+        self.icon_layout.addWidget(self.icon_selectIcon)
+        self.text_icon.setLayout(self.icon_layout)
+        self.layout.addWidget(self.text_icon)        
+        
+        self.layout.addWidget(QtWidgets.QLabel('Parameters'))
+        self.text_parameters = QtWidgets.QWidget()
+        self.parameter_layout = QtWidgets.QHBoxLayout()
+        self.parameter_inp = QtWidgets.QCheckBox('input')
+        self.parameter_outp = QtWidgets.QCheckBox('output')
+        self.parameter_layout.addWidget(self.parameter_inp)
+        self.parameter_layout.addWidget(self.parameter_outp)
+        self.text_parameters.setLayout(self.parameter_layout)
+        self.layout.addWidget(self.text_parameters)
+        
+        self.layout.addWidget(QtWidgets.QLabel('Properties'))
+        self.text_properties = QtWidgets.QTextEdit(parent)
+        font = QtGui.QFont()
+        font.setFamily('Lucida')
+        font.setFixedPitch(True)
+        font.setPointSize(12)
+        self.text_properties.setFont(font)
+        self.layout.addWidget(self.text_properties)
+        
+        # Cancel and OK buttons
+        buttons = QtWidgets.QDialogButtonBox.Ok|QtWidgets.QDialogButtonBox.Cancel
+        self.bbox = QtWidgets.QDialogButtonBox(buttons)
+        self.bbox.accepted.connect(self.accept)
+        self.bbox.rejected.connect(self.reject)
+        self.layout.addWidget(self.bbox)
+
+        # set window title and window size
+        self.setWindowTitle(title)
+        self.resize(size[0], size[1])   
+    
+    def selectIcon(self):
+        self.filename = QtWidgets.QFileDialog.getOpenFileName(self, 'Open',respath + '/blocks/', filter='*.svg')
+    
+    def getRet(self):
+        if self.exec_():
+            ret = dict()
+            ret['name'] = self.text_name.text()
+            parameters = []
+            if self.parameter_inp.isChecked():
+                parameters.append('input') 
+            if self.parameter_outp.isChecked():
+                parameters.append('output') 
+            ret['parameters'] = parameters
+            ret['properties'] = self.text_properties.toPlainText()
+            ret['icon'] = QtCore.QFileInfo(self.filename[0]).baseName()
+    
+            return ret         
+        else:
+            return False
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
     pins = [('i', -10, 10, 'pin1'), 

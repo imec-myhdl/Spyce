@@ -38,6 +38,8 @@ class Block(QtWidgets.QGraphicsPathItem):
         self.outp = attributes.pop('output')
         self.icon = attributes.pop('icon')
         self.flip = attributes.pop('flip') if 'flip' in attributes else False
+        self.type = attributes.pop('type') if 'type' in attributes else 'Block'
+        self.libname = attributes.pop('libname')
         
         self.parameters = parameters
         self.properties = properties
@@ -110,26 +112,40 @@ class Block(QtWidgets.QGraphicsPathItem):
         return txt
         
     def __repr__(self):
-        return self.toPython()
-        
-    def toPython(self, lib=False):
-        fmt = 'Block({kwargs})'
-        fields = 'name inp outp icon parameters properties views'.split()
-        kwargs = []
-        x, y, flip = int(self.x()), int(self.y()), self.flip
-        if not lib: # add x, y, flip for schematic(diagrams)
-            if x:
-                fields.append('x')
-            if y:
-                fields.append('y')
-            if flip:
-                fields.append('flip')
-        for k in fields:
-            v = self.__dict__[k]
-            if v:
-                kwargs.append('{}={}'.format(k, repr(v)))
-
-        return fmt.format(kwargs=', '.join(kwargs))
+        return str(self.toPython())
+     
+    def toPython(self):
+        data = dict(type='block',blockname=self.name,libname=self.libname,pos=dict(x=self.x(),y=self.y()))
+        parameters = dict()
+        if self.parameters and 'inp' in self.parameters:
+            parameters['inp'] = self.inp
+        if self.parameters and 'outp' in self.parameters:
+            parameters['outp'] = self.outp
+        if parameters:
+            data['parameters'] = parameters
+        return data
+    
+#    def toPython(self, lib=False):
+#        fmt = 'Block({kwargs})'
+#        fields = 'name inp outp icon parameters properties views'.split()
+#        kwargs = []
+#        x, y, flip = int(self.x()), int(self.y()), self.flip
+#        if not lib: # add x, y, flip for schematic(diagrams)
+#            if x:
+#                fields.append('x')
+#            if y:
+#                fields.append('y')
+#            if flip:
+#                fields.append('flip')
+#        for k in fields:
+#            if k in self.__dict__:
+#                v = self.__dict__[k]
+#            else:
+#                v = eval(k)
+#            if v:
+#                kwargs.append('{}={}'.format(k, repr(v)))
+#
+#        return fmt.format(kwargs=', '.join(kwargs))
         
     def setup(self):
         self.ports_in = []
@@ -317,7 +333,7 @@ class Block(QtWidgets.QGraphicsPathItem):
          return QtCore.QPointF(x,y)
 
     def clone(self, pt):
-        attributes = {'name':self.name,'input':self.inp,'output':self.outp,'icon':self.icon,'flip':self.flip}
+        attributes = {'name':self.name,'input':self.inp,'output':self.outp,'icon':self.icon,'flip':self.flip,'libname':self.libname}
         b = Block(attributes,self.parameters,self.properties,self.views,None, self.scene)
         b.setPos(self.scenePos().__add__(pt))
        

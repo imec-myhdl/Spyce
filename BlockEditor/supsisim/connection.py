@@ -46,7 +46,11 @@ class Connection(QtWidgets.QGraphicsPathItem):
         txt += 'Port2 :\n'
         txt += self.port2.__str__() + '\n'
         return txt
-        
+    
+    def toPython(self):
+        data = dict(type='connection',pos1=dict(x=self.pos1.x(),y=self.pos1.y()),pos2=dict(x=self.pos2.x(),y=self.pos2.y()),pos=dict(x=self.x(),y=self.y()))
+        return data
+    
     def setup(self):
         pen = QtGui.QPen(self.line_color)
         pen.setWidth(LW)
@@ -58,11 +62,13 @@ class Connection(QtWidgets.QGraphicsPathItem):
 
     def update_ports_from_pos(self):
         item = self.scene.find_itemAt(self.pos1)
+#        print('1 ' + str(item))
         if isinstance(item, OutPort):
             self.port1 = item
         elif isinstance(item, Node):
             self.port1 = item.port_out
         item = self.scene.find_itemAt(self.pos2)
+#        print('2 ' + str(item))
         if isinstance(item, InPort):
             self.port2 = item
         elif isinstance(item, Node):

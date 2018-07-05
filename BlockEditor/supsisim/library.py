@@ -74,7 +74,7 @@ class CompViewer(QtWidgets.QGraphicsScene):
         if event.buttons() == QtCore.Qt.LeftButton and isinstance(self.actComp, Block):
             mimeData = QtCore.QMimeData()
             c = self.actComp
-            attributes = {'name':c.name,'input':c.inp,'output':c.outp,'icon':c.icon,'flip':c.flip}
+            attributes = {'name':c.name,'input':c.inp,'output':c.outp,'icon':c.icon,'flip':c.flip,'libname':c.libname}
             data = '@'.join([str(attributes),str(c.parameters),str(c.properties),str(c.views)])
             mimeData.setText(data)
             drag = QtGui.QDrag(self.parent)
@@ -283,7 +283,7 @@ class Library(QtWidgets.QMainWindow):
     def __init__(self,parent=None):
         super(Library, self).__init__(parent)
 
-        self.centralWidget = QtWidgets.QWidget()
+#        self.centralWidget = QtWidgets.QWidget()
         self.resize(800, 500)
         self.setWindowTitle('Library')
         self.libConfig = ()
@@ -300,7 +300,7 @@ class Library(QtWidgets.QMainWindow):
             self.type = 'symbolView'
     
     def listView(self):
-        self.resize(1500,1500)
+        reload(libraries)
         self.centralWidget = QtWidgets.QWidget()        
         
         self.libraries = QtWidgets.QListWidget(self.centralWidget)
@@ -331,13 +331,13 @@ class Library(QtWidgets.QMainWindow):
 
 
     def symbolView(self):
-
+        reload(libraries)
         self.centralWidget = QtWidgets.QWidget()
-        self.resize(800, 500)
-        self.setWindowTitle('Library')
-        self.libConfig = ()
-#        self.readLib()
-        self.closeFlag = False
+#        self.resize(800, 500)
+#        self.setWindowTitle('Library')
+#        self.libConfig = ()
+##        self.readLib()
+#        self.closeFlag = False
 
         self.tabs = QtWidgets.QTabWidget()
         self.quickSelTab = QtWidgets.QComboBox()
@@ -364,6 +364,8 @@ class Library(QtWidgets.QMainWindow):
                 if h > 100.0:
                     set_orient(cell, scale=min(1.0, 80.0/w, 100.0/h))
             tab = QtWidgets.QWidget()
+            if libname == 'symbols':
+                self.symbolTab = tab
             layout = QtWidgets.QVBoxLayout()
             layout.addWidget(view)
             tab.setLayout(layout)
