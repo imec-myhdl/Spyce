@@ -13,7 +13,7 @@ def getBlock(blockname,libname,parent=None,scene=None, param=dict(), test=False)
         attributes['input'] = param['inp']
     if 'outp' in param.keys():
         attributes['output'] = param['outp']
-    return Block(attributes,parameters,properties,views,parent,scene)
+    return Block(attributes,parameters,properties,views,blockname,libname,parent,scene)
 
 def readLibrary(libname):
     files = os.listdir('libraries/' + libname)

@@ -99,11 +99,11 @@ class Scene(QtWidgets.QGraphicsScene):
             if self.mainw.view.symbol and self.mainw.centralWidget.tabText(self.mainw.centralWidget.currentIndex()) == eval(data[0])['name']:
                 pass
             else:
-                b = Block(eval(data[0]),eval(data[1]),eval(data[2]),eval(data[3]),None, self)
+                b = Block(eval(data[0]),eval(data[1]),eval(data[2]),eval(data[3]),data[4],data[5],None, self)
                 b.setPos(event.scenePos())
         else:
             data = event.mimeData().text().split('@')
-            if self.mainw.view.symbol and self.mainw.centralWidget.tabText(self.mainw.centralWidget.currentIndex()) == data[0]:
+            if self.mainw.view.symbol and self.mainw.centralWidget.tabText(self.mainw.centralWidget.currentIndex()) == data[1]:
                 pass
             else:
                 libs = libraries.libs

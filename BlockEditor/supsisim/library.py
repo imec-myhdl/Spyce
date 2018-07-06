@@ -75,7 +75,7 @@ class CompViewer(QtWidgets.QGraphicsScene):
             mimeData = QtCore.QMimeData()
             c = self.actComp
             attributes = {'name':c.name,'input':c.inp,'output':c.outp,'icon':c.icon,'flip':c.flip,'libname':c.libname,'type':c.type}
-            data = '@'.join([str(attributes),str(c.parameters),str(c.properties),str(c.views)])
+            data = '@'.join([str(attributes),str(c.parameters),str(c.properties),str(c.views),c.blockname,c.libname])
             mimeData.setText(data)
             drag = QtGui.QDrag(self.parent)
             drag.setMimeData(mimeData)

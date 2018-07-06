@@ -487,6 +487,8 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
             item.remove()
             
             name = item.name
+            blockname = item.blockname
+            libname = item.libname
             flip = item.flip
             icon = item.icon
             libname = item.libname
@@ -498,7 +500,7 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
             properties = item.properties
             views = item.views
             
-            b = Block(attributes,parameters,properties,views,None, self.scene)
+            b = Block(attributes,parameters,properties,views,blockname,libname,None, self.scene)
             b.setPos(self.scene.evpos)
 
     def startpythonAct(self):

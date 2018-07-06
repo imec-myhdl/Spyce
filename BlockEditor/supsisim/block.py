@@ -23,7 +23,7 @@ from supsisim.const import GRID, PW, LW, BWmin, BHmin, PD, respath, qtpinlabels
 
 class Block(QtWidgets.QGraphicsPathItem):
     """A block holds ports that can be connected to."""
-    def __init__(self,attributes,parameters,properties,views,parent=None,scene=None):
+    def __init__(self,attributes,parameters,properties,views,blockname,libname,parent=None,scene=None):
         self.scene = scene
         if QtCore.qVersion().startswith('5'):
             super(Block, self).__init__(parent)
@@ -32,7 +32,8 @@ class Block(QtWidgets.QGraphicsPathItem):
         else:
             super(Block, self).__init__(parent, self.scene)
         
-        
+        self.blockname = blockname
+        self.libname = libname
         self.name = attributes.pop('name')
         self.inp = attributes.pop('input')
         self.outp = attributes.pop('output')
@@ -334,7 +335,7 @@ class Block(QtWidgets.QGraphicsPathItem):
 
     def clone(self, pt):
         attributes = {'name':self.name,'input':self.inp,'output':self.outp,'icon':self.icon,'flip':self.flip,'libname':self.libname}
-        b = Block(attributes,self.parameters,self.properties,self.views,None, self.scene)
+        b = Block(attributes,self.parameters,self.properties,self.views,self.blockname,self.libname,None, self.scene)
         b.setPos(self.scenePos().__add__(pt))
        
     def save(self, root):
