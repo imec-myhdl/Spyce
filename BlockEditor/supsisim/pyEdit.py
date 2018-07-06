@@ -30,25 +30,24 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
         super(SupsiSimMainWindow, self).__init__(parent)
         self.resize(1024, 768)
         
-#        self.centralWidget = QtWidgets.QTabWidget()
+        self.centralWidget = QtWidgets.QTabWidget()
+        self.centralWidget.setTabsClosable(True)
+        self.centralWidget.tabCloseRequested.connect(self.closeTab)
+        self.centralWidget.currentChanged.connect(self.onChange)   
+        self.setCentralWidget(self.centralWidget)
+        
+#        self.centralWidget = QtWidgets.QWidget(self)
+#        self.verticalLayout = QtWidgets.QVBoxLayout(self.centralWidget)
+#        self.verticalLayout.setContentsMargins(0,0,0,0)
 #        self.view = GraphicsView(self.centralWidget)
 #        self.view.setMouseTracking(True)
 #        self.scene = Scene(self)
 #        self.view.setScene(self.scene)
 #        self.view.setRenderHint(QtGui.QPainter.Antialiasing)
-#        self.centralWidget.addTab(self.view,fname)
+#        self.verticalLayout.addWidget(self.view)
 #        self.setCentralWidget(self.centralWidget)
         
-        self.centralWidget = QtWidgets.QWidget(self)
-        self.verticalLayout = QtWidgets.QVBoxLayout(self.centralWidget)
-        self.verticalLayout.setContentsMargins(0,0,0,0)
-        self.view = GraphicsView(self.centralWidget)
-        self.view.setMouseTracking(True)
-        self.scene = Scene(self)
-        self.view.setScene(self.scene)
-        self.view.setRenderHint(QtGui.QPainter.Antialiasing)
-        self.verticalLayout.addWidget(self.view)
-        self.setCentralWidget(self.centralWidget)
+        
         self.addactions()
         self.addMenubar()
         self.addToolbars()
@@ -59,10 +58,11 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
         if fname != 'untitled':
             self.scene.loadDgm(self.getFullFileName())
             
-        self.setWindowTitle(self.filename)
+        self.setWindowTitle('Editor')
         self.status = self.statusBar()
         self.evpos = QtCore.QPointF(0,0)
-        self.editor = Editor(self)
+        self.editor = Editor(self)     
+        self.newFile()
         self.editor.install(self.scene)
         self.status.showMessage('Ready')
 
@@ -184,9 +184,26 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
 
         setMenu = menubar.addMenu('Se&ttings')
         setMenu.addAction(self.setCodegenAction)
-        
+    
+    def onChange(self,i):
+        self.view=self.centralWidget.widget(i)
+        self.scene=self.centralWidget.widget(i).scene()
+        self.editor.install(self.scene)
+#        for item in self.scene.items():
+#            if isinstance(item,Block) and item.type == 'symbol':
+#                item.reloadPorts()
+#        self.scene.savePython('tmp.py')
+#        self.scene.newDgm()
+#        self.scene.loadPython('tmp',None,False)
+#        try:
+#            os.remove('tmp.py')
+#        except:
+#            pass
+           
     def descend(self,item):
-        pass
+        
+        self.newFile(item.name,symbol=True)
+        self.scene.loadPython('libraries.library_symbols.block_' + item.name,None)
     
     def ascend(self):
         pass        
@@ -242,6 +259,7 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
         dialog = convertSymDialog()
         ret = dialog.getRet()
         if ret:
+            center = self.scene.getCenter()
             for item in self.scene.selectedItems():    
                 try:
                     item.remove()
@@ -266,8 +284,8 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
             f.write(str(data))
             f.close()
             
-            libraries.getBlock(name,'symbols',None,self.scene)      
-            
+            item = libraries.getBlock(name,'symbols',None,self.scene)      
+            item.setPos(center[0],center[1])
             if self.library.type == 'symbolView':
                 self.library.symbolView()
                 self.library.tabs.setCurrentWidget(self.library.symbolTab)
@@ -288,39 +306,78 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
     def getFullFileName(self):
         return(self.path + '/' + self.filename + '.py')
 
-    def askSaving(self):
-        items = self.scene.items()
-        if len(items) == 0:
+    def askSaving(self,whole=False):
+        if whole:
+            for i in range(self.centralWidget.count()):              
+                items = self.centralWidget.widget(i).scene().items()
+                if len(items) != 0:
+                    self.centralWidget.setCurrentIndex(i)
+                    msg = QtWidgets.QMessageBox()
+                    msg.setText('The Document has been modified')
+                    msg.setInformativeText('Do you want to save your changes?')
+                    msg.setStandardButtons(     QtWidgets.QMessageBox.Question |
+                                                QtWidgets.QMessageBox.Save |
+                                                QtWidgets.QMessageBox.Discard |
+                                                QtWidgets.QMessageBox.Cancel)
+                    ret = msg.exec_()
+                    if ret == QtWidgets.QMessageBox.Save:
+                        self.saveFile()
+                    elif ret == QtWidgets.QMessageBox.Cancel:
+                        return ret
             return QtWidgets.QMessageBox.Discard
-        
-        msg = QtWidgets.QMessageBox()
-        msg.setText('The Document has been modified')
-        msg.setInformativeText('Do you want to save your changes?')
-        msg.setStandardButtons(     QtWidgets.QMessageBox.Question |
-                                    QtWidgets.QMessageBox.Save |
-                                    QtWidgets.QMessageBox.Discard |
-                                    QtWidgets.QMessageBox.Cancel)
-        ret = msg.exec_()
-        return ret
             
-    def newFile(self):
-        fname = self.filename
-#        try:
-#            os.remove(fname+'.py')
-#        except:
-#            pass
+            
+        else:
+            items = self.scene.items()
+            if len(items) == 0:
+                return QtWidgets.QMessageBox.Discard
+        
+            msg = QtWidgets.QMessageBox()
+            msg.setText('The Document has been modified')
+            msg.setInformativeText('Do you want to save your changes?')
+            msg.setStandardButtons(     QtWidgets.QMessageBox.Question |
+                                        QtWidgets.QMessageBox.Save |
+                                        QtWidgets.QMessageBox.Discard |
+                                        QtWidgets.QMessageBox.Cancel)
+            ret = msg.exec_()
+            return ret
+    def closeTab(self, currentIndex):
+        self.centralWidget.setCurrentIndex(currentIndex)
         ret = self.askSaving()
         cancel = False
         if ret == QtWidgets.QMessageBox.Save:
             cancel = self.saveFile()
         if ret != QtWidgets.QMessageBox.Cancel and not cancel:
-            self.scene.newDgm()
-            self.filename = 'untitled'
-            self.path = os.getcwd()
-            self.setWindowTitle(self.filename)
+            self.centralWidget.removeTab(currentIndex)
+                 
+    def newFile(self,fname=False,symbol=False):
+        if not fname:
+            fname = 'untitled'
+        view = GraphicsView(self.centralWidget,symbol)
+        view.setMouseTracking(True)
+        scene = Scene(self)
+        view.setScene(scene)
+        view.setRenderHint(QtGui.QPainter.Antialiasing)
+        i = self.centralWidget.addTab(view,fname)
+        self.centralWidget.setCurrentIndex(i)
+#        fname = self.filename
+#        try:
+#            os.remove(fname+'.py')
+#        except:
+#            pass
+        
+#        ret = self.askSaving()
+#        cancel = False
+#        if ret == QtWidgets.QMessageBox.Save:
+#            cancel = self.saveFile()
+#        if ret != QtWidgets.QMessageBox.Cancel and not cancel:
+#        self.scene.newDgm()
+#        self.filename = 'untitled'
+#        self.path = os.getcwd()
+#        self.setWindowTitle(self.filename)
         
     def openFile(self):
-        fname = self.filename
+#        fname = self.filename
 #        try:
 #            os.remove(fname+'.py')
 #        except:
@@ -333,29 +390,69 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
         if isinstance(filename, tuple):
             filename = filename[0]
         if filename != '':
-            ret = self.askSaving()
-            if ret == QtWidgets.QMessageBox.Save:
-                self.saveFile()
-            if ret != QtWidgets.QMessageBox.Cancel:
-                self.scene.newDgm()
-                fname = QtCore.QFileInfo(filename)
-                self.filename = str(fname.baseName())
-                self.path = str(fname.absolutePath())
-                self.setWindowTitle(self.filename)
-                self.scene.loadPython(self.filename,self.path)
-        
-    def saveFile(self):
-        filename = QtWidgets.QFileDialog.getSaveFileName(self, 'Save', self.path+'/saves/'+self.filename, filter='*.py')
-        if isinstance(filename, tuple):
-                filename = filename[0]
-        if filename != '':
+#            ret = self.askSaving()
+#            if ret == QtWidgets.QMessageBox.Save:
+#                self.saveFile()
+#            if ret != QtWidgets.QMessageBox.Cancel:
+#                self.scene.newDgm()
             fname = QtCore.QFileInfo(filename)
             self.filename = str(fname.baseName())
             self.path = str(fname.absolutePath())
-            self.setWindowTitle(self.filename)
-            self.scene.savePython(self.getFullFileName())
+#            self.setWindowTitle(self.filename)
+            self.newFile(self.filename)
+            self.scene.loadPython(self.filename,self.path)
+    
+    def saveFile(self):
+        if self.view.symbol:
+            symbolName = self.centralWidget.tabText(self.centralWidget.currentIndex())
+            exec('import libraries.library_symbols.block_' + symbolName)
+            attributes = eval('libraries.library_symbols.block_' + symbolName + '.attributes')
+            parameters = eval('libraries.library_symbols.block_' + symbolName + '.parameters')
+            properties = eval('libraries.library_symbols.block_' + symbolName + '.properties')
+            views = eval('libraries.library_symbols.block_' + symbolName + '.views')
+            items = []            
+            
+            inp = 0
+            outp = 0
+            for item in self.scene.items():
+                if isinstance(item,Block) or isinstance(item,Connection) or isinstance(item,Node):
+                    items.append(item.toPython())
+                if isinstance(item,Node):
+                    if not item.port_in.connections:
+                        inp += 1
+                    if not item.port_out.connections:
+                        outp += 1
+                if isinstance(item,Block):
+                    for port in item.ports():
+                        if not port.connections:
+                            if isinstance(port,InPort):
+                                inp += 1
+                            elif isinstance(port,OutPort):
+                                outp += 1
+            attributes['input'] = inp
+            attributes['output'] = outp
+            data = 'attributes = ' + str(attributes) + '\nproperties = ' + str(properties) + '\nparameters = ' + str(parameters) + '\nviews = ' + str(views) + '\nitems = ' + str(items)
+            
+
+            self.path = os.getcwd()            
+            f = open(self.path + '/libraries/library_symbols/block_' + symbolName + '.py','w+')
+            f.write(str(data))
+            f.close()
+            
+            self.library.symbolView()
+            self.library.tabs.setCurrentWidget(self.library.symbolTab)
         else:
-            return True
+            filename = QtWidgets.QFileDialog.getSaveFileName(self, 'Save', self.path+'/saves/'+self.filename, filter='*.py')
+            if isinstance(filename, tuple):
+                    filename = filename[0]
+            if filename != '':
+                fname = QtCore.QFileInfo(filename)
+                self.filename = str(fname.baseName())
+                self.path = str(fname.absolutePath())
+                self.centralWidget.setTabText(self.centralWidget.currentIndex(),self.filename)
+                self.scene.savePython(self.getFullFileName())
+            else:
+                return True
 
     def print_scheme(self):
         self.printer = QPrinter()
@@ -427,13 +524,14 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
             os.remove('tmp.py')
         except:
             pass
-        ret = self.askSaving()
-        if ret == QtWidgets.QMessageBox.Save:
-            self.saveFile()
-            Library.closeFlag = True
-            Library.close()
-            event.accept()
-        elif ret == QtWidgets.QMessageBox.Discard:
+        ret = self.askSaving(whole=True)
+#        if ret == QtWidgets.QMessageBox.Save:
+#            self.saveFile()
+#            Library.closeFlag = True
+#            Library.close()
+#            event.accept()
+#        el
+        if ret == QtWidgets.QMessageBox.Discard:
 
             self.library.closeFlag = True
             self.library.close()

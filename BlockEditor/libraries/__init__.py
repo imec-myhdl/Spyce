@@ -3,6 +3,7 @@ from supsisim.block import Block
 
 def getBlock(blockname,libname,parent=None,scene=None, param=dict(), test=False):
     exec('import libraries.library_' + libname + '.block_' + blockname)
+    reload(eval('libraries.library_' + libname + '.block_' + blockname))
     options = ('attributes','parameters','properties','views')
     for o in options:
         exec(o + ' = libraries.library_' + libname + '.block_' + blockname + '.' + o)

@@ -22,8 +22,9 @@ import time
 import libraries
 
 class GraphicsView(QtWidgets.QGraphicsView):
-    def __init__(self, parent=None):
+    def __init__(self, parent=None,symbol=False):
         super(GraphicsView, self).__init__(parent)
+        self.symbol = symbol
         self.setDragMode(QtWidgets.QGraphicsView.RubberBandDrag)
         self.setSceneRect(QtCore.QRectF(-2000, -2000, 4000, 4000))
         self.setRenderHint(QtGui.QPainter.Antialiasing)
@@ -94,17 +95,22 @@ class Scene(QtWidgets.QGraphicsScene):
         
     def dropEvent(self, event):
         if self.mainw.library.type == "symbolView":
-        
             data = event.mimeData().text().split('@')
-            b = Block(eval(data[0]),eval(data[1]),eval(data[2]),eval(data[3]),None, self)
-            b.setPos(event.scenePos())
+            if self.mainw.view.symbol and self.mainw.centralWidget.tabText(self.mainw.centralWidget.currentIndex()) == eval(data[0])['name']:
+                pass
+            else:
+                b = Block(eval(data[0]),eval(data[1]),eval(data[2]),eval(data[3]),None, self)
+                b.setPos(event.scenePos())
         else:
             data = event.mimeData().text().split('@')
-            libs = libraries.libs
-            for blockname in libs[data[0]]:
-                if(blockname == data[1]):
-                    b = libraries.getBlock(blockname,data[0],scene=self)                    
-                    b.setPos(event.scenePos())
+            if self.mainw.view.symbol and self.mainw.centralWidget.tabText(self.mainw.centralWidget.currentIndex()) == data[0]:
+                pass
+            else:
+                libs = libraries.libs
+                for blockname in libs[data[0]]:
+                    if(blockname == data[1]):
+                        b = libraries.getBlock(blockname,data[0],scene=self)                    
+                        b.setPos(event.scenePos())
 
     def newDgm(self):
         items = self.items()
@@ -117,6 +123,7 @@ class Scene(QtWidgets.QGraphicsScene):
         self.addObjs=''
         self.script=''
         self.Tf='10.0'
+        self.nameList = []
     
     def savePython(self,fname):
         items = []
@@ -128,9 +135,10 @@ class Scene(QtWidgets.QGraphicsScene):
         f.write('items = ' + str(items))
         f.close()
     
-    def loadPython(self,fname,path):
+    def loadPython(self,fname,path,center=True):
         sys.path.append(path)
         exec('import ' + fname)
+        reload(eval(fname))
         items = eval(fname + '.items')
         for item in items:
             if item['type'] == 'block':
@@ -149,7 +157,21 @@ class Scene(QtWidgets.QGraphicsScene):
                 conn.pos1 = QtCore.QPointF(item['pos1']['x'],item['pos1']['y'])
                 conn.pos2 = QtCore.QPointF(item['pos2']['x'],item['pos2']['y'])
                 conn.update_ports_from_pos()
-                 
+        if center:
+            self.mainw.view.centerOn(self.getCenter()[0],self.getCenter()[1])
+    
+    def getCenter(self):
+        coordinatesX = []
+        coordinatesY = []
+        for item in self.items():
+            if isinstance(item, Block):
+                coordinatesX.append(item.x())
+                coordinatesY.append(item.y())
+        if len(coordinatesX):
+            return sum(coordinatesX)/len(coordinatesX),sum(coordinatesY)/len(coordinatesY)
+        else:
+            return 0.0,0.0
+    
     
     def saveDgm(self,fname):
         items = self.items()

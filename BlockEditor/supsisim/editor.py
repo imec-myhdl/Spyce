@@ -347,7 +347,8 @@ class Editor(QtCore.QObject):
     def mouseDoubleClicked(self, obj, event):
         item = self.blockAt(event.scenePos())
         if isinstance(item, Block):
-            self.scene.mainw.descend(item)
+            if item.type == 'symbol':
+                self.scene.mainw.descend(item)
             
     def eventFilter(self, obj, event):
         if event.type() ==  QtCore.QEvent.GraphicsSceneMouseMove:

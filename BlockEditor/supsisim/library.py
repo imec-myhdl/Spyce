@@ -74,7 +74,7 @@ class CompViewer(QtWidgets.QGraphicsScene):
         if event.buttons() == QtCore.Qt.LeftButton and isinstance(self.actComp, Block):
             mimeData = QtCore.QMimeData()
             c = self.actComp
-            attributes = {'name':c.name,'input':c.inp,'output':c.outp,'icon':c.icon,'flip':c.flip,'libname':c.libname}
+            attributes = {'name':c.name,'input':c.inp,'output':c.outp,'icon':c.icon,'flip':c.flip,'libname':c.libname,'type':c.type}
             data = '@'.join([str(attributes),str(c.parameters),str(c.properties),str(c.views)])
             mimeData.setText(data)
             drag = QtGui.QDrag(self.parent)
