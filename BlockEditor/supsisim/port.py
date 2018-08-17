@@ -27,6 +27,7 @@ class Port(QtWidgets.QGraphicsPathItem):
         self.connections = []
         self.nodeID = '0'
         self.parent = parent
+        self.pinlabel = None
 
     def setup(self):
         pass

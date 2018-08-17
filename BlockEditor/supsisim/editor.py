@@ -12,9 +12,9 @@ from  Qt import QtWidgets, QtCore # see https://github.com/mottosso/Qt.py
 
 from supsisim.port import Port, InPort, OutPort
 from supsisim.connection import Connection
-from supsisim.block import Block
+from supsisim.block import Block, textItem
 from supsisim.node import Node
-from supsisim.dialg import BlockName_Dialog
+from supsisim.dialg import BlockName_Dialog, labelDialog
 import supsisim.RCPDlg as pDlg
 from supsisim.const import GRID, DB
 import numpy as np
@@ -47,16 +47,35 @@ class Editor(QtCore.QObject):
         self.subMenuNode = QtWidgets.QMenu()
         nodeDelAction = self.subMenuNode.addAction('Delete node')
         nodeBindAction = self.subMenuNode.addAction('Bind node')
+        nodeLabelAction = self.subMenuNode.addAction('Add label')
         nodeDelAction.triggered.connect(self.deleteNode)
         nodeBindAction.triggered.connect(self.bindNode)
+        nodeLabelAction.triggered.connect(self.addNodeLabel)
         
         self.subMenuConn = QtWidgets.QMenu()
         connDelAction = self.subMenuConn.addAction('Delete connection')
         connInsAction = self.subMenuConn.addAction('Insert node')
+        connLabelAction = self.subMenuConn.addAction('Add label')
         connDelAction.triggered.connect(self.deleteConn)
         connInsAction.triggered.connect(self.insConn)
+        connLabelAction.triggered.connect(self.addConnLabel)
         
-
+        
+    def addNodeLabel(self):
+        dialog = labelDialog()
+        ret = dialog.getLabel()
+        if ret:
+            self.scene.item.label = textItem(ret, anchor=3, parent=self.scene.item)
+            self.scene.item.label.setPos(0,20)
+    
+    def addConnLabel(self):
+        dialog = labelDialog()
+        ret = dialog.getLabel()
+        if ret:
+            conn = self.scene.item
+            conn.label = textItem(ret, anchor=3, parent=conn)
+            conn.label.setPos(conn.pos2.x(),conn.pos2.y())
+        
     def parBlock(self):
         self.scene.mainw.parBlock()
     
@@ -347,7 +366,7 @@ class Editor(QtCore.QObject):
     def mouseDoubleClicked(self, obj, event):
         item = self.blockAt(event.scenePos())
         if isinstance(item, Block):
-            if item.type == 'symbol':
+            if item.hasDiagram():
                 self.scene.mainw.descend(item)
             
     def eventFilter(self, obj, event):

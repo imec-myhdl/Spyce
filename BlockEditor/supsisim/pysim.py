@@ -15,7 +15,7 @@ import os
 
 
 import threading
-
+import autopep8
 from supsisim.pyEdit import SupsiSimMainWindow
 from supsisim.library import Library
 
@@ -30,7 +30,8 @@ class supsisimul(threading.Thread):
             self.fname = 'untitled'
             self.mypath =  os.getcwd()
         self.runflag = runflag
-
+        
+        
     def run(self):
         app = QtWidgets.QApplication(sys.argv)
         library = Library()

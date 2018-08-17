@@ -222,6 +222,93 @@ class txtDialog(QtWidgets.QDialog):
         else:
             return txt
 
+class labelDialog(QtWidgets.QDialog):
+    def __init__(self, title='Add Label', size=(300, 100), parent=None):
+        super(labelDialog, self).__init__(parent)
+        self.layout = QtWidgets.QVBoxLayout()
+        self.setLayout(self.layout)
+        
+        self.layout.addWidget(QtWidgets.QLabel('Label:'))
+        # edit widget
+        self.text_edit = QtWidgets.QLineEdit(parent)
+        font = QtGui.QFont()
+        font.setFamily('Lucida')
+        font.setFixedPitch(True)
+        font.setPointSize(12)
+        self.text_edit.setFont(font)
+        self.layout.addWidget(self.text_edit)
+        
+        # Cancel and OK buttons
+        buttons = QtWidgets.QDialogButtonBox.Ok|QtWidgets.QDialogButtonBox.Cancel
+        self.bbox = QtWidgets.QDialogButtonBox(buttons)
+        self.bbox.accepted.connect(self.accept)
+        self.bbox.rejected.connect(self.reject)
+        self.layout.addWidget(self.bbox)
+
+        # set window title and window size
+        self.setWindowTitle(title)
+        self.resize(size[0], size[1])
+        
+    def getLabel(self):
+        if self.exec_(): #Ok
+            return self.text_edit.text()
+        else: # Cancel   
+            return False 
+
+class viewConfigDialog(QtWidgets.QDialog):
+    def __init__(self, title='View settings', size=(400, 300), parent=None): 
+        super(viewConfigDialog, self).__init__(parent)
+        self.layout = QtWidgets.QVBoxLayout()
+        self.setLayout(self.layout)
+        self.viewWidgets = []
+
+        import supsisim.const
+        reload(supsisim.const)
+        from supsisim.const import viewEditors        
+        
+        views = dict(viewEditors)
+        # edit widget
+        for key in views.keys():
+            view = QtWidgets.QWidget()
+            viewLayout = QtWidgets.QHBoxLayout()
+            view.setLayout(viewLayout)
+            
+            viewLayout.addWidget(QtWidgets.QLabel(key + ":"))
+    
+            text_name = QtWidgets.QLineEdit(views[key])
+            font = QtGui.QFont()
+            font.setFamily('Lucida')
+            font.setFixedPitch(True)
+            font.setPointSize(12)
+            text_name.setFont(font)
+            viewLayout.addWidget(text_name)
+            
+            self.layout.addWidget(view)
+            self.viewWidgets.append(dict(key=key,widget=text_name))
+        
+        
+        # Cancel and OK buttons
+        buttons = QtWidgets.QDialogButtonBox.Ok|QtWidgets.QDialogButtonBox.Cancel
+        self.bbox = QtWidgets.QDialogButtonBox(buttons)
+        self.bbox.accepted.connect(self.accept)
+        self.bbox.rejected.connect(self.reject)
+        self.layout.addWidget(self.bbox)
+
+        # set window title and window size
+        self.setWindowTitle(title)
+        self.resize(size[0], size[1])   
+    
+    
+    
+    def getRet(self):
+        if self.exec_():
+            ret = []
+            for i,value in enumerate(self.viewWidgets):
+                ret.append(dict(key=value['key'],text=value['widget'].text()))
+            return ret         
+        else:
+            return False
+
 class convertSymDialog(QtWidgets.QDialog):
     def __init__(self, title='Convert Symbol', size=(400, 300), parent=None): 
         super(convertSymDialog, self).__init__(parent)
@@ -293,7 +380,7 @@ class convertSymDialog(QtWidgets.QDialog):
             if self.parameter_outp.isChecked():
                 parameters.append('output') 
             ret['parameters'] = parameters
-            ret['properties'] = self.text_properties.toPlainText()
+            ret['properties'] = self.text_properties.toPlainText() if self.text_properties.toPlainText() else '[]'
             ret['icon'] = QtCore.QFileInfo(self.filename[0]).baseName()
     
             return ret         

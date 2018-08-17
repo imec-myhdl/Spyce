@@ -1,5 +1,0 @@
-attributes = {u'outp': 5, u'libname': u'library_symbols', u'name': u'oke', u'output': 1, u'input': 11, u'type': u'symbol', u'icon': u'ABS'}
-properties = []
-parameters = []
-views = []
-items = [{'libname': u'symbols', 'type': u'block', 'pos': {'y': -150.0, 'x': -780.0}, 'blockname': u'oke1'}, {'pos2': {'y': 60.0, 'x': -70.0}, 'type': u'connection', 'pos': {'y': 0.0, 'x': 0.0}, 'pos1': {'y': -120.0, 'x': -70.0}}, {'pos2': {'y': -120.0, 'x': -70.0}, 'type': u'connection', 'pos': {'y': 0.0, 'x': 0.0}, 'pos1': {'y': -120.0, 'x': -296.0}}, {'type': u'node', 'pos': {'y': 60.0, 'x': -70.0}}, {'type': u'node', 'pos': {'y': -120.0, 'x': -70.0}}, {'libname': u'nonlin', 'type': u'block', 'pos': {'y': -120.0, 'x': -340.0}, u'parameters': {u'outp': 1, u'inp': 1}, 'blockname': 'FMU'}, {'libname': u'symbols', 'type': u'block', 'pos': {'y': -90.0, 'x': -560.0}, 'blockname': u'oke'}, {'libname': u'linear', 'type': u'block', 'pos': {'y': -310.0, 'x': -460.0}, 'blockname': 'Init_enc'}, {'libname': u'linear', 'type': u'block', 'pos': {'y': -330.0, 'x': -750.0}, 'blockname': 'Delay'}]

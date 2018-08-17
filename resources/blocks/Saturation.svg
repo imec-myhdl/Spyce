@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<svg baseProfile="tiny" height="70.0" id="svg2" inkscape:version="0.91 r13725" sodipodi:docname="Saturation" version="1.2" width="108.0" xmlns="http://www.w3.org/2000/svg" xmlns:ev="http://www.w3.org/2001/xml-events" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd" xmlns:xlink="http://www.w3.org/1999/xlink">
+  <defs/>
+  <sodipodi:namedview gridtolerance="10000" guidetolerance="10" inkscape:current-layer="svg2" inkscape:snap-grids="true" inkscape:window-height="50" inkscape:window-width="128.0" objecttolerance="10" showgrid="true">
+    <inkscape:grid spacingx="10" spacingy="10" type="xygrid" units="px"/>
+  </sodipodi:namedview>
+  <text font-size="10px" id="i-portlabel_i_pin0" x="23.5" y="38.5">i_pin0</text>
+  <line id="i-port_i_pin0" stroke="darkGreen" x1="10.0" x2="20.0" y1="35.0" y2="35.0"/>
+  <text font-size="10px" id="o-portlabel_o_pin0" text-anchor="end" x="84.5" y="38.5">o_pin0</text>
+  <line id="o-port_o_pin0" stroke="darkGreen" x1="98.0" x2="88.0" y1="35.0" y2="35.0"/>
+  <rect fill="none" height="30.0" stroke="darkGreen" stroke-width="1" width="68.0" x="20" y="20"/>
+</svg>

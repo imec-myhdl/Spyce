@@ -1,1 +1,0 @@
-items = [{'libname': u'symbols', 'type': u'block', 'pos': {'y': -50.0, 'x': -850.0}, 'blockname': u'Boyeen'}]

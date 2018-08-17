@@ -1,1 +1,0 @@
-items = [{'libname': u'common', 'type': u'block', 'pos': {'y': -170.0, 'x': -870.0}, 'blockname': u'Sub'}]

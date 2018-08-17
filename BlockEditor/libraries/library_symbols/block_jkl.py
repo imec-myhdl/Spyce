@@ -1,5 +1,0 @@
-attributes = {u'libname': u'library_symbols', u'name': u'jkl', u'output': 4, u'input': 2, u'type': u'symbol', u'icon': u'ABS'}
-properties = []
-parameters = []
-views = []
-items = [{'libname': u'symbols', 'type': u'block', 'pos': {'y': -170.0, 'x': -1320.0}, 'blockname': u'jkl'}, {'type': u'node', 'pos': {'y': -340.0, 'x': -920.0}}, {'pos2': {'y': -340.0, 'x': -920.0}, 'type': u'connection', 'pos': {'y': 0.0, 'x': 0.0}, 'pos1': {'y': -210.0, 'x': -920.0}}, {'pos2': {'y': -210.0, 'x': -920.0}, 'type': u'connection', 'pos': {'y': 0.0, 'x': 0.0}, 'pos1': {'y': -210.0, 'x': -1006.0}}, {'pos2': {'y': -130.0, 'x': -844.0}, 'type': u'connection', 'pos': {'y': 0.0, 'x': 0.0}, 'pos1': {'y': -210.0, 'x': -920.0}}, {'libname': u'common', 'type': u'block', 'pos': {'y': -210.0, 'x': -1050.0}, 'blockname': 'Const'}, {'libname': u'common', 'type': u'block', 'pos': {'y': -110.0, 'x': -800.0}, 'blockname': 'Sub'}, {'type': u'node', 'pos': {'y': -210.0, 'x': -920.0}}]

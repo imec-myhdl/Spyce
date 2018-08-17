@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   height="100.0"
+   id="svg2"
+   inkscape:version="0.91 r13725"
+   sodipodi:docname="tmpJgleeA.svg"
+   version="1.2"
+   width="108.0">
+  <metadata
+     id="metadata17">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <defs
+     id="defs3" />
+  <sodipodi:namedview
+     gridtolerance="10000"
+     guidetolerance="10"
+     inkscape:current-layer="svg2"
+     inkscape:snap-grids="true"
+     inkscape:window-height="414"
+     inkscape:window-width="550"
+     objecttolerance="10"
+     showgrid="true"
+     id="namedview5"
+     inkscape:zoom="2.36"
+     inkscape:cx="54"
+     inkscape:cy="50"
+     inkscape:window-x="710"
+     inkscape:window-y="223"
+     inkscape:window-maximized="0">
+    <inkscape:grid
+       spacingx="10"
+       spacingy="10"
+       type="xygrid"
+       units="px"
+       id="grid7" />
+  </sodipodi:namedview>
+  <text
+     font-size="10px"
+     id="i-portlabel_i_pin0"
+     x="23.5"
+     y="33.5"
+     style="font-size:10px">i_yes</text>
+  <line
+     id="i-port_i_pin0"
+     stroke="darkGreen"
+     x1="10.0"
+     x2="20.0"
+     y1="30.0"
+     y2="30.0" />
+  <text
+     font-size="10px"
+     id="i-portlabel_i_pin1"
+     x="23.5"
+     y="73.5">i_pin1</text>
+  <line
+     id="i-port_i_pin1"
+     stroke="darkGreen"
+     x1="10.0"
+     x2="20.0"
+     y1="70.0"
+     y2="70.0" />
+  <text
+     font-size="10px"
+     id="o-portlabel_o_pin0"
+     text-anchor="end"
+     x="84.5"
+     y="53.5">o_pin0</text>
+  <line
+     id="o-port_o_pin0"
+     stroke="darkGreen"
+     x1="98.0"
+     x2="88.0"
+     y1="50.0"
+     y2="50.0" />
+  <rect
+     fill="none"
+     height="60.0"
+     stroke="darkGreen"
+     stroke-width="1"
+     width="68.0"
+     x="20"
+     y="20"
+     id="rect15" />
+  <text
+     xml:space="preserve"
+     style="font-style:normal;font-weight:normal;font-size:40px;line-height:125%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+     x="40"
+     y="60"
+     id="text3345"
+     sodipodi:linespacing="125%"><tspan
+       sodipodi:role="line"
+       id="tspan3347"
+       x="40"
+       y="60">a</tspan></text>
+</svg>

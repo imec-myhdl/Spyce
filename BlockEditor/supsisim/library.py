@@ -48,11 +48,30 @@ class CompViewer(QtWidgets.QGraphicsScene):
 
         editPinsAction   = self.menuBlk.addAction('Edit pins')
         editPinsAction.triggered.connect(self.editPins)
- 
+        
+        self.viewMenu = QtWidgets.QMenu("Views")
+        
+        self.menuBlk.addMenu(self.viewMenu)
+        
+        
+    def addViewMenu(self):
+        views = libraries.getViews(self.actComp.blockname,self.actComp.libname)
+        for key in views.keys():
+            if key != 'diagram' and key != 'icon':
+                def getFunction(key):
+                    def viewAction():
+                        self.parent.openView(key,self.actComp)
+                    return viewAction
+                viewAction = getFunction(key)
+                action = self.viewMenu.addAction(key+" view")
+                action.triggered.connect(viewAction)
+        
     def contextMenuEvent(self, event):
         pos = event.scenePos()
         for item in self.items(QtCore.QRectF(pos-QtCore.QPointF(DB,DB), QtCore.QSizeF(2*DB,2*DB))):
             if isinstance(item, Block):
+                self.viewMenu.clear()
+                self.addViewMenu()
                 self.menuBlk.exec_(event.screenPos())
                 break
         else:
@@ -75,7 +94,7 @@ class CompViewer(QtWidgets.QGraphicsScene):
             mimeData = QtCore.QMimeData()
             c = self.actComp
             attributes = {'name':c.name,'input':c.inp,'output':c.outp,'icon':c.icon,'flip':c.flip,'libname':c.libname,'type':c.type}
-            data = '@'.join([str(attributes),str(c.parameters),str(c.properties),str(c.views),c.blockname,c.libname])
+            data = '@'.join([str(attributes),str(c.parameters),str(c.properties),c.blockname,c.libname])
             mimeData.setText(data)
             drag = QtGui.QDrag(self.parent)
             drag.setMimeData(mimeData)
@@ -288,18 +307,79 @@ class Library(QtWidgets.QMainWindow):
         self.setWindowTitle('Library')
         self.libConfig = ()
 #        self.readLib()
+        self.addToolbars()
         self.closeFlag = False
         
         dialog = LibraryChoice_Dialog(self)
         ret = dialog.exec_()
         if ret == 0:
             self.listView()
-            self.type = 'listView'
+            mypath = respath + '/icons/'
+            textViewAction = QtWidgets.QAction(QtGui.QIcon(mypath+'textIcon.png'),
+                                                    '&text view', self,
+                                                    triggered = self.textView)             
+            
+            self.toolbar.addAction(textViewAction)
         else:
             self.symbolView()
-            self.type = 'symbolView'
+    
+    def addToolbars(self):
+        mypath = respath + '/icons/'
+        self.listViewAction = QtWidgets.QAction(QtGui.QIcon(mypath+'listView.png'),
+                                                '&List View', self,
+                                                triggered = self.switchToListView)
+        
+        self.symbolViewAction = QtWidgets.QAction(QtGui.QIcon(mypath+'symbolView.png'),
+                                                '&Symbol View', self,
+                                                triggered = self.symbolView)        
+        
+        self.toolbar = self.addToolBar('File')
+        self.toolbar.addAction(self.listViewAction)
+        self.toolbar.addAction(self.symbolViewAction)  
+    
+    
+    def switchToListView(self):
+        mypath = respath + '/icons/'
+        textViewAction = QtWidgets.QAction(QtGui.QIcon(mypath+'textIcon.png'),
+                                                '&text view', self,
+                                                triggered = self.textView)             
+        
+        self.toolbar.addAction(textViewAction)    
+        self.listView()
+    
+    def openView(self,type,actComp=None):
+        import supsisim.const
+        reload(supsisim.const)
+        from supsisim.const import viewEditors           
+        
+        if self.type == 'symbolView':
+            blockname = actComp.blockname
+            libname = actComp.libname
+        else:
+            libname = self.libraries.currentItem().text()
+            blockname = self.cells.currentItem().text()
+        
+        source = libraries.getViews(blockname,libname)[type]
+        editor = viewEditors[type]
+        os.system(editor + " " + source)
+    
+        #reset library
+        if self.type == 'symbolView':
+            i = self.tabs.currentIndex()
+            self.symbolView()
+            self.tabs.setCurrentIndex(i)
+        else:
+            l = self.libraries.currentRow()
+            c = self.cells.currentRow()
+            self.listView()
+            self.libraries.setCurrentRow(l)
+            self.cells.setCurrentRow(c)
+    def textView(self):
+        if self.libraries.currentItem() and self.cells.currentItem():
+            self.openView('text')
     
     def listView(self):
+        self.type = 'listView'
         reload(libraries)
         self.centralWidget = QtWidgets.QWidget()        
         
@@ -328,9 +408,30 @@ class Library(QtWidgets.QMainWindow):
         self.layout.addWidget(self.views)
         
         self.setCentralWidget(self.centralWidget)
-
+        
+        self.cells.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+        self.cells.customContextMenuRequested.connect(self.onContext)
+        
+        
+        
+    def onContext(self,point):
+        menu = QtWidgets.QMenu()
+        libname = self.libraries.currentItem().text()
+        blockname = self.cells.currentItem().text()
+        views = libraries.getViews(blockname,libname)
+        for key in views.keys():
+            if key != 'diagram' and key != 'icon':
+                def getFunction(key):
+                    def viewAction():
+                        self.openView(key)
+                    return viewAction
+                viewAction = getFunction(key)
+                action = menu.addAction(key+" view")
+                action.triggered.connect(viewAction)
+        menu.exec_(self.cells.mapToGlobal(point))
 
     def symbolView(self):
+        self.type = 'symbolView'
         reload(libraries)
         self.centralWidget = QtWidgets.QWidget()
 #        self.resize(800, 500)

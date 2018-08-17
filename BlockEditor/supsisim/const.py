@@ -32,3 +32,13 @@ TEMP = '.'
 # named pins configuration
 qtpinlabels  = True # if set to true named ports will get a pinlabel
 svgpinlabels = True  # if set to true named ports generate a pinlabel when creating an icon
+
+
+# view editors:
+
+viewEditors = dict(verilog='gedit',
+                   vhdl='gedit',
+                   text='gedit',
+                   doc='libreoffice --writer',
+                   systemverilog='gedit',
+                   myhdl='spyder3')

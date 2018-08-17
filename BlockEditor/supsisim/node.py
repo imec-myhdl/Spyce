@@ -27,6 +27,7 @@ class Node(QtWidgets.QGraphicsPathItem):
         self.line_color = QtCore.Qt.black
         self.fill_color = QtCore.Qt.black
         self.setup()
+        self.label = None
 
     def __str__(self):
         txt = 'Node\n'
@@ -36,6 +37,8 @@ class Node(QtWidgets.QGraphicsPathItem):
         
     def toPython(self):
         data = dict(type='node',pos=dict(x=self.x(),y=self.y()))
+        if self.label:
+            data['label'] = self.label.toPlainText()
         return data
         
     

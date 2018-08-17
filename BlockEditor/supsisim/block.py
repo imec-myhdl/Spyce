@@ -23,7 +23,7 @@ from supsisim.const import GRID, PW, LW, BWmin, BHmin, PD, respath, qtpinlabels
 
 class Block(QtWidgets.QGraphicsPathItem):
     """A block holds ports that can be connected to."""
-    def __init__(self,attributes,parameters,properties,views,blockname,libname,parent=None,scene=None):
+    def __init__(self,attributes,parameters,properties,blockname,libname,parent=None,scene=None):
         self.scene = scene
         if QtCore.qVersion().startswith('5'):
             super(Block, self).__init__(parent)
@@ -44,7 +44,6 @@ class Block(QtWidgets.QGraphicsPathItem):
         
         self.parameters = parameters
         self.properties = properties
-        self.views = views
         
         self.line_color = QtCore.Qt.black
         self.fill_color = QtCore.Qt.black
@@ -116,7 +115,7 @@ class Block(QtWidgets.QGraphicsPathItem):
         return str(self.toPython())
      
     def toPython(self):
-        data = dict(type='block',blockname=self.name,libname=self.libname,pos=dict(x=self.x(),y=self.y()))
+        data = dict(type='block',name=self.name,blockname=self.blockname,libname=self.libname,pos=dict(x=self.x(),y=self.y()))
         parameters = dict()
         if self.parameters and 'inp' in self.parameters:
             parameters['inp'] = self.inp
@@ -147,6 +146,15 @@ class Block(QtWidgets.QGraphicsPathItem):
 #                kwargs.append('{}={}'.format(k, repr(v)))
 #
 #        return fmt.format(kwargs=', '.join(kwargs))
+    
+    def hasDiagram(self):
+        fname = 'libraries.library_' + self.libname + '.' + self.blockname
+        exec('import ' + fname)
+        reload(eval(fname))
+        if 'diagram' in eval(fname + '.views'):
+            return True
+        else:
+            return False
         
     def setup(self):
         self.ports_in = []
@@ -166,8 +174,8 @@ class Block(QtWidgets.QGraphicsPathItem):
                 y0 = y if y0 == None else min(y0, y)
                 y1 = y if y1 == None else max(y1, y)
             
-            self.w = max(BWmin, x1-x0 - PW)# + PD
-            self.h = max(BHmin, y1 - y0 + PD) # block height
+            self.w = max(BWmin, x1-x0 - PW) if x1 and x0 else BWmin# + PD
+            self.h = max(BHmin, y1 - y0 + PD) if y1 and y0 else BHmin # block height
 
 
         p = QtGui.QPainterPath()
@@ -248,10 +256,10 @@ class Block(QtWidgets.QGraphicsPathItem):
             xpos = -(self.w+PW)/2
             name = 'i_pin{}'.format(n)
         else: # tuple (x, y)
-            name, xpos, ypos = n
+            name, xpos, ypos = n 
         port = InPort(self, self.scene, name=name)
         if not isinstance(n, int) and qtpinlabels:
-            port.pinlabel = textItem(name, anchor=1, parent=port)
+            port.pinlabel = textItem(name, anchor=4, parent=port)
             port.pinlabel.setPos(10,0)
         port.block = self
         port.setPos(xpos, ypos)
@@ -266,7 +274,7 @@ class Block(QtWidgets.QGraphicsPathItem):
             name, xpos, ypos = n
         port = OutPort(self, self.scene, name=name)
         if not isinstance(n, int) and qtpinlabels:
-            port.pinlabel = textItem(name, anchor=3, parent=port)
+            port.pinlabel = textItem(name, anchor=6, parent=port)
             port.pinlabel.setPos(-10,0)
         port.block = self
         port.setPos(xpos, ypos)
@@ -335,7 +343,7 @@ class Block(QtWidgets.QGraphicsPathItem):
 
     def clone(self, pt):
         attributes = {'name':self.name,'input':self.inp,'output':self.outp,'icon':self.icon,'flip':self.flip,'libname':self.libname}
-        b = Block(attributes,self.parameters,self.properties,self.views,self.blockname,self.libname,None, self.scene)
+        b = Block(attributes,self.parameters,self.properties,self.blockname,self.libname,None, self.scene)
         b.setPos(self.scenePos().__add__(pt))
        
     def save(self, root):

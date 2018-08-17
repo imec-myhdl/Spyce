@@ -32,6 +32,8 @@ class Connection(QtWidgets.QGraphicsPathItem):
 
         self.port1 = None
         self.port2 = None
+        
+        self.label = None
 
         self.line_color = QtCore.Qt.black
 
@@ -48,7 +50,9 @@ class Connection(QtWidgets.QGraphicsPathItem):
         return txt
     
     def toPython(self):
-        data = dict(type='connection',pos1=dict(x=self.pos1.x(),y=self.pos1.y()),pos2=dict(x=self.pos2.x(),y=self.pos2.y()),pos=dict(x=self.x(),y=self.y()))
+        data = dict(type='connection',pos1=dict(x=self.pos1.x(),y=self.pos1.y()),pos2=dict(x=self.pos2.x(),y=self.pos2.y()))
+        if self.label:
+            data['label'] = self.label.toPlainText()
         return data
     
     def setup(self):
@@ -94,6 +98,8 @@ class Connection(QtWidgets.QGraphicsPathItem):
             else:
                 pt = QtCore.QPointF(self.pos1.x(),self.pos2.y())
 
+        if self.label:
+            self.label.setPos(self.pos2.x(),self.pos2.y())
         p.moveTo(self.pos1)
         p.lineTo(pt)
         p.lineTo(self.pos2)
