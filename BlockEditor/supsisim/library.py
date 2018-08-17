@@ -314,12 +314,12 @@ class Library(QtWidgets.QMainWindow):
         ret = dialog.exec_()
         if ret == 0:
             self.listView()
-            mypath = respath + '/icons/'
-            textViewAction = QtWidgets.QAction(QtGui.QIcon(mypath+'textIcon.png'),
-                                                    '&text view', self,
-                                                    triggered = self.textView)             
-            
-            self.toolbar.addAction(textViewAction)
+#            mypath = respath + '/icons/'
+#            textViewAction = QtWidgets.QAction(QtGui.QIcon(mypath+'textIcon.png'),
+#                                                    '&text view', self,
+#                                                    triggered = self.textView)             
+#            
+#            self.toolbar.addAction(textViewAction)
         else:
             self.symbolView()
     
@@ -327,7 +327,7 @@ class Library(QtWidgets.QMainWindow):
         mypath = respath + '/icons/'
         self.listViewAction = QtWidgets.QAction(QtGui.QIcon(mypath+'listView.png'),
                                                 '&List View', self,
-                                                triggered = self.switchToListView)
+                                                triggered = self.listView)
         
         self.symbolViewAction = QtWidgets.QAction(QtGui.QIcon(mypath+'symbolView.png'),
                                                 '&Symbol View', self,
