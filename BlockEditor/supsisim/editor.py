@@ -119,12 +119,13 @@ class Editor(QtCore.QObject):
     def addConnType(self):
         item = self.scene.item
         if item.signalType:
-            dialog = textLineDialog('Signal type: ','Signal type',item.signalType)
+            dialog = textLineDialog('Signal type: ','Signal type',item.signalType.toPlainText())
         else:
             dialog = textLineDialog('Signal type: ','Signal type')
         ret = dialog.getLabel()
         if ret:
-            item.signalType = ret
+            item.signalType = textItem(ret, anchor=3, parent=item)
+            item.signalType.setPos(item.pos2.x(),item.pos2.y())
     
     def addNodeLabel(self):
         item = self.scene.item

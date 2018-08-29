@@ -56,7 +56,7 @@ class Connection(QtWidgets.QGraphicsPathItem):
         if self.label:
             data['label'] = self.label.toPlainText()
         if self.signalType:
-            data['signalType'] = self.signalType
+            data['signalType'] = self.signalType.toPlainText()
         return data
     
     def setup(self):

@@ -186,6 +186,9 @@ class Scene(QtWidgets.QGraphicsScene):
             if 'label' in connection:
                 conn.label = textItem(connection['label'], anchor=3, parent=conn)
                 conn.label.setPos(conn.pos2.x(),conn.pos2.y())
+            if 'signalType' in connection:
+                conn.signalType = textItem(connection['signalType'], anchor=3, parent=conn)
+                conn.signalType.setPos(conn.pos2.x(),conn.pos2.y())
         if center:
             self.mainw.view.centerOn(self.getCenter()[0],self.getCenter()[1])
     

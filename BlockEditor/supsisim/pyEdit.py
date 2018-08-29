@@ -415,14 +415,14 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
 #    f.close()\n\
 #    return content\n\
 #\n\
-        template = "name = '{name}' #zelfde als bestand naam \n\
-libname = '{libname}' #zelfde als map naam\n\
+        template = "name = '{name}' #same as file name (without .py) \n\
+libname = '{libname}' #same as directory name\n\
 \n\
 inp = {inp}\n\
 outp = {outp}\n\
 \n\
-parameters = {parameters} #parametriseerbare cell\n\
-properties = {properties} #voor netlisten\n\
+parameters = {parameters} #programmable cell\n\
+properties = {properties} #netlist properties\n\
 \
 \
 #view variables:\n\

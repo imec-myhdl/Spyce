@@ -62,6 +62,10 @@ class CompViewer(QtWidgets.QGraphicsScene):
         removeBlockAction.triggered.connect(self.removeBlock)
         
         
+#        reCreateIconAction = self.menuBlk.addAction('(re)create icon')
+#        reCreateIconAction.triggered.connect(self.createIcon)
+        
+        
         self.pasteBlockAction   = self.menuLibrary.addAction('Paste')
         self.pasteBlockAction.triggered.connect(self.parent.pasteBlock)
         
@@ -455,14 +459,14 @@ def getSymbolData(attributes,properties,parameters):
 #    f.close()\n\
 #    return content\n\
 #\n\
-    template = "name = '{name}' #zelfde als bestand naam \n\
-libname = '{libname}' #zelfde als map naam\n\
+    template = "name = '{name}' #same as file name (without .py) \n\
+libname = '{libname}' #same as directory name \n\
 \n\
 inp = {inp}\n\
 outp = {outp}\n\
 \n\
-parameters = {parameters} #parametriseerbare cell\n\
-properties = {properties} #voor netlisten\n\
+parameters = {parameters} #programmable cell\n\
+properties = {properties} #netlist properties\n\
 \
 \
 #view variables:\n\
@@ -497,7 +501,7 @@ class Library(QtWidgets.QMainWindow):
 #                                                    '&text view', self,
 #                                                    triggered = self.textView)             
 #            
-#            self.toolbar.addAction(textViewAction)
+#            self.toolbar.addAction(textViewActiSaturationon)
         else:
             self.symbolView()
     

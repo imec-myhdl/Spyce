@@ -479,6 +479,7 @@ class textItem(QtWidgets.QGraphicsTextItem):
 #        self.setFlag(self.ItemIgnoresTransformations)
         self.setTextInteractionFlags(QtCore.Qt.TextEditorInteraction)
         self.comment = comment
+        self.setAcceptDrops(False)
 
     def setFlipped(self):
         '''mirror in place (use when parent is flipped'''
