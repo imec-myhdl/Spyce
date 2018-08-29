@@ -98,7 +98,7 @@ class Scene(QtWidgets.QGraphicsScene):
             n = Node(None,self)
             n.setPos(event.scenePos())
         elif event.mimeData().text() == 'Comment':
-            comment = textItem('', anchor=3, parent=None)
+            comment = textItem('', anchor=3, parent=None,comment=True)
             comment.setDefaultTextColor(QtGui.QColor('darkGray'))
             comment.setPos(event.scenePos())
             self.addItem(comment)
@@ -106,15 +106,16 @@ class Scene(QtWidgets.QGraphicsScene):
         else:
             if self.mainw.library.type == "symbolView":
                 data = event.mimeData().text().split('@')
-                if self.mainw.view.symbol and self.mainw.centralWidget.tabText(self.mainw.centralWidget.currentIndex()) == eval(data[0])['name']:
+                if self.mainw.view.symbol and self.mainw.centralWidget.libname == data[0] and self.mainw.centralWidget.blockname == data[1]:
                     pass
                 else:
-                    b = Block(eval(data[0]),eval(data[1]),eval(data[2]),data[3],data[4],None, self)
+                    
+                    b = libraries.getBlock(data[1],data[0],scene=self)                    
                     b.setPos(event.scenePos())
+#                    b = Block(eval(data[0]),eval(data[1]),eval(data[2]),data[3],data[4],None, self)
             else:
                 data = event.mimeData().text().split('@')
-                print(self.mainw.centralWidget.tabText(self.mainw.centralWidget.currentIndex()),data[1])
-                if self.mainw.view.symbol and self.mainw.centralWidget.tabText(self.mainw.centralWidget.currentIndex()) == data[1]:
+                if self.mainw.view.symbol and self.mainw.centralWidget.libname != data[0] and self.mainw.centralWidget.blockname == data[1]:
                     pass
                 else:
                     libs = libraries.libs
@@ -166,10 +167,11 @@ class Scene(QtWidgets.QGraphicsScene):
         
         for block in blocks:
             if 'parameters' in block.keys():
-                b = libraries.getBlock(block['blockname'],block['libname'],scene=self,param=block['parameters'],test=True,name=block['name'])
+                b = libraries.getBlock(block['blockname'],block['libname'],scene=self,param=block['parameters'],name=block['name'])
             else:
-                b = libraries.getBlock(block['blockname'],block['libname'],scene=self,test=True,name=block['name'])
+                b = libraries.getBlock(block['blockname'],block['libname'],scene=self,name=block['name'])
             b.setPos(block['pos']['x'],block['pos']['y'])
+            b.properties = block['properties']
         for node in nodes:
             n = Node(None,self)
             n.setPos(node['pos']['x'],node['pos']['y'])

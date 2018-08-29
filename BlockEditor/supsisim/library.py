@@ -15,20 +15,20 @@ import subprocess
 import shutil
 
 import svgwrite
-                   
 from supsisim.const import DB, PD, respath, svgpinlabels
 
 #import dircache
 import os
 
 from supsisim.block import Block
-from supsisim.dialg import txtDialog,LibraryChoice_Dialog
+from supsisim.dialg import txtDialog,LibraryChoice_Dialog, textLineDialog, createBlockDialog, error
 
 from lxml import etree
 
 import libraries
 
 class CompViewer(QtWidgets.QGraphicsScene):
+    
     def __init__(self, parent=None):
         super(CompViewer, self).__init__()
         self.parent = parent
@@ -38,22 +38,113 @@ class CompViewer(QtWidgets.QGraphicsScene):
         self.activeComponent = None 
 
         self.menuBlk = QtWidgets.QMenu()
+        self.menuLibrary = QtWidgets.QMenu()
         
         # create context menu
         editIconAction   = self.menuBlk.addAction('edit Icon')
         editIconAction.triggered.connect(self.editIcon)
 
-        createIconAction = self.menuBlk.addAction('(re)create Icon')
-        createIconAction.triggered.connect(self.createIcon)
+        createIconAction = self.menuLibrary.addAction('Create block')
+        createIconAction.triggered.connect(self.parent.createBlock)
 
         editPinsAction   = self.menuBlk.addAction('Edit pins')
         editPinsAction.triggered.connect(self.editPins)
         
+        
+        cutBlockAction   = self.menuBlk.addAction('Cut')
+        cutBlockAction.triggered.connect(self.cutBlock)
+        
+        changeIconAction = self.menuBlk.addAction('Change icon')
+        changeIconAction.triggered.connect(self.changeIcon)
+        
+        
+        removeBlockAction = self.menuBlk.addAction('Remove block')
+        removeBlockAction.triggered.connect(self.removeBlock)
+        
+        
+        self.pasteBlockAction   = self.menuLibrary.addAction('Paste')
+        self.pasteBlockAction.triggered.connect(self.parent.pasteBlock)
+        
         self.viewMenu = QtWidgets.QMenu("Views")
         
         self.menuBlk.addMenu(self.viewMenu)
+    
+    def removeBlock(self):
+        self.parent.removeBlock(self.actComp)
+    
+    def changeIcon(self):
+        self.parent.changeIcon(self.actComp)
+#        filename = QtWidgets.QFileDialog.getOpenFileName(self.parent, 'Open',respath + '/blocks/', filter='*.svg')
+#        print(filename)
+#        if filename[0]:
+#            icon = QtCore.QFileInfo(filename[0]).baseName()
+#            path = os.getcwd()
+#            fname = '/libraries/library_{}/{}.py'.format(self.actComp.libname,self.actComp.blockname)
+#            f = open(path + fname,'r')
+#            lines = f.readlines()
+#            f.close()
+#            
+#            for index,line in enumerate(lines):
+#                if line.startswith('iconSource = '):
+#                    lines[index] = "iconSource = '{}'\n".format(icon)
+#            
+#            
+#            f = open(path + fname,'w+')
+#            f.write("".join(lines))
+#            f.close()  
+#            
+#            i = self.parent.tabs.currentIndex()
+#            self.parent.symbolView()
+#            self.parent.tabs.setCurrentIndex(i)
         
         
+    def cutBlock(self):
+        self.parent.cutBlock(self.actComp)
+#        self.parent.copiedBlock = self.actComp.blockname
+#        self.parent.copiedBlockLibname = self.actComp.libname
+        
+#    def pasteBlock(self):
+#        if self.parent.copiedBlock and self.parent.copiedBlockLibname:
+#            path = os.getcwd()
+#            libname = self.parent.tabs.tabText(self.parent.tabs.currentIndex())
+#            if libname != self.parent.copiedBlockLibname:
+#                filenames = []
+#                views = libraries.getViews(self.parent.copiedBlock,self.parent.copiedBlockLibname)
+#                for key in views.keys():
+#                    if key != 'icon':
+#                        filenames.append(views[key])
+#                for filename in filenames:
+#                    newFilename = filename.replace('libraries/library_' + self.parent.copiedBlockLibname,'libraries/library_' + libname)
+#                    os.rename(path + '/' + filename,path + '/' + newFilename)
+#                    try:
+#                        os.remove(path + '/' + filename + 'c')
+#                    except:
+#                        pass
+#                    
+#                    
+#                #change sources
+#                    
+#                path = os.getcwd()
+#                fname = '/libraries/library_{}/{}.py'.format(libname,self.parent.copiedBlock)
+#                f = open(path + fname,'r')
+#                lines = f.readlines()
+#                f.close()
+#                
+#                for index,line in enumerate(lines):
+#                    lines[index] = line.replace('libraries/library_' + self.parent.copiedBlockLibname,'libraries/library_' + libname)
+#                    
+#                
+#                
+#                f = open(path + fname,'w+')
+#                f.write("".join(lines))
+#                f.close()    
+#                    
+#                
+#                i = self.parent.tabs.currentIndex()
+#                self.parent.symbolView()
+#                self.parent.tabs.setCurrentIndex(i)
+     
+    
     def addViewMenu(self):
         views = libraries.getViews(self.actComp.blockname,self.actComp.libname)
         for key in views.keys():
@@ -75,26 +166,38 @@ class CompViewer(QtWidgets.QGraphicsScene):
                 self.menuBlk.exec_(event.screenPos())
                 break
         else:
-            print('Hmmm, here is nothing?!?')
+            if self.parent.copiedBlock and self.parent.copiedBlockLibname:
+                self.pasteBlockAction.setEnabled(True)
+            else:
+                self.pasteBlockAction.setEnabled(False)
+            self.menuLibrary.exec_(event.screenPos())
 
     def setUniqueName(self, block):
         return block.name
 
 
     def mousePressEvent(self, event):
-        x = event.scenePos().x()
-        y = event.scenePos().y()
+#        x = event.scenePos().x()
+#        y = event.scenePos().y()
+#       
+#
+#        t = QtGui.QTransform()
+#        self.actComp = self.itemAt(x, y, t)
 
-        t = QtGui.QTransform()
-        self.actComp = self.itemAt(x, y, t)
-        
+ 
+        pos = event.scenePos()
+        for item in self.items(QtCore.QRectF(pos-QtCore.QPointF(DB,DB), QtCore.QSizeF(2*DB,2*DB))):
+            if isinstance(item, Block):
+                self.actComp = item
+     
 
     def mouseMoveEvent(self, event):
         if event.buttons() == QtCore.Qt.LeftButton and isinstance(self.actComp, Block):
             mimeData = QtCore.QMimeData()
             c = self.actComp
             attributes = {'name':c.name,'input':c.inp,'output':c.outp,'icon':c.icon,'flip':c.flip,'libname':c.libname,'type':c.type}
-            data = '@'.join([str(attributes),str(c.parameters),str(c.properties),c.blockname,c.libname])
+#            data = '@'.join([str(attributes),str(c.parameters),str(c.properties),c.blockname,c.libname])
+            data = '@'.join([c.libname,c.blockname])
             mimeData.setText(data)
             drag = QtGui.QDrag(self.parent)
             drag.setMimeData(mimeData)
@@ -105,57 +208,89 @@ class CompViewer(QtWidgets.QGraphicsScene):
     def mouseReleaseEvent(self, event):
         pass
 
+#    def createBlock(self):
+#        libname = self.parent.tabs.tabText(self.parent.tabs.currentIndex())
+#        
+#        dialog = createBlockDialog()
+#        
+#        ret = dialog.getRet()
+#        
+#        if ret:
+#            name = ret['name']
+#            inp = ret['input']
+#            outp = ret['output']
+#            icon = ret['icon']
+#            
+#            properties = []
+#            parameters = dict()
+#            attributes = {'name':name,'input':inp,'output':outp,'icon':icon,'libname':libname} 
+#            
+#            data = getSymbolData(attributes,properties,parameters)
+#            
+#            self.path = os.getcwd()            
+#            f = open(self.path + '/libraries/library_' + libname + '/' + name + '.py','w+')
+#            f.write(str(data))
+#            f.close()
+#            
+#            i = self.parent.tabs.currentIndex()
+#            self.parent.symbolView()
+#            self.parent.tabs.setCurrentIndex(i)
+        
+        
+        
         
     def editPins(self):
-        block = self.actComp
-        inputs, outputs, inouts = block.pins()
-        d = txtDialog('Pins of {}'.format(block.name))
-        pinlist = d.editList(inputs + outputs + inouts, header='io x y name')
-        if pinlist:
-            for p in block.ports():
-                p.setParentItem(None) # effectively removing port
-                
-            block.inp  = []
-            block.outp = []
-            for tp, x, y, name in pinlist:
-                if tp == 'i':
-                    block.add_inPort([name, x, y])
-                    block.inp.append([name, x, y])
-                elif tp == 'o':
-                    block.add_outPort([name, x, y])
-                    block.outp.append([name, x, y])
-                else:
-                    print('{} is not an implemented io type'.format(tp))
-            block.update()
+        self.parent.editPins(self.actComp)
+#        block = self.actComp
+#        inputs, outputs, inouts = block.pins()
+#        d = txtDialog('Pins of {}'.format(block.name))
+#        pinlist = d.editList(inputs + outputs + inouts, header='io x y name')
+#        if pinlist:
+#            for p in block.ports():
+#                p.setParentItem(None) # effectively removing port
+#                
+#            block.inp  = []
+#            block.outp = []
+#            for tp, x, y, name in pinlist:
+#                if tp == 'i':
+#                    block.add_inPort([name, x, y])
+#                    block.inp.append([name, x, y])
+#                elif tp == 'o':
+#                    block.add_outPort([name, x, y])
+#                    block.outp.append([name, x, y])
+#                else:
+#                    print('{} is not an implemented io type'.format(tp))
+#            block.update()
 
     def editIcon(self):
-        '''edit svg file'''
-        block = self.actComp
-        #blockname = block.name
-        svgiconname = os.path.join(respath, 'blocks', block.icon+'.svg')
-        #svgfilename = os.path.join(respath, 'blocks', blockname+'.svg')
-        with open(svgiconname) as fi:
-            t = fi.read()
-        #generate a tempfile
-        fo = tempfile.NamedTemporaryFile(suffix='.svg', delete=False)
-        svgtempfilename = fo.name
-        fo.write(t)
-        fo.close()
-
-        try:
-            timestamp0 = os.stat(svgtempfilename).st_mtime
-            subprocess.call('inkscape {}'.format(svgtempfilename).split())
-            timestamp1 = os.stat(svgtempfilename).st_mtime
-            if  timestamp0 < timestamp1: # newer => copy'
-                shutil.move(svgtempfilename, svgiconname)
-                block.setIcon()
-                
-            # creanup tempfile
-            if os.path.exists(svgtempfilename):
-                os.remove(svgtempfilename)
-                
-        except OSError:
-            raise Exception('Inkscape is not installed')
+        self.parent.editIcon(self.actComp)
+#        '''edit svg file'''
+#        block = self.actComp
+#        #blockname = block.name
+#        svgiconname = os.path.join(respath, 'blocks', block.icon+'.svg')
+#        #svgfilename = os.path.join(respath, 'blocks', blockname+'.svg')
+#        with open(svgiconname) as fi:
+#            t = fi.read()
+#        #generate a tempfile
+#        fo = tempfile.NamedTemporaryFile(suffix='.svg', delete=False)
+#        svgtempfilename = fo.name
+#        fo.write(t)
+#        fo.close()
+#
+#        try:
+#            timestamp0 = os.stat(svgtempfilename).st_mtime
+#            subprocess.call('inkscape {}'.format(svgtempfilename).split())
+#            timestamp1 = os.stat(svgtempfilename).st_mtime
+#            if  timestamp0 < timestamp1: # newer => copy'
+#                shutil.move(svgtempfilename, svgiconname)
+#                block.setIcon()
+#                
+#            # creanup tempfile
+#            if os.path.exists(svgtempfilename):
+#                os.remove(svgtempfilename)
+#                
+#        except OSError:
+#            raise Exception('Inkscape is not installed')
         
         
         
@@ -293,7 +428,50 @@ class CompViewer(QtWidgets.QGraphicsScene):
             raise Exception('Inkscape is not installed')
         
         return dwg
-
+        
+        
+        
+def getSymbolData(attributes,properties,parameters):
+    name = attributes['name']
+    libname = attributes['libname']
+    inp = attributes['input']
+    outp = attributes['output']
+    icon = attributes['icon']
+        
+#\n\
+#def getDiagram():\n\
+#    fname = 'libraries.' + libname + '.' + name + '_diagram'\n\
+#    exec('import ' + fname)\n\
+#    reload(eval(fname))\n\
+#\n\
+#    items = eval(fname + '.items')\n\
+#\n\
+#    return items\n\
+#\n\
+#def getText():\n\
+#    fname = 'libraries/' + libname + '/' + name + '.py'\n\
+#    f = open(fname,'r')\n\
+#    content = f.read()\n\
+#    f.close()\n\
+#    return content\n\
+#\n\
+    template = "name = '{name}' #zelfde als bestand naam \n\
+libname = '{libname}' #zelfde als map naam\n\
+\n\
+inp = {inp}\n\
+outp = {outp}\n\
+\n\
+parameters = {parameters} #parametriseerbare cell\n\
+properties = {properties} #voor netlisten\n\
+\
+\
+#view variables:\n\
+iconSource = '{icon}'\n\
+textSource = 'libraries/library_{libname}/{name}.py'\n\
+\n\
+\n\
+views = {{'icon':iconSource,'text':textSource}}"
+    return template.format(name=name,libname=libname,inp=str(inp),outp=str(outp),properties=str(properties),parameters=str(parameters),icon=str(icon))
 
         
 class Library(QtWidgets.QMainWindow):
@@ -331,11 +509,43 @@ class Library(QtWidgets.QMainWindow):
         
         self.symbolViewAction = QtWidgets.QAction(QtGui.QIcon(mypath+'symbolView.png'),
                                                 '&Symbol View', self,
-                                                triggered = self.symbolView)        
+                                                triggered = self.symbolView)      
+                                                
+                                                
+        
+        self.addLibraryAction = QtWidgets.QAction(QtGui.QIcon(mypath+'addLibrary.png'),
+                                                '&Add Library', self,
+                                                triggered = self.addLibrary)   
         
         self.toolbar = self.addToolBar('File')
         self.toolbar.addAction(self.listViewAction)
         self.toolbar.addAction(self.symbolViewAction)  
+        self.toolbar.addAction(self.addLibraryAction)  
+        
+        
+    def addLibrary(self):
+        dialog = textLineDialog('Name: ')
+        ret = dialog.getLabel()
+        if ret:
+            try:
+                path = os.getcwd()
+                os.mkdir(path + '/libraries/library_' + ret)
+                
+                if self.type == 'symbolView':
+                    i = self.tabs.currentIndex()
+                    self.symbolView()
+                    self.tabs.setCurrentIndex(i)
+                else:
+                    l = self.libraries.currentRow()
+                    c = self.cells.currentRow()
+                    self.listView()
+                    self.libraries.setCurrentRow(l)
+                    self.cells.setCurrentRow(c)
+                
+                file = open(path + '/libraries/library_' + ret + '/__init__.py', 'w+')
+                file.close()
+            except:
+                error('Library already exists')
     
     
     def switchToListView(self):
@@ -352,7 +562,7 @@ class Library(QtWidgets.QMainWindow):
         reload(supsisim.const)
         from supsisim.const import viewEditors           
         
-        if self.type == 'symbolView':
+        if actComp:
             blockname = actComp.blockname
             libname = actComp.libname
         else:
@@ -361,6 +571,7 @@ class Library(QtWidgets.QMainWindow):
         
         source = libraries.getViews(blockname,libname)[type]
         editor = viewEditors[type]
+        print(source,editor)
         os.system(editor + " " + source)
     
         #reset library
@@ -374,6 +585,7 @@ class Library(QtWidgets.QMainWindow):
             self.listView()
             self.libraries.setCurrentRow(l)
             self.cells.setCurrentRow(c)
+            
     def textView(self):
         if self.libraries.currentItem() and self.cells.currentItem():
             self.openView('text')
@@ -396,7 +608,7 @@ class Library(QtWidgets.QMainWindow):
         
         
         self.libs = libraries.libs
-        libnames = self.libs.keys()
+        libnames = sorted(self.libs.keys(), key=lambda s: s.lower())
         self.libraries.addItems(libnames)
          
         
@@ -412,25 +624,325 @@ class Library(QtWidgets.QMainWindow):
         self.cells.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         self.cells.customContextMenuRequested.connect(self.onContext)
         
+        self.cells.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+        self.cells.customContextMenuRequested.connect(self.onContext)
         
         
-    def onContext(self,point):
-        menu = QtWidgets.QMenu()
-        libname = self.libraries.currentItem().text()
-        blockname = self.cells.currentItem().text()
+        self.libraries.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+        self.libraries.customContextMenuRequested.connect(self.onContextLib)
+        
+    
+    def removeBlock(self,actComp):
+        if self.type == 'symbolView':
+            blockname = actComp.blockname
+            libname = actComp.libname
+        else:
+            libname = self.libraries.currentItem().text()
+            blockname = self.cells.currentItem().text()
+        
+        path = os.getcwd()
+        
+        filenames = []
         views = libraries.getViews(blockname,libname)
         for key in views.keys():
-            if key != 'diagram' and key != 'icon':
-                def getFunction(key):
-                    def viewAction():
-                        self.openView(key)
-                    return viewAction
-                viewAction = getFunction(key)
-                action = menu.addAction(key+" view")
-                action.triggered.connect(viewAction)
-        menu.exec_(self.cells.mapToGlobal(point))
+            if key != 'icon':
+                filenames.append(views[key])
+        for filename in filenames:
+            try:
+                binName = filename.replace('libraries/library_' + libname,'')
+                os.rename(path + '/' + filename,path + '/libraries/bin' + binName)
+            except:
+                error('View not found')
+            try:
+                os.remove(path + '/' + filename + 'c')
+            except:
+                pass        
+        
+        if self.type == 'symbolView':
+            i = self.tabs.currentIndex()
+            self.symbolView()
+            self.tabs.setCurrentIndex(i)
+        else:
+            l = self.libraries.currentRow()
+            c = self.cells.currentRow()
+            self.listView()
+            self.libraries.setCurrentRow(l)  
+            self.cells.setCurrentRow(c)
+    
+    def onContextLib(self,point):
+        self.menuLibrary = QtWidgets.QMenu()
+        
+        
+        createIconAction = self.menuLibrary.addAction('Create block')
+        createIconAction.triggered.connect(self.createBlock)
+        
+        
+        self.pasteBlockAction   = self.menuLibrary.addAction('Paste')
+        self.pasteBlockAction.triggered.connect(self.pasteBlock)
+        self.menuLibrary.exec_(self.libraries.mapToGlobal(point))
+        
+    def onContext(self,point):
+        if self.libraries.currentItem() and self.cells.currentItem():
+            menuBlk = QtWidgets.QMenu()
+            
+            # create context menu
+            editIconAction   = menuBlk.addAction('edit Icon')
+            editIconAction.triggered.connect(self.editIcon)
+    
+            editPinsAction   = menuBlk.addAction('Edit pins')
+            editPinsAction.triggered.connect(self.editPins)
+            
+            
+            cutBlockAction   = menuBlk.addAction('Cut')
+            cutBlockAction.triggered.connect(self.cutBlock)
+            
+            changeIconAction = menuBlk.addAction('Change icon')
+            changeIconAction.triggered.connect(self.changeIcon)
+            
+            
+            removeBlockAction = self.menuBlk.addAction('Remove block')
+            removeBlockAction.triggered.connect(self.removeBlock)
+            
+            
+            
+            viewMenu = QtWidgets.QMenu("Views")
+            
+            menuBlk.addMenu(viewMenu)
+            
+            
+            libname = self.libraries.currentItem().text()
+            blockname = self.cells.currentItem().text()
+            views = libraries.getViews(blockname,libname)
+            for key in views.keys():
+                if key != 'diagram' and key != 'icon':
+                    def getFunction(key):
+                        def viewAction():
+                            self.openView(key)
+                        return viewAction
+                    viewAction = getFunction(key)
+                    action = viewMenu.addAction(key+" view")
+                    action.triggered.connect(viewAction)
+            menuBlk.exec_(self.cells.mapToGlobal(point))
+        else:
+            self.menuLibrary = QtWidgets.QMenu()
+            
+            
+            createIconAction = self.menuLibrary.addAction('Create block')
+            createIconAction.triggered.connect(self.createBlock)
+            
+            
+            self.pasteBlockAction   = self.menuLibrary.addAction('Paste')
+            self.pasteBlockAction.triggered.connect(self.pasteBlock)
+            self.menuLibrary.exec_(self.cells.mapToGlobal(point))
 
+    def pasteBlock(self):
+        if self.copiedBlock and self.copiedBlockLibname:
+            path = os.getcwd()
+            if self.type == 'symbolView':
+                libname = self.tabs.tabText(self.tabs.currentIndex())
+            else:
+                if self.libraries.currentItem():
+                    libname = self.libraries.currentItem().text() 
+                else:
+                    return
+                    
+            if libname != self.copiedBlockLibname:
+                filenames = []
+                views = libraries.getViews(self.copiedBlock,self.copiedBlockLibname)
+                for key in views.keys():
+                    if key != 'icon':
+                        filenames.append(views[key])
+                for filename in filenames:
+                    newFilename = filename.replace('libraries/library_' + self.copiedBlockLibname,'libraries/library_' + libname)
+                    os.rename(path + '/' + filename,path + '/' + newFilename)
+                    try:
+                        os.remove(path + '/' + filename + 'c')
+                    except:
+                        pass
+                    
+                    
+                #change sources
+                    
+                path = os.getcwd()
+                fname = '/libraries/library_{}/{}.py'.format(libname,self.copiedBlock)
+                f = open(path + fname,'r')
+                lines = f.readlines()
+                f.close()
+                
+                for index,line in enumerate(lines):
+                    lines[index] = line.replace('libraries/library_' + self.copiedBlockLibname,'libraries/library_' + libname)
+                    
+                
+                
+                f = open(path + fname,'w+')
+                f.write("".join(lines))
+                f.close()    
+                    
+                
+                if self.type == 'symbolView':
+                    i = self.tabs.currentIndex()
+                    self.symbolView()
+                    self.tabs.setCurrentIndex(i)
+                else:
+                    l = self.libraries.currentRow()
+                    c = self.cells.currentRow()
+                    self.listView()
+                    self.libraries.setCurrentRow(l)  
+                    self.cells.setCurrentRow(c)
+
+    def createBlock(self):
+        if self.type == 'symbolView':
+            libname = self.tabs.tabText(self.tabs.currentIndex())
+        else:
+            if self.libraries.currentItem():
+                libname = self.libraries.currentItem().text() 
+            else:
+                return
+        
+        dialog = createBlockDialog()
+        
+        ret = dialog.getRet()
+        
+        if ret:
+            name = ret['name']
+            inp = ret['input']
+            outp = ret['output']
+            icon = ret['icon']
+            
+            properties = ret['properties']
+            parameters = ret['parameters']
+            attributes = {'name':name,'input':inp,'output':outp,'icon':icon,'libname':libname} 
+            
+            data = getSymbolData(attributes,properties,parameters)
+            
+            self.path = os.getcwd()            
+            f = open(self.path + '/libraries/library_' + libname + '/' + name + '.py','w+')
+            f.write(str(data))
+            f.close()
+            
+            if self.type == 'symbolView':
+                i = self.tabs.currentIndex()
+                self.symbolView()
+                self.tabs.setCurrentIndex(i)
+            else:
+                l = self.libraries.currentRow()
+                c = self.cells.currentRow()
+                self.listView()
+                self.libraries.setCurrentRow(l)  
+                self.cells.setCurrentRow(c)
+
+
+    def editIcon(self,actComp=None):
+        '''edit svg file'''
+        if self.type == 'symbolView':
+            block = actComp
+        else:
+            libname = self.libraries.currentItem().text()
+            blockname = self.cells.currentItem().text()
+            block = libraries.getBlock(blockname,libname)
+            block.setup()
+        #blockname = block.name
+        svgiconname = os.path.join(respath, 'blocks', block.icon+'.svg')
+        #svgfilename = os.path.join(respath, 'blocks', blockname+'.svg')
+        with open(svgiconname) as fi:
+            t = fi.read()
+        #generate a tempfile
+        fo = tempfile.NamedTemporaryFile(suffix='.svg', delete=False)
+        svgtempfilename = fo.name
+        fo.write(t)
+        fo.close()
+
+        try:
+            timestamp0 = os.stat(svgtempfilename).st_mtime
+            subprocess.call('inkscape {}'.format(svgtempfilename).split())
+            timestamp1 = os.stat(svgtempfilename).st_mtime
+            if  timestamp0 < timestamp1: # newer => copy'
+                shutil.move(svgtempfilename, svgiconname)
+                block.setIcon()
+                
+            # creanup tempfile
+            if os.path.exists(svgtempfilename):
+                os.remove(svgtempfilename)
+                
+        except OSError:
+            raise Exception('Inkscape is not installed')
+
+    def editPins(self,actComp=None):
+        if self.type == 'symbolView':
+            block = actComp
+        else:
+            libname = self.libraries.currentItem().text()
+            blockname = self.cells.currentItem().text()
+            block = libraries.getBlock(blockname,libname)
+            block.setup(scene=None)
+        inputs, outputs, inouts = block.pins()
+        d = txtDialog('Pins of {}'.format(block.name))
+        pinlist = d.editList(inputs + outputs + inouts, header='io x y name')
+        if pinlist:
+            for p in block.ports():
+                p.setParentItem(None) # effectively removing port
+                
+            block.inp  = []
+            block.outp = []
+            for tp, x, y, name in pinlist:
+                if tp == 'i':
+                    block.add_inPort([name, x, y])
+                    block.inp.append([name, x, y])
+                elif tp == 'o':
+                    block.add_outPort([name, x, y])
+                    block.outp.append([name, x, y])
+                else:
+                    print('{} is not an implemented io type'.format(tp))
+            block.update()
+
+    def cutBlock(self,actComp=None):
+        if self.type == 'symbolView':
+            self.copiedBlock = actComp.blockname
+            self.copiedBlockLibname = actComp.libname
+        else:
+            self.copiedBlockLibname = self.libraries.currentItem().text()
+            self.copiedBlock = self.cells.currentItem().text()
+            
+    def changeIcon(self,actComp=None):
+        filename = QtWidgets.QFileDialog.getOpenFileName(self, 'Open',respath + '/blocks/', filter='*.svg')
+        if filename[0]:
+            icon = QtCore.QFileInfo(filename[0]).baseName()
+            path = os.getcwd()
+            if self.type == 'symbolView':
+                libname = actComp.libname
+                blockname = actComp.blockname
+            else:
+                libname = self.libraries.currentItem().text()
+                blockname = self.cells.currentItem().text()
+            fname = '/libraries/library_{}/{}.py'.format(libname,blockname)
+            f = open(path + fname,'r')
+            lines = f.readlines()
+            f.close()
+            
+            for index,line in enumerate(lines):
+                if line.startswith('iconSource = '):
+                    lines[index] = "iconSource = '{}'\n".format(icon)
+            
+            
+            f = open(path + fname,'w+')
+            f.write("".join(lines))
+            f.close()  
+            
+            if self.type == 'symbolView':
+                i = self.tabs.currentIndex()
+                self.symbolView()
+                self.tabs.setCurrentIndex(i)
+            else:
+                l = self.libraries.currentRow()
+                c = self.cells.currentRow()
+                self.listView()
+                self.libraries.setCurrentRow(l) 
+                self.cells.setCurrentRow(c) 
+    
     def symbolView(self):
+        self.copiedBlock = None
+        self.copiedBlockLibname = None
+        
         self.type = 'symbolView'
         reload(libraries)
         self.centralWidget = QtWidgets.QWidget()
@@ -465,8 +977,8 @@ class Library(QtWidgets.QMainWindow):
                 if h > 100.0:
                     set_orient(cell, scale=min(1.0, 80.0/w, 100.0/h))
             tab = QtWidgets.QWidget()
-            if libname == 'symbols':
-                self.symbolTab = tab
+#            if libname == 'symbols':
+#                self.symbolTab = tab
             layout = QtWidgets.QVBoxLayout()
             layout.addWidget(view)
             tab.setLayout(layout)
@@ -485,11 +997,15 @@ class Library(QtWidgets.QMainWindow):
         self.tabs.setCurrentIndex(ix)
         self.quickSelTab.setCurrentIndex (ix)
         
+        
+    
+        
     def clickLibrary(self):
         library = self.libraries.currentItem()
         if(library):
             self.cells.clear()
-            for cell in self.libs[library.text()]:
+            cellList = sorted(self.libs[library.text()], key=lambda s: s.lower())
+            for cell in cellList:
                 self.cells.addItem(cell)
         
     def clickCatogory(self):

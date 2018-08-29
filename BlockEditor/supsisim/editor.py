@@ -14,10 +14,12 @@ from supsisim.port import Port, InPort, OutPort
 from supsisim.connection import Connection
 from supsisim.block import Block, textItem
 from supsisim.node import Node
-from supsisim.dialg import BlockName_Dialog, labelDialog
+from supsisim.dialg import BlockName_Dialog, textLineDialog, overWriteNetlist, error,propertiesDialog
 import supsisim.RCPDlg as pDlg
 from supsisim.const import GRID, DB
 import numpy as np
+import libraries
+import os.path
 
 class Editor(QtCore.QObject):
     """ Editor to handles events"""
@@ -30,24 +32,28 @@ class Editor(QtCore.QObject):
         self.connFromNode = False
 
         self.menuIOBlk = QtWidgets.QMenu()
-        parBlkAction = self.menuIOBlk.addAction('Block I/Os')
+        #parBlkAction = self.menuIOBlk.addAction('Block I/Os')
         paramsBlkAction = self.menuIOBlk.addAction('Block Parameters')
+        propertiesBlkAction = self.menuIOBlk.addAction('Block Properties')
         flpBlkAction = self.menuIOBlk.addAction('Flip Block')
         nameBlkAction = self.menuIOBlk.addAction('Change Name')
         cloneBlkAction = self.menuIOBlk.addAction('Clone Block')
         deleteBlkAction = self.menuIOBlk.addAction('Delete Block')
+        netListAction = self.menuIOBlk.addAction('Netlist')
         
-        parBlkAction.triggered.connect(self.parBlock)
+        #parBlkAction.triggered.connect(self.parBlock)
         flpBlkAction.triggered.connect(self.flpBlock)
         nameBlkAction.triggered.connect(self.nameBlock)
         paramsBlkAction.triggered.connect(self.paramsBlock)
+        propertiesBlkAction.triggered.connect(self.propertiesBlock)
         cloneBlkAction.triggered.connect(self.cloneBlock)
         deleteBlkAction.triggered.connect(self.deleteBlock)
+        netListAction.triggered.connect(self.netList)
 
         self.subMenuNode = QtWidgets.QMenu()
         nodeDelAction = self.subMenuNode.addAction('Delete node')
         nodeBindAction = self.subMenuNode.addAction('Bind node')
-        nodeLabelAction = self.subMenuNode.addAction('Add label')
+        nodeLabelAction = self.subMenuNode.addAction('Add/Edit label')
         nodeDelAction.triggered.connect(self.deleteNode)
         nodeBindAction.triggered.connect(self.bindNode)
         nodeLabelAction.triggered.connect(self.addNodeLabel)
@@ -55,26 +61,98 @@ class Editor(QtCore.QObject):
         self.subMenuConn = QtWidgets.QMenu()
         connDelAction = self.subMenuConn.addAction('Delete connection')
         connInsAction = self.subMenuConn.addAction('Insert node')
-        connLabelAction = self.subMenuConn.addAction('Add label')
+        connLabelAction = self.subMenuConn.addAction('Add/Edit label')
+        connTypeAction = self.subMenuConn.addAction('Add/Edit signal type')
         connDelAction.triggered.connect(self.deleteConn)
         connInsAction.triggered.connect(self.insConn)
         connLabelAction.triggered.connect(self.addConnLabel)
+        connTypeAction.triggered.connect(self.addConnType)
+    
+
+    
+    def netList(self):
+        item = self.scene.item
+        if item.hasDiagram():
+            views = libraries.getViews(item.blockname,item.libname)
+            fname = 'libraries/library_{}/{}_myhdl.py'.format(item.libname,item.blockname)
+            overwrite = True            
+            if 'myhdl' in views:
+                dialog = overWriteNetlist()
+                ret = dialog.exec_()
+                if ret == 0:
+                    fname = views['myhdl']
+                else:
+                    overwrite = False
+            if overwrite:
+                import supsisim.netlist
+                content = supsisim.netlist.netlist(item.blockname,item.libname,item.properties)
+                print(fname)
+                f = open(fname,'w+')
+                f.write(content)
+                f.close()
+                if not 'myhdl' in views:
+                    self.addView(item.blockname,item.libname,'myhdl')
+                self.parent().library.openView('myhdl',item)
+        else:
+            error("file doesn't have a diagram")
+        
+    def addView(self,blockname,libname,type):
+        import os
+        path = os.getcwd()
+        fname = '/libraries/library_{}/{}.py'.format(libname,blockname)
+        f = open(path + fname,'r')
+        lines = f.readlines()
+        f.close()
+        
+        for index,line in enumerate(lines):
+            if line.startswith('iconSource = '):
+                source = "{type}Source = 'libraries/library_{libname}/{blockname}_{type}.py'\n"
+                lines.insert(index+1,source.format(type=type,libname=libname,blockname=blockname))
+            if line.startswith('views = {'):
+                lines[index] = line.replace('views = {',"views = {{'{type}':{type}Source,".format(type=type))
         
         
-    def addNodeLabel(self):
-        dialog = labelDialog()
+        f = open(path + fname,'w+')
+        f.write("".join(lines))
+        f.close()
+    
+    def addConnType(self):
+        item = self.scene.item
+        if item.signalType:
+            dialog = textLineDialog('Signal type: ','Signal type',item.signalType)
+        else:
+            dialog = textLineDialog('Signal type: ','Signal type')
         ret = dialog.getLabel()
         if ret:
-            self.scene.item.label = textItem(ret, anchor=3, parent=self.scene.item)
-            self.scene.item.label.setPos(0,20)
+            item.signalType = ret
+    
+    def addNodeLabel(self):
+        item = self.scene.item
+        if item.label:
+            dialog = textLineDialog('Label: ',content=item.label.toPlainText())
+        else:
+            dialog = textLineDialog('Label: ')
+        ret = dialog.getLabel()
+        if ret:
+            if item.label:
+                item.label.setPlainText(ret)
+            else:
+                item.label = textItem(ret, anchor=3, parent=self.scene.item)
+                item.label.setPos(0,20)
     
     def addConnLabel(self):
-        dialog = labelDialog()
+        conn = self.scene.item
+        if conn.label:
+            dialog = textLineDialog('Label: ',content=conn.label.toPlainText())
+        else:
+            dialog = textLineDialog('Label: ')
         ret = dialog.getLabel()
         if ret:
-            conn = self.scene.item
-            conn.label = textItem(ret, anchor=3, parent=conn)
-            conn.label.setPos(conn.pos2.x(),conn.pos2.y())
+            if conn.label:
+                conn.label.setPlainText(ret)
+            else:
+                conn.label = textItem(ret, anchor=3, parent=conn)
+                conn.label.setPos(conn.pos2.x(),conn.pos2.y())
         
     def parBlock(self):
         self.scene.mainw.parBlock()
@@ -95,17 +173,23 @@ class Editor(QtCore.QObject):
             w = item.label.boundingRect().width()
             item.label.setPos(-w/2, item.h/2+5)    
         
+    def propertiesBlock(self):
+        item = self.scene.item
+        dialog = propertiesDialog(item.properties)
+        ret = dialog.getRet()
+        if ret:
+            item.properties = ret      
+            
     def paramsBlock(self):
         item = self.scene.item
-        properties = item.properties
-        blk = properties['name']
-        blk = blk.replace('Blk','Dlg')
-        if blk in dir(pDlg):
-            cmd = 'pDlg.' + blk + '(' + str(item.inp) + ',' + str(item.outp) + ',"' + str(item.properties) + '")'
-            pars = eval(cmd)
-        else:
-            pars = pDlg.parsDialog(item.properties)
-        item.properties = pars        
+        dialog = propertiesDialog(item.parameters,False)
+        ret = dialog.getRet()
+        if ret:
+            block = item.toPython()
+            item.remove()
+            b = libraries.getBlock(block['blockname'],block['libname'],scene=self.scene,param=ret,name=block['name'])
+            b.setPos(block['pos']['x'],block['pos']['y'])
+            b.properties = block['properties']
 
     def cloneBlock(self):
         item = self.scene.item
@@ -392,7 +476,11 @@ class Editor(QtCore.QObject):
                     try:
                         item.remove()
                     except:
-                        pass
+                        try:
+                            if item.comment:
+                                self.scene.removeItem(item)
+                        except:
+                            pass
                 if self.conn:
                     self.conn.remove()
                 #self.conn = None

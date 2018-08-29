@@ -16,7 +16,7 @@
    width="64"
    height="48"
    viewBox="0 0 64 48"
-   sodipodi:docname="SATUR.svg">
+   sodipodi:docname="tmp54YFwE.svg">
   <metadata
      id="metadata8">
     <rdf:RDF>
@@ -25,7 +25,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title></dc:title>
+        <dc:title />
       </cc:Work>
     </rdf:RDF>
   </metadata>
@@ -40,29 +40,37 @@
      guidetolerance="10"
      inkscape:pageopacity="0"
      inkscape:pageshadow="2"
-     inkscape:window-width="640"
+     inkscape:window-width="1181"
      inkscape:window-height="480"
      id="namedview4"
      showgrid="false"
      inkscape:zoom="4.9166667"
-     inkscape:cx="32"
+     inkscape:cx="-28.813559"
      inkscape:cy="24"
-     inkscape:window-x="0"
-     inkscape:window-y="32"
+     inkscape:window-x="483"
+     inkscape:window-y="100"
      inkscape:window-maximized="0"
      inkscape:current-layer="svg2" />
   <image
      width="64"
      height="48"
      preserveAspectRatio="none"
-     xlink:href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAAAwCAYAAAChS3wfAAAABHNCSVQICAgIfAhkiAAAAPlJREFU
-aIHt2sGKwzAQRMHSkv//Ze91MbksltQzyH0P6BUKmDgDl4P3ges602CM4Sd9iPRegPQB0nsB0gdI
-7wVIHyC94wE+6QP8d2OMR5+/P/S1ugFP47+tzQ34Gz/z0b3FDVgVTwOAlfEUB1gdT2GAHfEUBdgV
-T0GAnfEUA9gdTyGARDxFAFLxFABIxhMGSMcTBKgQTwigSjwBgErxbAaoFs9GgIrxbAKoGs8GgMrx
-LAaoHs9CgA7xLALoEs8CgE7xTAboFs9EgI7xTALoGs/tzdDs924dNu0r0DGe2w3oGvFk8Z/E0nsB
-0gdI7wVIHyC94wGGw/8u/wtsBl9kOKJ7ogAAAABJRU5ErkJggg==
-"
+     xlink:href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAAAwCAYAAAChS3wfAAAABHNCSVQICAgIfAhkiAAAAPlJREFU aIHt2sGKwzAQRMHSkv//Ze91MbksltQzyH0P6BUKmDgDl4P3ges602CM4Sd9iPRegPQB0nsB0gdI 7wVIHyC94wE+6QP8d2OMR5+/P/S1ugFP47+tzQ34Gz/z0b3FDVgVTwOAlfEUB1gdT2GAHfEUBdgV T0GAnfEUA9gdTyGARDxFAFLxFABIxhMGSMcTBKgQTwigSjwBgErxbAaoFs9GgIrxbAKoGs8GgMrx LAaoHs9CgA7xLALoEs8CgE7xTAboFs9EgI7xTALoGs/tzdDs924dNu0r0DGe2w3oGvFk8Z/E0nsB 0gdI7wVIHyC94wGGw/8u/wtsBl9kOKJ7ogAAAABJRU5ErkJggg== "
      id="image10"
      x="0"
      y="0" />
+  <rect
+     style="fill:#ffffff;fill-opacity:1"
+     id="rect3333"
+     width="9.3559322"
+     height="7.5254235"
+     x="13.627119"
+     y="12.20339" />
+  <rect
+     style="fill:#ffffff;fill-opacity:1"
+     id="rect3335"
+     width="3.6610169"
+     height="5.2881355"
+     x="15.457627"
+     y="12" />
 </svg>

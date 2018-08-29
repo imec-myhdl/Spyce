@@ -4,7 +4,7 @@ libname = 'can' #zelfde als map naam
 inp = 1
 outp = 0
 
-parameters = None #parametriseerbare cell
+parameters = dict() #parametriseerbare cell
 properties = {'Device ID': ' 0x01', 'Prop. gain': ' 2200', 'Integ. gain': ' 500', 'name': 'maxon_MotBlk'} #voor netlisten
 #view variables:
 iconSource = 'MOT_I'

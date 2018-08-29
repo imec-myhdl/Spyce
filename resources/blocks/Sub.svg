@@ -10,7 +10,7 @@
    height="100.0"
    id="svg2"
    inkscape:version="0.91 r13725"
-   sodipodi:docname="tmpJgleeA.svg"
+   sodipodi:docname="tmpK5HXmn.svg"
    version="1.2"
    width="108.0">
   <metadata
@@ -32,15 +32,15 @@
      inkscape:current-layer="svg2"
      inkscape:snap-grids="true"
      inkscape:window-height="414"
-     inkscape:window-width="550"
+     inkscape:window-width="806"
      objecttolerance="10"
      showgrid="true"
      id="namedview5"
      inkscape:zoom="2.36"
-     inkscape:cx="54"
+     inkscape:cx="27.305085"
      inkscape:cy="50"
-     inkscape:window-x="710"
-     inkscape:window-y="223"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
      inkscape:window-maximized="0">
     <inkscape:grid
        spacingx="10"
@@ -54,7 +54,7 @@
      id="i-portlabel_i_pin0"
      x="23.5"
      y="33.5"
-     style="font-size:10px">i_yes</text>
+     style="font-size:10px">i_pinnie</text>
   <line
      id="i-port_i_pin0"
      stroke="darkGreen"
@@ -96,15 +96,4 @@
      x="20"
      y="20"
      id="rect15" />
-  <text
-     xml:space="preserve"
-     style="font-style:normal;font-weight:normal;font-size:40px;line-height:125%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
-     x="40"
-     y="60"
-     id="text3345"
-     sodipodi:linespacing="125%"><tspan
-       sodipodi:role="line"
-       id="tspan3347"
-       x="40"
-       y="60">a</tspan></text>
 </svg>

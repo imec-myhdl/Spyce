@@ -4,7 +4,7 @@ libname = 'input' #zelfde als map naam
 inp = 0
 outp = 1
 
-parameters = None #parametriseerbare cell
+parameters = dict() #parametriseerbare cell
 properties = {'name': 'constBlk', 'Value': ' 0'} #voor netlisten
 #view variables:
 iconSource = 'CONST'

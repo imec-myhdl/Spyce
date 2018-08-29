@@ -4,7 +4,7 @@ libname = 'can' #zelfde als map naam
 inp = 1
 outp = 0
 
-parameters = None #parametriseerbare cell
+parameters = dict() #parametriseerbare cell
 properties = {'Device ID': ' 0x01', 'Resolution': ' 125000', 'name': 'MCLM_MotXBlk'} #voor netlisten
 #view variables:
 iconSource = 'MOT_X'

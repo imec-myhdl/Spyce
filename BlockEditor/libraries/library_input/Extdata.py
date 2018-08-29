@@ -4,7 +4,7 @@ libname = 'input' #zelfde als map naam
 inp = 0
 outp = 1
 
-parameters = None #parametriseerbare cell
+parameters = dict() #parametriseerbare cell
 properties = {'File name': ' data', 'name': 'extdataBlk', 'Data length': ' 1000'} #voor netlisten
 #view variables:
 iconSource = 'EXTDATA'

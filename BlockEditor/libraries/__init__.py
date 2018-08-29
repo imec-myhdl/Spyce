@@ -1,25 +1,46 @@
 import os
-from supsisim.block import Block
+import supsisim.block 
 from supsisim.const import viewEditors
+from supsisim.dialg import error
 
-def getBlock(blockname,libname,parent=None,scene=None, param=dict(), test=False, name=None):
+def getBlock(blockname,libname,parent=None,scene=None, param=dict(), name=None):
     exec('import libraries.library_' + libname + '.' + blockname)
     reload(eval('libraries.library_' + libname + '.' + blockname))
-    options = ('parameters','properties')
-    for o in options:
-        exec(o + ' = libraries.library_' + libname + '.' + blockname + '.' + o)
-    attributes = dict()
-    attributes['name'] = blockname
-    attributes['libname'] = libname
-    attributes['input'] = eval('libraries.library_' + libname + '.' + blockname + '.inp')
-    attributes['output'] = eval('libraries.library_' + libname + '.' + blockname + '.outp')
-    attributes['icon'] = eval('libraries.library_' + libname + '.' + blockname + '.iconSource')
-    
-    if 'inp' in param.keys():
-        attributes['input'] = param['inp']
-    if 'outp' in param.keys():
-        attributes['output'] = param['outp']
-    return Block(attributes,parameters,properties,blockname,libname,parent,scene)
+    try:
+        if not param:
+            param = eval('libraries.library_{}.{}.parameters'.format(libname,blockname))
+        func = eval('libraries.library_{}.{}.getSymbol'.format(libname,blockname))
+        b = func(param,parent,scene)
+        if isinstance(b,supsisim.block.Block):
+            if name:
+                b.name = name
+                b.label.setPlainText(name)
+            return b
+        else:
+            error('getSymbol returned no block')
+    except Exception as e:
+#        import sys
+#        exc_type, exc_obj, exc_tb = sys.exc_info()
+#        fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+#        print(exc_type, fname, exc_tb.tb_lineno,e)
+        options = ('parameters','properties')
+        for o in options:
+            exec(o + ' = libraries.library_' + libname + '.' + blockname + '.' + o)
+        attributes = dict()
+        if name:
+            attributes['name'] = name
+        else:
+            attributes['name'] = blockname
+        attributes['libname'] = libname
+        attributes['input'] = eval('libraries.library_' + libname + '.' + blockname + '.inp')
+        attributes['output'] = eval('libraries.library_' + libname + '.' + blockname + '.outp')
+        attributes['icon'] = eval('libraries.library_' + libname + '.' + blockname + '.iconSource')
+        
+#        if 'inp' in param.keys():
+#            attributes['input'] = param['inp']
+#        if 'outp' in param.keys():
+#            attributes['output'] = param['outp']
+        return supsisim.block.Block(attributes,parameters,properties,blockname,libname,parent,scene)
 
 def getViews(blockname,libname):
     exec('import libraries.library_' + libname + '.' + blockname)

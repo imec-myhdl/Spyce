@@ -4,7 +4,7 @@ libname = 'can' #zelfde als map naam
 inp = 0
 outp = 1
 
-parameters = None #parametriseerbare cell
+parameters = dict() #parametriseerbare cell
 properties = {'Device ID': ' 0x01', 'Resolution': ' 500', 'name': 'baumer_EncBlk'} #voor netlisten
 #view variables:
 iconSource = 'ENC'

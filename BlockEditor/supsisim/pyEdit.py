@@ -18,7 +18,7 @@ from supsisim.connection import Connection
 from supsisim.editor import Editor
 from supsisim.library import Library
 from supsisim.scene import Scene, GraphicsView
-from supsisim.dialg import IO_Dialog, convertSymDialog, viewConfigDialog
+from supsisim.dialg import IO_Dialog, convertSymDialog, viewConfigDialog,error
 from supsisim.const import respath, pycmd, PD,PW,BWmin
 from supsisim.port import Port,InPort,OutPort,InNodePort,OutNodePort
 import libraries
@@ -153,6 +153,12 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
                                                 'View settings',self,
                                                 statusTip = 'View settings',
                                                 triggered = self.viewConfigAct)
+                                                
+                                                
+        self.editConstants = QtWidgets.QAction(QtGui.QIcon(mypath+'viewConfig.png'),
+                                                'Edit settings',self,
+                                                statusTip = 'Edit settings',
+                                                triggered = self.editSettingsAction)
 
         self.debugAction = QtWidgets.QAction(QtGui.QIcon(mypath+'debug.png'),
                                              'Debugging',self,
@@ -163,7 +169,8 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
         self.testIndex = QtWidgets.QAction(QtGui.QIcon(mypath+'debug.png'),
                                              '&Test index',self,
                                              statusTip = 'Test index',
-                                             triggered = self.testIndexAct)   
+                                             triggered = self.testIndexAct) 
+        
                                              
     def addToolbars(self):
         toolbarF = self.addToolBar('File')
@@ -220,6 +227,11 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
         setMenu = menubar.addMenu('Se&ttings')
         setMenu.addAction(self.setCodegenAction)
         setMenu.addAction(self.viewConfigAction)
+        setMenu.addAction(self.editConstants)
+    
+    def editSettingsAction(self):
+        from supsisim.const import viewEditors
+        os.system(viewEditors['python'] + ' supsisim/const.py')
     
     def viewConfigAct(self):
         dialog = viewConfigDialog()
@@ -254,6 +266,7 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
             
             
             
+        
     
     def onChange(self,i):
         self.view=self.centralWidget.widget(i)
@@ -272,8 +285,8 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
            
     def descend(self,item):
         self.view.returnSymbol = True
-        self.newFile(item.name,symbol=True,blockname=item.blockname,)
-        self.scene.loadPython('libraries.library_symbols.' + item.blockname + '_diagram',None)
+        self.newFile(item.name,symbol=True,blockname=item.blockname,libname=item.libname)
+        self.scene.loadPython('libraries.library_' + item.libname + '.' + item.blockname + '_diagram',None)
     
     def ascend(self):
         pass        
@@ -424,67 +437,73 @@ views = {{'icon':iconSource,'diagram':diagramSource,'text':textSource}}"
     
     def convertSymAct(self):
         selection = self.scene.items(self.scene.selectionArea())        
-        
-        blocks = []
-        connections = []
-        nodes = []        
-        
-        for item in selection:
-            if isinstance(item,Block):
-                blocks.append(str(item.toPython()))
-            if isinstance(item,Connection):
-                connections.append(str(item.toPython()))
-            if isinstance(item,Node):
-                nodes.append(str(item.toPython()))
-        
-                    
-        
-        dialog = convertSymDialog()
-        ret = dialog.getRet()
-        if ret:
-            inp, outp = self.itemsToInpOutp(selection)            
+        if selection and self.scene.selectedItems():
+            blocks = []
+            connections = []
+            nodes = []        
             
-            for item in self.scene.selectedItems():    
-                try:
-                    item.remove()
-                except:
-                    pass
-            name = ret['name']
-            icon = ret['icon']
-            libname = 'library_symbols'
+            for item in selection:
+                if isinstance(item,Block):
+                    blocks.append(str(item.toPython()))
+                if isinstance(item,Connection):
+                    connections.append(str(item.toPython()))
+                if isinstance(item,Node):
+                    nodes.append(str(item.toPython()))
             
-            attributes = {'name':name,'input':inp,'output':outp,'icon':icon,'libname':libname,'type':'symbol'} 
-                    
+                        
             
-            parameters = ret['parameters']
-            properties = ret['properties']
-            
-            data = self.getSymbolData(attributes,properties,parameters)
-            
-
-            self.path = os.getcwd()            
-            f = open(self.path + '/libraries/library_symbols/' + name + '.py','w+')
-            f.write(str(data))
-            f.close()
-            f = open(self.path + '/libraries/library_symbols/' + name + '_diagram.py','w+')
-            f.write("blocks = [" + ",\n          ".join(blocks) + "]\n\n" + 
-                    "connections = [" + ",\n               ".join(connections) + "]\n\n" + 
-                    "nodes = [" + ",\n         ".join(nodes) + "]")
-            f.close()
-            
-            
-            
-            center = self.scene.getCenter()
-            item = libraries.getBlock(name,'symbols',None,self.scene) 
-            item.setPos(center[0],center[1])
-            if self.library.type == 'symbolView':
-                self.library.symbolView()
-                self.library.tabs.setCurrentWidget(self.library.symbolTab)
-            else:
-                self.library.listView()
-                self.library.libraries.setCurrentItem(self.library.libraries.findItems('symbols',QtCore.Qt.MatchExactly)[0])
-            
-            
+            dialog = convertSymDialog()
+            ret = dialog.getRet()
+            if ret:
+                inp, outp = self.itemsToInpOutp(selection)            
+                
+                for item in self.scene.selectedItems():    
+                    try:
+                        item.remove()
+                    except:
+                        pass
+                name = ret['name']
+                icon = ret['icon']
+                
+                
+                if self.library.type == 'symbolView':
+                    libname = self.library.tabs.tabText(self.library.tabs.currentIndex())
+                else:
+                    libname = self.library.libraries.currentItem().text()
+                
+                attributes = {'name':name,'input':inp,'output':outp,'icon':icon,'libname':libname,'type':'symbol'} 
+                        
+                
+                parameters = dict()
+                properties = ret['properties']
+                
+                data = self.getSymbolData(attributes,properties,parameters)
+                
+    
+                self.path = os.getcwd()            
+                f = open(self.path + '/libraries/library_' + libname + '/' + name + '.py','w+')
+                f.write(str(data))
+                f.close()
+                f = open(self.path + '/libraries/library_' + libname + '/' + name + '_diagram.py','w+')
+                f.write("blocks = [" + ",\n          ".join(blocks) + "]\n\n" + 
+                        "connections = [" + ",\n               ".join(connections) + "]\n\n" + 
+                        "nodes = [" + ",\n         ".join(nodes) + "]")
+                f.close()
+                
+                
+                
+                center = self.scene.getCenter()
+                item = libraries.getBlock(name,libname,None,self.scene) 
+                item.setPos(center[0],center[1])
+                
+                if self.library.type == 'symbolView':
+                    self.library.symbolView()
+                    #self.library.tabs.setCurrentWidget(self.library.symbolTab)
+                else:
+                    self.library.listView()
+                    #self.library.libraries.setCurrentItem(self.library.libraries.findItems('symbols',QtCore.Qt.MatchExactly)[0])
+        else:
+            error('Select what you want to convert')
     
     def updateAct(self):
         items = self.scene.items()
@@ -541,12 +560,13 @@ views = {{'icon':iconSource,'diagram':diagramSource,'text':textSource}}"
         if ret != QtWidgets.QMessageBox.Cancel and not cancel:
             self.centralWidget.removeTab(currentIndex)
                  
-    def newFile(self,fname=False,symbol=False,blockname=None):
+    def newFile(self,fname=False,symbol=False,blockname=None,libname=None):
         if not fname:
             fname = 'untitled'
         view = GraphicsView(self.centralWidget,symbol)
         if blockname:
             view.blockname = blockname
+            view.libname = libname
         view.setMouseTracking(True)
         scene = Scene(self)
         view.setScene(scene)
@@ -599,16 +619,17 @@ views = {{'icon':iconSource,'diagram':diagramSource,'text':textSource}}"
         if self.view.symbol:
             instanceName = self.centralWidget.tabText(self.centralWidget.currentIndex())
             symbolName = self.centralWidget.currentWidget().blockname
-            exec('import libraries.library_symbols.' + symbolName)
+            libname = self.centralWidget.currentWidget().libname
+            exec('import libraries.library_' + libname + '.' + symbolName)
             
             attributes = dict()
-            attributes['name'] = eval('libraries.library_symbols.' + symbolName + '.name')
-            attributes['libname'] = eval('libraries.library_symbols.' + symbolName + '.libname')
-            attributes['icon'] = eval('libraries.library_symbols.' + symbolName + '.iconSource')
+            attributes['name'] = eval('libraries.library_' + libname + '.' + symbolName + '.name')
+            attributes['libname'] = eval('libraries.library_' + libname + '.' + symbolName + '.libname')
+            attributes['icon'] = eval('libraries.library_' + libname + '.' + symbolName + '.iconSource')
                 
             
-            parameters = eval('libraries.library_symbols.' + symbolName + '.parameters')
-            properties = eval('libraries.library_symbols.' + symbolName + '.properties')
+            parameters = eval('libraries.library_' + libname + '.' + symbolName + '.parameters')
+            properties = eval('libraries.library_' + libname + '.' + symbolName + '.properties')
             
             blocks = []
             connections = []
@@ -631,10 +652,10 @@ views = {{'icon':iconSource,'diagram':diagramSource,'text':textSource}}"
             
 
             self.path = os.getcwd()            
-            f = open(self.path + '/libraries/library_symbols/' + symbolName + '.py','w+')
+            f = open(self.path + '/libraries/library_' + libname + '/' + symbolName + '.py','w+')
             f.write(str(data))
             f.close()
-            f = open(self.path + '/libraries/library_symbols/' + symbolName + '_diagram.py','w+')
+            f = open(self.path + '/libraries/library_' + libname + '/' + symbolName + '_diagram.py','w+')
             f.write("blocks = [" + ",\n          ".join(blocks) + "]\n\n" + 
                     "connections = [" + ",\n               ".join(connections) + "]\n\n" + 
                     "nodes = [" + ",\n         ".join(nodes) + "]")
@@ -642,10 +663,10 @@ views = {{'icon':iconSource,'diagram':diagramSource,'text':textSource}}"
             
             if self.library.type == 'symbolView':
                 self.library.symbolView()
-                self.library.tabs.setCurrentWidget(self.library.symbolTab)
+                #self.library.tabs.setCurrentWidget(self.library.symbolTab)
             else:
                 self.library.listView()
-                self.library.libraries.setCurrentItem(self.library.libraries.findItems('symbols',QtCore.Qt.MatchExactly)[0])
+                #self.library.libraries.setCurrentItem(self.library.libraries.findItems('symbols',QtCore.Qt.MatchExactly)[0])
             
             
             

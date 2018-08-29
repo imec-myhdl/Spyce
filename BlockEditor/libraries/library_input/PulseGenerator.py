@@ -4,7 +4,7 @@ libname = 'input' #zelfde als map naam
 inp = 0
 outp = 1
 
-parameters = None #parametriseerbare cell
+parameters = dict() #parametriseerbare cell
 properties = {'name': 'squareBlk', 'Period': ' 4', 'Delay': ' 0', 'Width': ' 2', 'Bias': ' 0', 'Amplitude': ' 1'} #voor netlisten
 #view variables:
 iconSource = 'SQUARE'

@@ -14,6 +14,7 @@ import numpy as np
 from supsisim.const import LW
 from supsisim.port import InPort, OutPort
 from supsisim.node import Node
+from supsisim.dialg import error
 from lxml import etree
 
 class Connection(QtWidgets.QGraphicsPathItem):
@@ -34,6 +35,7 @@ class Connection(QtWidgets.QGraphicsPathItem):
         self.port2 = None
         
         self.label = None
+        self.signalType = None
 
         self.line_color = QtCore.Qt.black
 
@@ -53,6 +55,8 @@ class Connection(QtWidgets.QGraphicsPathItem):
         data = dict(type='connection',pos1=dict(x=self.pos1.x(),y=self.pos1.y()),pos2=dict(x=self.pos2.x(),y=self.pos2.y()))
         if self.label:
             data['label'] = self.label.toPlainText()
+        if self.signalType:
+            data['signalType'] = self.signalType
         return data
     
     def setup(self):
@@ -71,12 +75,21 @@ class Connection(QtWidgets.QGraphicsPathItem):
             self.port1 = item
         elif isinstance(item, Node):
             self.port1 = item.port_out
+        else:
+            error('Block changed, no pin found')
+            self.remove()
+            return
         item = self.scene.find_itemAt(self.pos2)
 #        print('2 ' + str(item))
         if isinstance(item, InPort):
             self.port2 = item
         elif isinstance(item, Node):
             self.port2 = item.port_in
+        else:
+            error('Block changed, no pin found')
+            self.remove()
+            return
+        
         self.port1.connections.append(self)
         self.port2.connections.append(self)
         self.update_path()

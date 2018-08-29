@@ -4,12 +4,66 @@ from __future__ import (division, print_function, absolute_import,
                         unicode_literals)
 
 from  Qt import QtGui, QtWidgets, QtCore # see https://github.com/mottosso/Qt.py
-import sys, os
+import sys, os, re
 #if sys.version_info>(3,0):
 #    import sip
 #    sip.setapi('QString', 1)
 #
 from supsisim.const import path,respath
+
+class propertiesDialog(QtWidgets.QDialog):
+    def __init__(self, properties,addButton=True):
+        super(propertiesDialog, self).__init__(None)
+        self.properties = properties
+        self.grid = QtWidgets.QGridLayout()
+        self.values = dict()
+        self.n = 0
+        for p in properties.keys():
+            if p != "name":
+                Lab = QtWidgets.QLabel(p)
+                Val = QtWidgets.QLineEdit(str(properties[p]))
+                self.values[p] = Val
+                self.grid.addWidget(Lab,self.n,0)
+                self.grid.addWidget(Val,self.n,1)
+                self.n += 1
+        
+        if addButton:
+            self.key_field = QtWidgets.QLineEdit('key')
+            self.addPropertie = QtWidgets.QPushButton('Add propertie')
+            self.addPropertie.clicked.connect(self.addPropertieAction)  
+            self.grid.addWidget(self.key_field,99,0)
+            self.grid.addWidget(self.addPropertie,99,1)
+        
+        
+        self.pbOK = QtWidgets.QPushButton('OK')
+        self.pbCANCEL = QtWidgets.QPushButton('CANCEL')
+        self.grid.addWidget(self.pbOK,100,0)
+        self.grid.addWidget(self.pbCANCEL,100,1)
+        self.pbOK.clicked.connect(self.accept)
+        self.pbCANCEL.clicked.connect(self.reject)
+        self.setLayout(self.grid)
+
+
+    def addPropertieAction(self):
+        key = self.key_field.text()
+        Lab = QtWidgets.QLabel(key)
+        Val = QtWidgets.QLineEdit('0')
+        self.values[key] = Val
+        self.grid.addWidget(Lab,self.n,0)
+        self.grid.addWidget(Val,self.n,1)
+        self.n += 1
+
+    def getRet(self):
+        if self.exec_():
+            if 'name' in self.properties.keys():
+                newProperties = dict(name=self.properties['name'])
+            else:
+                newProperties = dict()
+            for key in self.values.keys():
+                newProperties[key] = eval(self.values[key].text())
+            return newProperties
+        else:
+            False
 
 class LibraryChoice_Dialog(QtWidgets.QMessageBox):
     def __init__(self,parent=None):
@@ -20,7 +74,22 @@ class LibraryChoice_Dialog(QtWidgets.QMessageBox):
         self.addButton('List view',self.YesRole)
         self.addButton('Symbol view',self.NoRole)
         
+class overWriteNetlist(QtWidgets.QMessageBox):
+    def __init__(self,parent=None):
+        super(overWriteNetlist,self).__init__(parent)
+        self.setWindowModality(QtCore.Qt.ApplicationModal)
+        self.setWindowTitle('Overwrite')
+        self.setText("Would you like to overwrite the current file")
+        self.addButton('Yes',self.YesRole)
+        self.addButton('No',self.NoRole)
         
+class error(QtWidgets.QMessageBox):
+    def __init__(self,errorMessage,parent=None):
+        super(error,self).__init__(parent)
+        self.setWindowModality(QtCore.Qt.ApplicationModal)
+        self.setWindowTitle('Error')
+        self.setText("Error: " + errorMessage)
+        self.exec_()
 
 class IO_Dialog(QtWidgets.QDialog):
     def __init__(self,parent=None):
@@ -222,15 +291,15 @@ class txtDialog(QtWidgets.QDialog):
         else:
             return txt
 
-class labelDialog(QtWidgets.QDialog):
-    def __init__(self, title='Add Label', size=(300, 100), parent=None):
-        super(labelDialog, self).__init__(parent)
+class textLineDialog(QtWidgets.QDialog):
+    def __init__(self, label, title='Add Label',content="", size=(300, 100), parent=None):
+        super(textLineDialog, self).__init__(parent)
         self.layout = QtWidgets.QVBoxLayout()
         self.setLayout(self.layout)
         
-        self.layout.addWidget(QtWidgets.QLabel('Label:'))
+        self.layout.addWidget(QtWidgets.QLabel(label))
         # edit widget
-        self.text_edit = QtWidgets.QLineEdit(parent)
+        self.text_edit = QtWidgets.QLineEdit(content,parent)
         font = QtGui.QFont()
         font.setFamily('Lucida')
         font.setFixedPitch(True)
@@ -308,7 +377,305 @@ class viewConfigDialog(QtWidgets.QDialog):
             return ret         
         else:
             return False
+class createBlockDialog(QtWidgets.QDialog):
+    def __init__(self, title='Create block', size=(400, 300), parent=None): 
+        super(createBlockDialog, self).__init__(parent)
+        self.layout = QtWidgets.QVBoxLayout()
+        self.setLayout(self.layout)
 
+        # edit widget
+        self.layout.addWidget(QtWidgets.QLabel('Name'))
+
+        self.text_name = QtWidgets.QLineEdit(parent)
+        font = QtGui.QFont()
+        font.setFamily('Lucida')
+        font.setFixedPitch(True)
+        font.setPointSize(12)
+        self.text_name.setFont(font)
+        self.layout.addWidget(self.text_name)
+        
+        self.layout.addWidget(QtWidgets.QLabel('Icon'))
+        self.text_icon = QtWidgets.QWidget()
+        self.icon_layout = QtWidgets.QHBoxLayout()
+#        self.icon_createBtn = QtWidgets.QPushButton('Create Icon')    
+        self.icon_selectIcon = QtWidgets.QPushButton('Select Icon')
+        self.icon_selectIcon.clicked.connect(self.selectIcon)        
+#        self.icon_layout.addWidget(self.icon_createBtn)
+        self.icon_layout.addWidget(self.icon_selectIcon)
+        self.text_icon.setLayout(self.icon_layout)
+        self.layout.addWidget(self.text_icon)        
+        
+        
+        
+        self.layout.addWidget(QtWidgets.QLabel('Inputs'))
+        self.text_input = QtWidgets.QWidget()
+        self.input_layout = QtWidgets.QVBoxLayout()
+        self.text_input.setLayout(self.input_layout)
+        
+
+        inputLabels = QtWidgets.QWidget()
+        inputLabels_layout = QtWidgets.QHBoxLayout()        
+        inputLabels_layout.addWidget(QtWidgets.QLabel('Name'))
+        inputLabels_layout.addWidget(QtWidgets.QLabel('X'))
+        inputLabels_layout.addWidget(QtWidgets.QLabel('Y'))
+        inputLabels.setLayout(inputLabels_layout)
+        self.input_layout.addWidget(inputLabels)        
+        
+        self.layout.addWidget(self.text_input)
+        
+        
+        self.addInput = QtWidgets.QPushButton('Add input')
+        self.addInput.clicked.connect(self.addInputFunc)
+        self.layout.addWidget(self.addInput)        
+        
+        self.layout.addWidget(QtWidgets.QLabel('Outputs'))
+        self.text_output = QtWidgets.QWidget()
+        self.output_layout = QtWidgets.QVBoxLayout()
+        self.text_output.setLayout(self.output_layout)
+        
+        ouputLabels = QtWidgets.QWidget()
+        ouputLabels_layout = QtWidgets.QHBoxLayout()        
+        ouputLabels_layout.addWidget(QtWidgets.QLabel('Name'))
+        ouputLabels_layout.addWidget(QtWidgets.QLabel('X'))
+        ouputLabels_layout.addWidget(QtWidgets.QLabel('Y'))
+        ouputLabels.setLayout(ouputLabels_layout)
+        self.output_layout.addWidget(ouputLabels)           
+        
+        self.layout.addWidget(self.text_output)
+        
+        
+        self.addOutput = QtWidgets.QPushButton('Add output')
+        self.addOutput.clicked.connect(self.addOutputFunc)  
+        self.layout.addWidget(self.addOutput)          
+        
+        
+        
+        
+        
+        
+        
+        self.layout.addWidget(QtWidgets.QLabel('Parameters'))
+        self.warningLabel = QtWidgets.QLabel("Don't forget to add a parameter function to the text view")
+        myFont=QtGui.QFont()
+        myFont.setItalic(True)
+        self.warningLabel.setFont(myFont)     
+        self.layout.addWidget(self.warningLabel)
+        self.text_parameters = QtWidgets.QWidget()
+        
+        self.gridPar = QtWidgets.QGridLayout()
+        self.valuesPar = dict()
+        self.nPar = 0
+        
+        self.key_fieldPar = QtWidgets.QLineEdit('key')
+        self.addParam = QtWidgets.QPushButton('Add parameter')
+        self.addParam.clicked.connect(self.addParamAction)  
+        self.gridPar.addWidget(self.key_fieldPar,99,0)
+        self.gridPar.addWidget(self.addParam,99,1)
+        
+        
+        
+        self.text_parameters.setLayout(self.gridPar)
+        self.layout.addWidget(self.text_parameters)        
+        
+        
+        #        
+#           
+        
+        self.layout.addWidget(QtWidgets.QLabel('Properties'))
+        self.text_properties = QtWidgets.QWidget()
+        
+        self.grid = QtWidgets.QGridLayout()
+        self.values = dict()
+        self.n = 0
+        
+        self.key_field = QtWidgets.QLineEdit('key')
+        self.addPropertie = QtWidgets.QPushButton('Add propertie')
+        self.addPropertie.clicked.connect(self.addPropertieAction)  
+        self.grid.addWidget(self.key_field,99,0)
+        self.grid.addWidget(self.addPropertie,99,1)
+        
+        
+        
+        self.text_properties.setLayout(self.grid)
+        self.layout.addWidget(self.text_properties)
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        # Cancel and OK buttons
+        buttons = QtWidgets.QDialogButtonBox.Ok|QtWidgets.QDialogButtonBox.Cancel
+        self.bbox = QtWidgets.QDialogButtonBox(buttons)
+        self.bbox.accepted.connect(self.accept)
+        self.bbox.rejected.connect(self.reject)
+        self.layout.addWidget(self.bbox)
+        
+        # set window title and window size
+        self.setWindowTitle(title)
+        self.resize(size[0], size[1])   
+        
+        self.inputInstances = []
+        self.outputInstances = []
+        
+        self.inputCounter = 0
+        self.outputCounter = 0
+        self.filename = (0,0)
+    
+    def addParamAction(self):
+        key = self.key_fieldPar.text()
+        Lab = QtWidgets.QLabel(key)
+        Val = QtWidgets.QLineEdit('0')
+        self.valuesPar[key] = Val
+        self.gridPar.addWidget(Lab,self.nPar,0)
+        self.gridPar.addWidget(Val,self.nPar,1)
+        self.nPar += 1  
+        
+    def addPropertieAction(self):
+        key = self.key_field.text()
+        Lab = QtWidgets.QLabel(key)
+        Val = QtWidgets.QLineEdit('0')
+        self.values[key] = Val
+        self.grid.addWidget(Lab,self.n,0)
+        self.grid.addWidget(Val,self.n,1)
+        self.n += 1    
+        
+    def addInputFunc(self):
+        inputInstance = QtWidgets.QWidget()
+        inputInstance_layout = QtWidgets.QHBoxLayout()
+        
+        
+        text_name = QtWidgets.QLineEdit('i_pin' + str(self.inputCounter))
+        font = QtGui.QFont()
+        font.setFamily('Lucida')
+        font.setFixedPitch(True)
+        font.setPointSize(12)
+        text_name.setFont(font)
+        inputInstance_layout.addWidget(text_name)
+        
+        text_x = QtWidgets.QLineEdit('-40')
+        font = QtGui.QFont()
+        font.setFamily('Lucida')
+        font.setFixedPitch(True)
+        font.setPointSize(12)
+        text_x.setFont(font)
+        inputInstance_layout.addWidget(text_x)
+        
+        text_y = QtWidgets.QLineEdit(str(self.inputCounter*20))
+        font = QtGui.QFont()
+        font.setFamily('Lucida')
+        font.setFixedPitch(True)
+        font.setPointSize(12)
+        text_y.setFont(font)
+        inputInstance_layout.addWidget(text_y)
+        
+        
+        
+        inputInstance.setLayout(inputInstance_layout)
+        self.input_layout.addWidget(inputInstance)
+        self.inputInstances.append((text_name,text_x,text_y))
+        
+        
+        self.inputCounter += 1
+    
+    def addOutputFunc(self):
+        outputInstance = QtWidgets.QWidget()
+        outputInstance_layout = QtWidgets.QHBoxLayout()
+        
+        
+        text_name = QtWidgets.QLineEdit('o_pin' + str(self.outputCounter))
+        font = QtGui.QFont()
+        font.setFamily('Lucida')
+        font.setFixedPitch(True)
+        font.setPointSize(12)
+        text_name.setFont(font)
+        outputInstance_layout.addWidget(text_name)
+        
+        text_x = QtWidgets.QLineEdit('40')
+        font = QtGui.QFont()
+        font.setFamily('Lucida')
+        font.setFixedPitch(True)
+        font.setPointSize(12)
+        text_x.setFont(font)
+        outputInstance_layout.addWidget(text_x)
+        
+        text_y = QtWidgets.QLineEdit(str(self.outputCounter*20))
+        font = QtGui.QFont()
+        font.setFamily('Lucida')
+        font.setFixedPitch(True)
+        font.setPointSize(12)
+        text_y.setFont(font)
+        outputInstance_layout.addWidget(text_y)
+        
+        
+        
+        outputInstance.setLayout(outputInstance_layout)
+        self.output_layout.addWidget(outputInstance)
+        self.outputInstances.append((text_name,text_x,text_y))
+        
+        self.outputCounter += 1
+    
+    
+    def selectIcon(self):
+        self.filename = QtWidgets.QFileDialog.getOpenFileName(self, 'Open',respath + '/blocks/', filter='*.svg')
+    
+    def getRet(self):
+        if self.exec_():
+            ret = dict()
+            if not self.text_name.text():
+                error('Name required')
+                return False
+            if not re.match(r'[a-z_]\w*$', self.text_name.text(), re.I):
+                error('No valid variable name')
+                return False
+            if not self.filename[0]:
+                error('No icon selected')
+                return False
+            ret['name'] = self.text_name.text()
+            ret['icon'] = QtCore.QFileInfo(self.filename[0]).baseName()
+            ret['input'] = []
+            ret['output'] = []
+            
+            for inp in self.inputInstances:
+                name = inp[0].text()
+                x = int(inp[1].text())
+                y = int(inp[2].text())
+                ret['input'].append((name,x,y))
+                
+            for outp in self.outputInstances:
+                name = outp[0].text()
+                x = int(outp[1].text())
+                y = int(outp[2].text())
+                ret['output'].append((name,x,y))
+                
+                
+            newProperties = dict()
+            for key in self.values.keys():
+                newProperties[key] = eval(self.values[key].text())
+            ret['properties'] = newProperties     
+            
+            parameters = dict()
+            for key in self.valuesPar.keys():
+                parameters[key] = eval(self.valuesPar[key].text())
+            ret['parameters'] = parameters     
+                
+            return ret         
+        else:
+            return False
+            
+            
 class convertSymDialog(QtWidgets.QDialog):
     def __init__(self, title='Convert Symbol', size=(400, 300), parent=None): 
         super(convertSymDialog, self).__init__(parent)
@@ -337,24 +704,51 @@ class convertSymDialog(QtWidgets.QDialog):
         self.text_icon.setLayout(self.icon_layout)
         self.layout.addWidget(self.text_icon)        
         
-        self.layout.addWidget(QtWidgets.QLabel('Parameters'))
-        self.text_parameters = QtWidgets.QWidget()
-        self.parameter_layout = QtWidgets.QHBoxLayout()
-        self.parameter_inp = QtWidgets.QCheckBox('input')
-        self.parameter_outp = QtWidgets.QCheckBox('output')
-        self.parameter_layout.addWidget(self.parameter_inp)
-        self.parameter_layout.addWidget(self.parameter_outp)
-        self.text_parameters.setLayout(self.parameter_layout)
-        self.layout.addWidget(self.text_parameters)
+#        self.layout.addWidget(QtWidgets.QLabel('Parameters'))
+#        self.text_parameters = QtWidgets.QWidget()
+#        self.parameter_layout = QtWidgets.QHBoxLayout()
+#        self.parameter_inp = QtWidgets.QCheckBox('input')
+#        self.parameter_outp = QtWidgets.QCheckBox('output')
+#        self.parameter_layout.addWidget(self.parameter_inp)
+#        self.parameter_layout.addWidget(self.parameter_outp)
+#        self.text_parameters.setLayout(self.parameter_layout)
+#        self.layout.addWidget(self.text_parameters)
+        
+        
+#        
+#        myFont=QtGui.QFont()
+#        myFont.setBold(True)
+#        self.label.setFont(myFont)        
         
         self.layout.addWidget(QtWidgets.QLabel('Properties'))
-        self.text_properties = QtWidgets.QTextEdit(parent)
-        font = QtGui.QFont()
-        font.setFamily('Lucida')
-        font.setFixedPitch(True)
-        font.setPointSize(12)
-        self.text_properties.setFont(font)
+        self.text_properties = QtWidgets.QWidget()
+        
+        self.grid = QtWidgets.QGridLayout()
+        self.values = dict()
+        self.n = 0
+        
+        self.key_field = QtWidgets.QLineEdit('key')
+        self.addPropertie = QtWidgets.QPushButton('Add propertie')
+        self.addPropertie.clicked.connect(self.addPropertieAction)  
+        self.grid.addWidget(self.key_field,99,0)
+        self.grid.addWidget(self.addPropertie,99,1)
+        
+        
+        
+        self.text_properties.setLayout(self.grid)
         self.layout.addWidget(self.text_properties)
+
+
+          
+        
+#        self.layout.addWidget(QtWidgets.QLabel('Properties'))
+#        self.text_properties = QtWidgets.QTextEdit(parent)
+#        font = QtGui.QFont()
+#        font.setFamily('Lucida')
+#        font.setFixedPitch(True)
+#        font.setPointSize(12)
+#        self.text_properties.setFont(font)
+#        self.layout.addWidget(self.text_properties)
         
         # Cancel and OK buttons
         buttons = QtWidgets.QDialogButtonBox.Ok|QtWidgets.QDialogButtonBox.Cancel
@@ -365,22 +759,51 @@ class convertSymDialog(QtWidgets.QDialog):
 
         # set window title and window size
         self.setWindowTitle(title)
-        self.resize(size[0], size[1])   
+        self.resize(size[0], size[1]) 
+        self.filename = (0,0)  
     
     def selectIcon(self):
         self.filename = QtWidgets.QFileDialog.getOpenFileName(self, 'Open',respath + '/blocks/', filter='*.svg')
     
+    
+    
+    def addPropertieAction(self):
+        key = self.key_field.text()
+        Lab = QtWidgets.QLabel(key)
+        Val = QtWidgets.QLineEdit('0')
+        self.values[key] = Val
+        self.grid.addWidget(Lab,self.n,0)
+        self.grid.addWidget(Val,self.n,1)
+        self.n += 1
+
     def getRet(self):
         if self.exec_():
             ret = dict()
+            if not self.text_name.text():
+                error('Name required')
+                return False
+            if not re.match(r'[a-z_]\w*$', self.text_name.text(), re.I):
+                error('No valid variable name')
+                return False
+            if not self.filename[0]:
+                error('No icon selected')
+                return False            
+            
             ret['name'] = self.text_name.text()
-            parameters = []
-            if self.parameter_inp.isChecked():
-                parameters.append('input') 
-            if self.parameter_outp.isChecked():
-                parameters.append('output') 
-            ret['parameters'] = parameters
-            ret['properties'] = self.text_properties.toPlainText() if self.text_properties.toPlainText() else '[]'
+#            parameters = []
+#            if self.parameter_inp.isChecked():
+#                parameters.append('input') 
+#            if self.parameter_outp.isChecked():
+#                parameters.append('output') 
+#            ret['parameters'] = parameters
+            
+            newProperties = dict()
+            for key in self.values.keys():
+                newProperties[key] = eval(self.values[key].text())
+            ret['properties'] = newProperties            
+            
+            
+#            ret['properties'] = self.text_properties.toPlainText() if self.text_properties.toPlainText() else 'dict(name="' + ret['name'] + '")'
             ret['icon'] = QtCore.QFileInfo(self.filename[0]).baseName()
     
             return ret         

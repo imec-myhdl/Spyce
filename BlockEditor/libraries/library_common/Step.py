@@ -4,7 +4,7 @@ libname = 'common' #zelfde als map naam
 inp = 0
 outp = 1
 
-parameters = None #parametriseerbare cell
+parameters = dict() #parametriseerbare cell
 properties = {'Step Time': ' 1', 'name': 'stepBlk', 'Step Value': ' 1'} #voor netlisten
 #view variables:
 iconSource = 'STEP'

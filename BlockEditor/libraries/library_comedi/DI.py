@@ -4,7 +4,7 @@ libname = 'comedi' #zelfde als map naam
 inp = 0
 outp = 1
 
-parameters = None #parametriseerbare cell
+parameters = dict() #parametriseerbare cell
 properties = {'Device': " '/dev/comedi0'", 'name': 'comediDIBlk', 'Channel': ' 0'} #voor netlisten
 #view variables:
 iconSource = 'DI'

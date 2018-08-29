@@ -13,7 +13,7 @@ import sys, os, ast
 #import sip
 from lxml import etree
 
-
+import libraries
 from supsisim.port import Port, InPort, OutPort
 from supsisim.const import GRID, PW, LW, BWmin, BHmin, PD, respath, qtpinlabels
 
@@ -113,16 +113,12 @@ class Block(QtWidgets.QGraphicsPathItem):
         
     def __repr__(self):
         return str(self.toPython())
-     
+    
+    
     def toPython(self):
-        data = dict(type='block',name=self.name,blockname=self.blockname,libname=self.libname,pos=dict(x=self.x(),y=self.y()))
-        parameters = dict()
-        if self.parameters and 'inp' in self.parameters:
-            parameters['inp'] = self.inp
-        if self.parameters and 'outp' in self.parameters:
-            parameters['outp'] = self.outp
-        if parameters:
-            data['parameters'] = parameters
+        data = dict(properties=self.properties,type='block',name=self.label.toPlainText(),blockname=self.blockname,libname=self.libname,pos=dict(x=self.x(),y=self.y()))
+        if self.parameters:
+            data['parameters'] = self.parameters
         return data
     
 #    def toPython(self, lib=False):
@@ -156,15 +152,17 @@ class Block(QtWidgets.QGraphicsPathItem):
         else:
             return False
         
-    def setup(self):
+    def setup(self,scene=True):
         self.ports_in = []
-        self.name = self.scene.setUniqueName(self)
+        self.name = self.scene.setUniqueName(self) if scene else self.blockname
         if isinstance(self.inp, int):
             Ni = self.inp  if isinstance(self.inp, int) else len(self.inp)
             No = self.outp if isinstance(self.outp, int) else len(self.outp)
             Nports = max(Ni, No)
             self.w = BWmin
             self.h = BHmin+PD*(max(Nports-1,0))
+            self.leftOffset = -self.w/2
+            self.topOffset = -self.h/2
         else:
             # find bounding box
             x0, y0, x1, y1 = None, None, None, None
@@ -173,17 +171,36 @@ class Block(QtWidgets.QGraphicsPathItem):
                 x1 = x if x1 == None else max(x1, x)
                 y0 = y if y0 == None else min(y0, y)
                 y1 = y if y1 == None else max(y1, y)
-            
-            self.w = max(BWmin, x1-x0 - PW) if x1 and x0 else BWmin# + PD
-            self.h = max(BHmin, y1 - y0 + PD) if y1 and y0 else BHmin # block height
+                #print(y0,y1,y,self.name)
+            if x0 != None and x1 != None:
+                self.leftOffset = min(x0+PW/2,-BWmin/2)
+                self.w = - self.leftOffset + max(x1 -PW/2,BWmin/2)
+            else:
+                self.w = BWmin
+                self.leftOffset = -self.w/2
+                
+                
+            if y0 != None and y1 != None:
+                self.topOffset = min(y0-PD/2,-BHmin/2)
+                self.h = - self.topOffset + max(y1 + PD/2,BHmin/2)
+            else:
+                self.h = BHmin
+                self.topOffset = - self.h/2
+                
+                
+#            self.w = max(BWmin - PW, x1-x0 - PW) if x1 != None and x0 != None else BWmin# + PD
+#            self.leftOffset = min(x0,-BWmin/2) + self.w/2 + PW/2 if x0 != None else 0
+#            #print(BHmin,y1 - y0 + PD,self.name)
+#            self.h = max(BHmin + PD, y1 - y0 + PD) if y1 != None and y0 != None else BHmin # block height
+#            self.topOffset = min(y0,-BHmin/2) + self.h/2 - PD/2 if y0 != None else 0
 
 
         p = QtGui.QPainterPath()
         
-        p.addRect(-self.w/2, -self.h/2, self.w, self.h)
+        p.addRect(self.leftOffset, self.topOffset, self.w, self.h)
 
         self.setPath(p)
-
+ 
         if isinstance(self.inp, int):
             for n in range(0,self.inp): # legacy: self.inp is integer number
                 self.add_inPort(n)
@@ -199,7 +216,7 @@ class Block(QtWidgets.QGraphicsPathItem):
                 self.add_outPort(n)
                 
         self.label = textItem(self.name, anchor=8, parent=self)
-        self.label.setPos(0, self.h/2)
+        self.label.setPos(0, self.topOffset + self.h)
 
 #        self.label = QGraphicsTextItem(self)
 #        self.label.setPlainText(self.name)
@@ -257,6 +274,8 @@ class Block(QtWidgets.QGraphicsPathItem):
             name = 'i_pin{}'.format(n)
         else: # tuple (x, y)
             name, xpos, ypos = n 
+            if xpos > -BWmin/2 - PW/2:
+                xpos = -BWmin/2 - PW/2
         port = InPort(self, self.scene, name=name)
         if not isinstance(n, int) and qtpinlabels:
             port.pinlabel = textItem(name, anchor=4, parent=port)
@@ -272,6 +291,8 @@ class Block(QtWidgets.QGraphicsPathItem):
             name = 'o_pin{}'.format(n)
         else: # tuple (x, y)
             name, xpos, ypos = n
+            if xpos < BWmin/2 + PW/2:
+                xpos = BWmin/2 + PW/2
         port = OutPort(self, self.scene, name=name)
         if not isinstance(n, int) and qtpinlabels:
             port.pinlabel = textItem(name, anchor=6, parent=port)
@@ -342,8 +363,8 @@ class Block(QtWidgets.QGraphicsPathItem):
          return QtCore.QPointF(x,y)
 
     def clone(self, pt):
-        attributes = {'name':self.name,'input':self.inp,'output':self.outp,'icon':self.icon,'flip':self.flip,'libname':self.libname}
-        b = Block(attributes,self.parameters,self.properties,self.blockname,self.libname,None, self.scene)
+        b = libraries.getBlock(self.blockname,self.libname,scene=self.scene,param=self.parameters,name=self.name)
+        b.properties = self.properties
         b.setPos(self.scenePos().__add__(pt))
        
     def save(self, root):
@@ -436,7 +457,7 @@ class textItem(QtWidgets.QGraphicsTextItem):
     7: top-left
     8: top-center
     9: top-right'''
-    def __init__(self, text, anchor=1, parent=None):
+    def __init__(self, text, anchor=1, parent=None,comment=False):
         super(textItem, self).__init__(text, parent)
         self.anchor = anchor
         
@@ -457,8 +478,8 @@ class textItem(QtWidgets.QGraphicsTextItem):
         self.setFlag(self.ItemIsSelectable)
 #        self.setFlag(self.ItemIgnoresTransformations)
         self.setTextInteractionFlags(QtCore.Qt.TextEditorInteraction)
+        self.comment = comment
 
-        
     def setFlipped(self):
         '''mirror in place (use when parent is flipped'''
         self.setTransform(QtGui.QTransform().translate(self.dx, self.dy).scale(-1,1).translate(-self.boundingRect().width(),0))

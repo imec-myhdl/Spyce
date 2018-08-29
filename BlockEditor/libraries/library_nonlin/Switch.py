@@ -4,7 +4,7 @@ libname = 'nonlin' #zelfde als map naam
 inp = 3
 outp = 1
 
-parameters = None #parametriseerbare cell
+parameters = dict() #parametriseerbare cell
 properties = {'Condition [0 < or 1 >] ': ' 0', 'Compare Value': ' 0.5', 'Persistence [0 no or 1 yes]': ' 0', 'name': 'switchBlk'} #voor netlisten
 #view variables:
 iconSource = 'SWITCH'
