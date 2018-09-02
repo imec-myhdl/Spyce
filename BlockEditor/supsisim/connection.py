@@ -68,7 +68,7 @@ class Connection(QtWidgets.QGraphicsPathItem):
         self.pos1 = self.port1.scenePos()
         self.pos2 = self.port2.scenePos()
 
-    def update_ports_from_pos(self):
+    def update_ports_from_pos(self,undo=False):
         item = self.scene.find_itemAt(self.pos1)
 #        print('1 ' + str(item))
         if isinstance(item, OutPort):
@@ -76,7 +76,8 @@ class Connection(QtWidgets.QGraphicsPathItem):
         elif isinstance(item, Node):
             self.port1 = item.port_out
         else:
-            error('Block changed, no pin found')
+            if not undo:
+                error("Connection couldn't find pin")
             self.remove()
             return
         item = self.scene.find_itemAt(self.pos2)
@@ -86,10 +87,11 @@ class Connection(QtWidgets.QGraphicsPathItem):
         elif isinstance(item, Node):
             self.port2 = item.port_in
         else:
-            error('Block changed, no pin found')
+            if not undo:
+                error("Connection couldn't find pin")
             self.remove()
             return
-        
+    
         self.port1.connections.append(self)
         self.port2.connections.append(self)
         self.update_path()

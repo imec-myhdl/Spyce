@@ -1,5 +1,6 @@
 import subprocess
 from supsisim.const import PD,PW,BWmin,copyrightText,copyrightPolicy,projectname
+import libraries
 
 filenameTemplate = 'libraries.library_{}.{}'
 
@@ -54,7 +55,7 @@ if __name__ == "__main__":
 """
 
 
-def netlist(blockname,libname,properties):
+def netlistMyHdl(blockname,libname,properties):
     
     
     
@@ -104,15 +105,17 @@ def netlist(blockname,libname,properties):
     impL = []
     
     for b in blocks:
-        string = "from " + "libraries.library_" + b['libname'] + ' import ' + b['blockname'] + "_myhdl as " + b['blockname']
+        string = "from " + "libraries import library_" + b['libname']
         if not string in impL:
             impL.append(string)
     
-    imp = "\n".join(impL)
+    imp = "\n".join(list(set(impL)))
     
     
     signals = getSignals(connections,nodes)
-    print(signals)    
+    
+    if signals == False:
+        return False
     
     signalL = []
     for i in range(len(signals)):
@@ -136,29 +139,45 @@ def netlist(blockname,libname,properties):
     signalsOutput = "\n    ".join(signalL)
     
     instanceL = []
-    
+    signals
     for b in blocks:
         bname = b['blockname']
-        if b['name'] == bname:
-            instanceName = bname + "0"
-        else:
-            instanceName = b['name']
+        libname = b['libname']
+        instanceName = b['name']
         
         signalL = []
+        propertiesL = []
+        parameterList = []
         
-        for pin in getPins(b['libname'],b['blockname']):
+        #print(getPins(b['libname'],b['blockname']),b['blockname'])
+        if 'parameters' in b:
+            pins = getPins(b['libname'],b['blockname'],b['parameters'])
+            for parameter in b['parameters'].keys():
+                parameterList.append('{} = "{}"'.format(parameter,b['parameters'][parameter]))
+        else:
+            pins = getPins(b['libname'],b['blockname'])
+        for pin in pins:
             pos = dict(y=pin[2]+b['pos']['y'],x=pin[1]+b['pos']['x'])
             for sindex,signal in enumerate(signals):
                 if pos in signal['posList']:
                     if 'label' in signal:
-                        signalL.append(signal['label'])
+                        s = signal['label']
+                        break
                     else:
-                        signalL.append('signal'+str(sindex + 1))
+                        s = 'signal'+str(sindex + 1)
+                        break
+            else:
+                s = 'None'
+            signalL.append(pin[0] + '=' + s)
+            
+        for propertie in b['properties'].keys():
+            if propertie != 'name':
+                propertiesL.append('{} = "{}"'.format(propertie,b['properties'][propertie]))
         
-        string = "{instanceName} = {blockname}({signals})"
+        string = "{instanceName} = library_{libname}.{blockname}_myhdl({signals})"
         
-        signalsOut = ",".join(signalL)
-        instanceL.append(string.format(instanceName=instanceName,blockname=bname,signals=signalsOut))
+        signalsOut = ",".join(signalL + propertiesL + parameterList)
+        instanceL.append(string.format(instanceName=instanceName,blockname=bname,libname=libname,signals=signalsOut))
         
     
     instances = "\n    ".join(instanceL)
@@ -177,33 +196,48 @@ def netlist(blockname,libname,properties):
                            copyrightText=copyrightText,
                            copyrightPolicy=copyrightPolicy)
 
-def getPins(libname,blockname):
-    fname = filenameTemplate.format(libname,blockname)
-    exec('import ' + fname)
-    reload(eval(fname))
+def getPins(libname,blockname,param=dict()):
+    block = libraries.getBlock(blockname, libname, None, None, param)
+    block.setup(False)
     pins = []
-    inp = eval(fname + '.inp')
-    outp = eval(fname + '.outp')
-    
-    if isinstance(inp,int):
-        for n in range(inp):
-            ypos = -PD*(inp-1)/2 + n*PD
-            xpos = -(BWmin+PW)/2
-            name = 'dummy'
-            pins.append((name,xpos,ypos))
-    else:
-        pins += inp
-        
-    if isinstance(outp,int):  
-        for n in range(outp):
-            ypos = -PD*(outp-1)/2 + n*PD
-            xpos = (BWmin+PW)/2
-            name = 'dummy'
-            pins.append((name,xpos,ypos))
-    else:
-        pins += outp
-    
+    for inp in block.pins()[0]:
+        name = inp[3]
+        xpos = inp[1]
+        ypos = inp[2]
+        pins.append((name,xpos,ypos))
+    for output in block.pins()[1]:
+        name = output[3]
+        xpos = output[1]
+        ypos = output[2]
+        pins.append((name,xpos,ypos))
+    print(block.pins(),pins)
     return pins
+#    fname = filenameTemplate.format(libname,blockname)
+#    exec('import ' + fname)
+#    reload(eval(fname))
+#    pins = []
+#    inp = eval(fname + '.inp')
+#    outp = eval(fname + '.outp')
+#    
+#    if isinstance(inp,int):
+#        for n in range(inp):
+#            ypos = -PD*(inp-1)/2 + n*PD
+#            xpos = -(BWmin+PW)/2
+#            name = None
+#            pins.append((name,xpos,ypos))
+#    else:
+#        pins += inp
+#        
+#    if isinstance(outp,int):  
+#        for n in range(outp):
+#            ypos = -PD*(outp-1)/2 + n*PD
+#            xpos = (BWmin+PW)/2
+#            name = None
+#            pins.append((name,xpos,ypos))
+#    else:
+#        pins += outp
+#    
+#    return pins
 
 def getSignals(connections,nodes):
     #signals = [signal1:[pos1,pos2],signal2:[pos1,pos2]]
@@ -234,13 +268,11 @@ def getSignals(connections,nodes):
         for pindex,pos in enumerate(signals[counter]):
             for sindex2,s2 in enumerate(signals):
                 for pos2 in s2:
-                    if pos['pos'] == pos2['pos'] and counter != sindex2:
+                    if (pos['pos'] == pos2['pos'] or getNodeLabel(pos['pos'],nodes) and getNodeLabel(pos['pos'],nodes) == getNodeLabel(pos2['pos'],nodes)) and counter != sindex2:
                         signals.remove(s2)
                         s2.remove(pos2)
 #                        if sindex2 < counter:
 #                            counter += 1
-                        print(len(signals),counter)
-                        print(len(signals[counter]),pindex)
                         signals[counter][pindex]['stay'] = False
                         signals[counter] += s2
                         counter = 0
@@ -267,7 +299,9 @@ def getSignals(connections,nodes):
             signal = dict(posList=posList)
             label = getLabel(s,connections,nodes,'label')
             signaltype = getLabel(s,connections,nodes,'signalType')
-            if label:
+            if label == False:
+                return False
+            elif label:
                 signal['label'] = label
             if signaltype:
                 signal['type'] = signaltype
@@ -278,17 +312,31 @@ def getSignals(connections,nodes):
         
     return outputSignals
     
-
+def getNodeLabel(pos,nodes):
+    for n in nodes:
+        if n['pos'] == pos and 'label' in n:
+            return n['label']
+    return False            
+    
 def getLabel(signal,connections,nodes,key):
+    labels = []
     for s in signal:
         for node in nodes:
             if s['pos'] == node['pos']:
                 if key in node:
-                    return node[key].replace(' ','_')
+                    labels.append(node[key].replace(' ','_'))
         for conn in connections:
             if s['pos'] == conn['pos1'] or s['pos'] == conn['pos2']:
                 if key in conn:
-                    return conn[key].replace(' ','_')
+                    labels.append(conn[key].replace(' ','_'))
+    if len(labels) == 1:
+        return labels[0]
+    elif len(labels) == 0:
+        return None
+    else:
+        return False
+    
+        
     
 if __name__ == "__main__":
     print(netlist('testSymbol'))

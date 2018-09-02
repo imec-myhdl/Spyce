@@ -38,8 +38,10 @@ class Editor(QtCore.QObject):
         flpBlkAction = self.menuIOBlk.addAction('Flip Block')
         nameBlkAction = self.menuIOBlk.addAction('Change Name')
         cloneBlkAction = self.menuIOBlk.addAction('Clone Block')
-        deleteBlkAction = self.menuIOBlk.addAction('Delete Block')
-        netListAction = self.menuIOBlk.addAction('Netlist')
+        deleteBlkAction = self.menuIOBlk.addAction('Delete Block')        
+        self.netlistMenu = QtWidgets.QMenu('Netlist')
+        self.menuIOBlk.addMenu(self.netlistMenu)
+#        netListAction = self.menuIOBlk.addAction('Netlist')
         
         #parBlkAction.triggered.connect(self.parBlock)
         flpBlkAction.triggered.connect(self.flpBlock)
@@ -48,7 +50,7 @@ class Editor(QtCore.QObject):
         propertiesBlkAction.triggered.connect(self.propertiesBlock)
         cloneBlkAction.triggered.connect(self.cloneBlock)
         deleteBlkAction.triggered.connect(self.deleteBlock)
-        netListAction.triggered.connect(self.netList)
+#        netListAction.triggered.connect(self.netList)
 
         self.subMenuNode = QtWidgets.QMenu()
         nodeDelAction = self.subMenuNode.addAction('Delete node')
@@ -70,32 +72,46 @@ class Editor(QtCore.QObject):
     
 
     
-    def netList(self):
-        item = self.scene.item
-        if item.hasDiagram():
-            views = libraries.getViews(item.blockname,item.libname)
-            fname = 'libraries/library_{}/{}_myhdl.py'.format(item.libname,item.blockname)
-            overwrite = True            
-            if 'myhdl' in views:
-                dialog = overWriteNetlist()
-                ret = dialog.exec_()
-                if ret == 0:
-                    fname = views['myhdl']
+    def netList(self,type):
+        try:
+            item = self.scene.item
+            fname = 'libraries.library_{}.{}'.format(item.libname,item.blockname)
+            exec('import ' + fname)
+            func = eval(fname + '.netlist' + type)
+            func(item)
+            
+        except:
+            if type == 'myhdl':
+                item = self.scene.item
+            
+                if item.hasDiagram():
+                    views = libraries.getViews(item.blockname,item.libname)
+                    fname = 'libraries/library_{}/{}_myhdl.py'.format(item.libname,item.blockname)
+                    overwrite = True            
+                    if 'myhdl' in views:
+                        dialog = overWriteNetlist()
+                        ret = dialog.exec_()
+                        if ret == 0:
+                            fname = views['myhdl']
+                        else:
+                            overwrite = False
+                    if overwrite:
+                        import supsisim.netlist
+                        content = supsisim.netlist.netlistMyHdl(item.blockname,item.libname,item.properties)
+                        if content == False:
+                            error('More than 1 label on signal')
+                            return
+                        f = open(fname,'w+')
+                        f.write(content)
+                        f.close()
+                        if not 'myhdl' in views:
+                            self.addView(item.blockname,item.libname,'myhdl')
+                        self.parent().library.openView('myhdl',item)
                 else:
-                    overwrite = False
-            if overwrite:
-                import supsisim.netlist
-                content = supsisim.netlist.netlist(item.blockname,item.libname,item.properties)
-                print(fname)
-                f = open(fname,'w+')
-                f.write(content)
-                f.close()
-                if not 'myhdl' in views:
-                    self.addView(item.blockname,item.libname,'myhdl')
-                self.parent().library.openView('myhdl',item)
-        else:
-            error("file doesn't have a diagram")
-        
+                    error("file doesn't have a diagram")
+            else:
+                error('netlist not found')
+                
     def addView(self,blockname,libname,type):
         import os
         path = os.getcwd()
@@ -106,8 +122,13 @@ class Editor(QtCore.QObject):
         
         for index,line in enumerate(lines):
             if line.startswith('iconSource = '):
-                source = "{type}Source = 'libraries/library_{libname}/{blockname}_{type}.py'\n"
-                lines.insert(index+1,source.format(type=type,libname=libname,blockname=blockname))
+                source = "{type}Source = 'libraries/library_{libname}/{blockname}_{extension}'\n"
+                from supsisim.const import viewEditors
+                for viewEditor in viewEditors:
+                    if type == viewEditor['type']:
+                        extension = viewEditor['extension']
+                source = source.format(type=type,libname=libname,blockname=blockname,extension = extension)
+                lines.insert(index+1,source)
             if line.startswith('views = {'):
                 lines[index] = line.replace('views = {',"views = {{'{type}':{type}Source,".format(type=type))
         
@@ -419,12 +440,40 @@ class Editor(QtCore.QObject):
                     self.conn.pos1 = item.scenePos()
                     self.conn.pos2 = item.scenePos()
 
+    def addNetlistMenu(self):
+        blockname = self.scene.item.blockname
+        libname = self.scene.item.libname
+        fname = 'libraries.library_{}.{}'.format(libname,blockname)
+        exec('import ' + fname) in globals(),locals()
+        reload(eval(fname))
+        attributes = dir(eval(fname))
+        netlistFunctions = []
+        for attribute in attributes:
+            if attribute.startswith('netlist'):
+                netlistFunctions.append(attribute.replace('netlist',''))
+        if not 'myhdl' in netlistFunctions:
+            netlistFunctions.append('myhdl')
+        for type in netlistFunctions:
+            def getFunction(type):
+                def netlistAction():
+                    self.netList(type)
+                return netlistAction
+            netlistAction = getFunction(type)
+            action = self.netlistMenu.addAction(type+" netlist")
+            action.triggered.connect(netlistAction)
+
     def mouseRightButtonPressed(self, obj, event):
         if self.conn == None:
             item = self.itemAt(event.scenePos())
             if isinstance(item, Block):
                 self.scene.item = item
                 self.scene.evpos = event.scenePos()
+                                
+                
+                self.netlistMenu.clear()
+                self.addNetlistMenu()
+                
+                
                 self.menuIOBlk.exec_(event.screenPos())
             elif isinstance(item, Node):
                 self.scene.item = item

@@ -23,7 +23,7 @@ from supsisim.const import GRID, PW, LW, BWmin, BHmin, PD, respath, qtpinlabels
 
 class Block(QtWidgets.QGraphicsPathItem):
     """A block holds ports that can be connected to."""
-    def __init__(self,attributes,parameters,properties,blockname,libname,parent=None,scene=None):
+    def __init__(self,attributes,parameters,properties,blockname,libname,parent=None,scene=None,):
         self.scene = scene
         if QtCore.qVersion().startswith('5'):
             super(Block, self).__init__(parent)
@@ -41,6 +41,7 @@ class Block(QtWidgets.QGraphicsPathItem):
         self.flip = attributes.pop('flip') if 'flip' in attributes else False
         self.type = attributes.pop('type') if 'type' in attributes else 'Block'
         self.libname = attributes.pop('libname')
+        self.height = attributes.pop('height') if 'height' in attributes else 0
         
         self.parameters = parameters
         self.properties = properties
@@ -116,7 +117,12 @@ class Block(QtWidgets.QGraphicsPathItem):
     
     
     def toPython(self):
-        data = dict(properties=self.properties,type='block',name=self.label.toPlainText(),blockname=self.blockname,libname=self.libname,pos=dict(x=self.x(),y=self.y()))
+        data = dict(labelPos=dict(x=self.label.x(),y=self.label.y()),
+                    properties=self.properties,type='block',
+                    name=self.label.toPlainText(),
+                    blockname=self.blockname,
+                    libname=self.libname,
+                    pos=dict(x=self.x(),y=self.y()))
         if self.parameters:
             data['parameters'] = self.parameters
         return data
@@ -166,11 +172,11 @@ class Block(QtWidgets.QGraphicsPathItem):
         else:
             # find bounding box
             x0, y0, x1, y1 = None, None, None, None
-            for pname, x, y in self.inp + self.outp:
-                x0 = x if x0 == None else min(x0, x)
-                x1 = x if x1 == None else max(x1, x)
-                y0 = y if y0 == None else min(y0, y)
-                y1 = y if y1 == None else max(y1, y)
+            for item in self.inp + self.outp:
+                x0 = item[1] if x0 == None else min(x0, item[1])
+                x1 = item[1] if x1 == None else max(x1, item[1])
+                y0 = item[2] if y0 == None else min(y0, item[2])
+                y1 = item[2] if y1 == None else max(y1, item[2])
                 #print(y0,y1,y,self.name)
             if x0 != None and x1 != None:
                 self.leftOffset = min(x0+PW/2,-BWmin/2)
@@ -194,7 +200,7 @@ class Block(QtWidgets.QGraphicsPathItem):
 #            self.h = max(BHmin + PD, y1 - y0 + PD) if y1 != None and y0 != None else BHmin # block height
 #            self.topOffset = min(y0,-BHmin/2) + self.h/2 - PD/2 if y0 != None else 0
 
-
+        self.h = max(self.h,self.height)
         p = QtGui.QPainterPath()
         
         p.addRect(self.leftOffset, self.topOffset, self.w, self.h)
@@ -273,11 +279,13 @@ class Block(QtWidgets.QGraphicsPathItem):
             xpos = -(self.w+PW)/2
             name = 'i_pin{}'.format(n)
         else: # tuple (x, y)
-            name, xpos, ypos = n 
+            name = n[0]
+            xpos = n[1]
+            ypos = n[2]
             if xpos > -BWmin/2 - PW/2:
                 xpos = -BWmin/2 - PW/2
         port = InPort(self, self.scene, name=name)
-        if not isinstance(n, int) and qtpinlabels:
+        if not isinstance(n, int) and qtpinlabels and len(n) == 3:
             port.pinlabel = textItem(name, anchor=4, parent=port)
             port.pinlabel.setPos(10,0)
         port.block = self
@@ -290,11 +298,13 @@ class Block(QtWidgets.QGraphicsPathItem):
             ypos = -PD*(self.outp-1)/2 + n*PD
             name = 'o_pin{}'.format(n)
         else: # tuple (x, y)
-            name, xpos, ypos = n
+            name = n[0]
+            xpos = n[1]
+            ypos = n[2]
             if xpos < BWmin/2 + PW/2:
                 xpos = BWmin/2 + PW/2
         port = OutPort(self, self.scene, name=name)
-        if not isinstance(n, int) and qtpinlabels:
+        if not isinstance(n, int) and qtpinlabels and len(n) == 3:
             port.pinlabel = textItem(name, anchor=6, parent=port)
             port.pinlabel.setPos(-10,0)
         port.block = self

@@ -41,10 +41,10 @@ copyrightPolicy = 'placeholder'
 
 # view editors:
 
-viewEditors = dict(verilog='gedit',
-                   vhdl='gedit',
-                   text='gedit',
-                   doc='libreoffice --writer',
-                   systemverilog='gedit',
-                   myhdl='gedit',
-                   python='spyder3')
+viewEditors = [dict(type='verilog', editor='gedit', extension='verilog.v'),
+                   dict(type='vhdl', editor='gedit', extension='vhdl.v'),
+                   dict(type='doc', editor='libreoffice --writer', extension='doc.odt'),
+                   dict(type='python', editor='spyder3', extension='python.py'),
+                   dict(type='text', editor='gedit', extension='text.txt'),
+                   dict(type='systemverilog', editor='gedit', extension='systemverilog.sv'),
+                   dict(type='myhdl', editor='gedit', extension='myhdl.py')]

@@ -10,6 +10,262 @@ import sys, os, re
 #    sip.setapi('QString', 1)
 #
 from supsisim.const import path,respath
+import libraries
+
+class editPinsDialog(QtWidgets.QDialog):
+    def __init__(self,inps,outps, title='Edit pins', size=(400, 300), parent=None): 
+        super(editPinsDialog, self).__init__(parent)
+        self.layout = QtWidgets.QVBoxLayout()
+        self.setLayout(self.layout)
+
+           
+        
+        
+        
+        self.layout.addWidget(QtWidgets.QLabel('Inputs'))
+        self.text_input = QtWidgets.QWidget()
+        self.input_layout = QtWidgets.QVBoxLayout()
+        self.text_input.setLayout(self.input_layout)
+        
+
+        inputLabels = QtWidgets.QWidget()
+        inputLabels_layout = QtWidgets.QHBoxLayout()        
+        inputLabels_layout.addWidget(QtWidgets.QLabel('Name'))
+        inputLabels_layout.addWidget(QtWidgets.QLabel('   X'))
+        inputLabels_layout.addWidget(QtWidgets.QLabel('       Y'))
+        inputLabels_layout.addWidget(QtWidgets.QLabel('     Hide label'))
+        inputLabels_layout.addWidget(QtWidgets.QLabel())
+        inputLabels.setLayout(inputLabels_layout)
+        self.input_layout.addWidget(inputLabels)        
+        
+        self.layout.addWidget(self.text_input)
+        
+        
+        self.addInput = QtWidgets.QPushButton('Add input')
+        self.addInput.clicked.connect(self.addInputFunc)
+        self.layout.addWidget(self.addInput)        
+        
+        self.layout.addWidget(QtWidgets.QLabel('Outputs'))
+        self.text_output = QtWidgets.QWidget()
+        self.output_layout = QtWidgets.QVBoxLayout()
+        self.text_output.setLayout(self.output_layout)
+        
+        ouputLabels = QtWidgets.QWidget()
+        ouputLabels_layout = QtWidgets.QHBoxLayout()        
+        ouputLabels_layout.addWidget(QtWidgets.QLabel('Name'))
+        ouputLabels_layout.addWidget(QtWidgets.QLabel('   X'))
+        ouputLabels_layout.addWidget(QtWidgets.QLabel('       Y'))
+        ouputLabels_layout.addWidget(QtWidgets.QLabel('     Hide label'))
+        ouputLabels_layout.addWidget(QtWidgets.QLabel())
+        ouputLabels.setLayout(ouputLabels_layout)
+        self.output_layout.addWidget(ouputLabels)           
+        
+        self.layout.addWidget(self.text_output)
+        
+        
+        self.addOutput = QtWidgets.QPushButton('Add output')
+        self.addOutput.clicked.connect(self.addOutputFunc)  
+        self.layout.addWidget(self.addOutput)          
+        
+        
+        
+        
+        
+        # Cancel and OK buttons
+        buttons = QtWidgets.QDialogButtonBox.Ok|QtWidgets.QDialogButtonBox.Cancel
+        self.bbox = QtWidgets.QDialogButtonBox(buttons)
+        self.bbox.accepted.connect(self.accept)
+        self.bbox.rejected.connect(self.reject)
+        self.layout.addWidget(self.bbox)
+        
+        # set window title and window size
+        self.setWindowTitle(title)
+        self.resize(size[0], size[1])   
+        
+        self.inputInstances = []
+        self.outputInstances = []
+        
+        self.inputCounter = 0
+        self.outputCounter = 0
+        
+        if isinstance(inps,int):
+            for _ in range(inps):
+                self.addInputFunc(hide=True)
+        else:
+            for inp in inps:
+                if len(inp) == 4:
+                    self.addInputFunc(inp[0],inp[1],inp[2],inp[3])
+                else:
+                    self.addInputFunc(inp[0],inp[1],inp[2])
+        if isinstance(outps,int):
+            for _ in range(outps):
+                self.addInputFunc(hide=True)
+        else:
+            for outp in outps:
+                if len(outp) == 4:
+                    self.addOutputFunc(outp[0],outp[1],outp[2],outp[3])
+                else:
+                    self.addOutputFunc(outp[0],outp[1],outp[2])
+                
+  
+        
+    def addInputFunc(self,name=None,x=None,y=None,hide=False):
+        if not name:
+            name = 'i_pin' + str(self.inputCounter)
+        if not x:
+            x = '-40'
+        if not y:
+            y = self.inputCounter*20
+        inputInstance = QtWidgets.QWidget()
+        inputInstance_layout = QtWidgets.QHBoxLayout()
+        
+        
+        text_name = QtWidgets.QLineEdit(name)
+        font = QtGui.QFont()
+        font.setFamily('Lucida')
+        font.setFixedPitch(True)
+        font.setPointSize(12)
+        text_name.setFont(font)
+        inputInstance_layout.addWidget(text_name)
+        
+        text_x = QtWidgets.QLineEdit(str(x))
+        font = QtGui.QFont()
+        font.setFamily('Lucida')
+        font.setFixedPitch(True)
+        font.setPointSize(12)
+        text_x.setFont(font)
+        inputInstance_layout.addWidget(text_x)
+        
+        text_y = QtWidgets.QLineEdit(str(y))
+        font = QtGui.QFont()
+        font.setFamily('Lucida')
+        font.setFixedPitch(True)
+        font.setPointSize(12)
+        text_y.setFont(font)
+        inputInstance_layout.addWidget(text_y)
+        
+        inputHide = QtWidgets.QCheckBox()
+        inputHide.setChecked(hide)
+        inputInstance_layout.addWidget(inputHide)
+        
+        
+        removeButton = QtWidgets.QPushButton('Remove')
+        
+        def getFunction(inputInstance,element):
+            def removeInp():
+                self.input_layout.removeWidget(inputInstance)
+                self.inputInstances.remove(element)
+                self.inputCounter -= 1
+            return removeInp
+        removeButton.clicked.connect(getFunction(inputInstance,(text_name,text_x,text_y,inputHide)))
+        inputInstance_layout.addWidget(removeButton)
+        
+        
+        
+        inputInstance.setLayout(inputInstance_layout)
+        self.input_layout.addWidget(inputInstance)
+        self.inputInstances.append((text_name,text_x,text_y,inputHide))
+        
+        
+        self.inputCounter += 1
+    
+    def addOutputFunc(self,name=None,x=None,y=None,hide=False):
+        if not name:
+            name = 'o_pin' + str(self.outputCounter)
+        if not x:
+            x = '40'
+        if not y:
+            y = self.outputCounter*20
+            
+        outputInstance = QtWidgets.QWidget()
+        outputInstance_layout = QtWidgets.QHBoxLayout()
+        
+        
+        text_name = QtWidgets.QLineEdit(name)
+        font = QtGui.QFont()
+        font.setFamily('Lucida')
+        font.setFixedPitch(True)
+        font.setPointSize(12)
+        text_name.setFont(font)
+        outputInstance_layout.addWidget(text_name)
+        
+        text_x = QtWidgets.QLineEdit(str(x))
+        font = QtGui.QFont()
+        font.setFamily('Lucida')
+        font.setFixedPitch(True)
+        font.setPointSize(12)
+        text_x.setFont(font)
+        outputInstance_layout.addWidget(text_x)
+        
+        text_y = QtWidgets.QLineEdit(str(y))
+        font = QtGui.QFont()
+        font.setFamily('Lucida')
+        font.setFixedPitch(True)
+        font.setPointSize(12)
+        text_y.setFont(font)
+        outputInstance_layout.addWidget(text_y)
+        
+                
+        
+        outputHide = QtWidgets.QCheckBox()
+        outputHide.setChecked(hide)
+        outputInstance_layout.addWidget(outputHide)
+        
+        
+        removeButton = QtWidgets.QPushButton('Remove')
+        
+        def getFunction(inputInstance,element):
+            def removeInp():
+                self.output_layout.removeWidget(outputInstance)
+                self.outputInstances.remove(element)
+                self.outputCounter -= 1
+            return removeInp
+        removeButton.clicked.connect(getFunction(outputInstance,(text_name,text_x,text_y,outputHide)))
+        outputInstance_layout.addWidget(removeButton)
+        
+        
+        outputInstance.setLayout(outputInstance_layout)
+        self.output_layout.addWidget(outputInstance)
+        self.outputInstances.append((text_name,text_x,text_y,outputHide))
+        
+        self.outputCounter += 1
+    
+    
+    def selectIcon(self):
+        self.filename = QtWidgets.QFileDialog.getOpenFileName(self, 'Open',respath + '/blocks/', filter='*.svg')
+    
+    def getRet(self):
+        if self.exec_():
+            inputList = []
+            outputList = []
+            
+            for inp in self.inputInstances:
+                name = inp[0].text()
+                x = int(inp[1].text())
+                y = int(inp[2].text())
+                if inp[3].isChecked():
+                    inputList.append((name,x,y,True))
+                else:
+                    inputList.append((name,x,y))
+                
+            for outp in self.outputInstances:
+                name = outp[0].text()
+                x = int(outp[1].text())
+                y = int(outp[2].text())
+                if outp[3].isChecked():
+                    outputList.append((name,x,y,True))
+                else:
+                    outputList.append((name,x,y))
+                
+                
+            return (inputList,outputList)         
+        else:
+            return False
+
+
+
+
+
 
 class propertiesDialog(QtWidgets.QDialog):
     def __init__(self, properties,addButton=True):
@@ -335,16 +591,16 @@ class viewConfigDialog(QtWidgets.QDialog):
         reload(supsisim.const)
         from supsisim.const import viewEditors        
         
-        views = dict(viewEditors)
+        views = list(viewEditors)
         # edit widget
-        for key in views.keys():
+        for viewEditor in viewEditors:
             view = QtWidgets.QWidget()
             viewLayout = QtWidgets.QHBoxLayout()
             view.setLayout(viewLayout)
             
-            viewLayout.addWidget(QtWidgets.QLabel(key + ":"))
+            viewLayout.addWidget(QtWidgets.QLabel(viewEditor['type'] + ":"))
     
-            text_name = QtWidgets.QLineEdit(views[key])
+            text_name = QtWidgets.QLineEdit(viewEditor['editor'])
             font = QtGui.QFont()
             font.setFamily('Lucida')
             font.setFixedPitch(True)
@@ -352,8 +608,16 @@ class viewConfigDialog(QtWidgets.QDialog):
             text_name.setFont(font)
             viewLayout.addWidget(text_name)
             
+            text_extension = QtWidgets.QLineEdit(viewEditor['extension'])
+            font = QtGui.QFont()
+            font.setFamily('Lucida')
+            font.setFixedPitch(True)
+            font.setPointSize(12)
+            text_extension.setFont(font)
+            viewLayout.addWidget(text_extension)
+            
             self.layout.addWidget(view)
-            self.viewWidgets.append(dict(key=key,widget=text_name))
+            self.viewWidgets.append(dict(type=viewEditor['type'],editor=text_name,extension=text_extension))
         
         
         # Cancel and OK buttons
@@ -373,10 +637,61 @@ class viewConfigDialog(QtWidgets.QDialog):
         if self.exec_():
             ret = []
             for i,value in enumerate(self.viewWidgets):
-                ret.append(dict(key=value['key'],text=value['widget'].text()))
+                ret.append(dict(type=value['type'],editor=value['editor'].text(),extension=value['extension'].text()))
             return ret         
         else:
             return False
+
+class addViewDialog(QtWidgets.QDialog):
+    def __init__(self, libname, blockname, title='Add view', size=(400, 300), parent=None): 
+        super(addViewDialog, self).__init__(parent)
+        
+        self.setWindowTitle(title)
+        self.resize(size[0], size[1]) 
+        
+        self.grid = QtWidgets.QGridLayout()
+
+        self.string = 'libraries/library_' + libname + '/' + blockname + '_{}'    
+    
+        self.textSource = QtWidgets.QLineEdit(self.string)
+        
+        self.selectView = QtWidgets.QComboBox()
+        self.selectView.currentIndexChanged.connect(self.selectViewChanged)
+        
+
+        import supsisim.const
+        reload(supsisim.const)
+        from supsisim.const import viewEditors         
+        
+        for viewEditor in viewEditors:
+            if not viewEditor['type'] in libraries.getViews(blockname,libname):
+                self.selectView.addItem(viewEditor['type'])
+    
+        self.grid.addWidget(self.selectView,0,0)
+        self.grid.addWidget(self.textSource,0,1)
+    
+        self.pbOK = QtWidgets.QPushButton('OK')
+        self.pbCANCEL = QtWidgets.QPushButton('CANCEL')
+        self.grid.addWidget(self.pbOK,1,0)
+        self.grid.addWidget(self.pbCANCEL,1,1)
+        self.pbOK.clicked.connect(self.accept)
+        self.pbCANCEL.clicked.connect(self.reject)
+        self.setLayout(self.grid)
+        
+    def selectViewChanged(self,i):
+        from supsisim.const import viewEditors     
+        viewType = self.selectView.currentText()
+        for viewEditor in viewEditors:
+            if viewType == viewEditor['type']:
+                extension = viewEditor['extension']
+        self.textSource.setText(self.string.format(extension))
+
+    def getRet(self):
+        if self.exec_():
+            return (self.selectView.currentText(),self.textSource.text())
+        else:
+            return False
+
 class createBlockDialog(QtWidgets.QDialog):
     def __init__(self, title='Create block', size=(400, 300), parent=None): 
         super(createBlockDialog, self).__init__(parent)
@@ -416,8 +731,9 @@ class createBlockDialog(QtWidgets.QDialog):
         inputLabels = QtWidgets.QWidget()
         inputLabels_layout = QtWidgets.QHBoxLayout()        
         inputLabels_layout.addWidget(QtWidgets.QLabel('Name'))
-        inputLabels_layout.addWidget(QtWidgets.QLabel('X'))
-        inputLabels_layout.addWidget(QtWidgets.QLabel('Y'))
+        inputLabels_layout.addWidget(QtWidgets.QLabel('      X'))
+        inputLabels_layout.addWidget(QtWidgets.QLabel('           Y'))
+        inputLabels_layout.addWidget(QtWidgets.QLabel('         Hide label'))
         inputLabels.setLayout(inputLabels_layout)
         self.input_layout.addWidget(inputLabels)        
         
@@ -436,8 +752,9 @@ class createBlockDialog(QtWidgets.QDialog):
         ouputLabels = QtWidgets.QWidget()
         ouputLabels_layout = QtWidgets.QHBoxLayout()        
         ouputLabels_layout.addWidget(QtWidgets.QLabel('Name'))
-        ouputLabels_layout.addWidget(QtWidgets.QLabel('X'))
-        ouputLabels_layout.addWidget(QtWidgets.QLabel('Y'))
+        ouputLabels_layout.addWidget(QtWidgets.QLabel('      X'))
+        ouputLabels_layout.addWidget(QtWidgets.QLabel('           Y'))
+        ouputLabels_layout.addWidget(QtWidgets.QLabel('         Hide label'))
         ouputLabels.setLayout(ouputLabels_layout)
         self.output_layout.addWidget(ouputLabels)           
         
@@ -581,11 +898,14 @@ class createBlockDialog(QtWidgets.QDialog):
         text_y.setFont(font)
         inputInstance_layout.addWidget(text_y)
         
+        inputHide = QtWidgets.QCheckBox()
+        inputInstance_layout.addWidget(inputHide)
+        
         
         
         inputInstance.setLayout(inputInstance_layout)
         self.input_layout.addWidget(inputInstance)
-        self.inputInstances.append((text_name,text_x,text_y))
+        self.inputInstances.append((text_name,text_x,text_y,inputHide))
         
         
         self.inputCounter += 1
@@ -620,10 +940,14 @@ class createBlockDialog(QtWidgets.QDialog):
         outputInstance_layout.addWidget(text_y)
         
         
+        outputHide = QtWidgets.QCheckBox()
+        outputInstance_layout.addWidget(outputHide)
+        
+        
         
         outputInstance.setLayout(outputInstance_layout)
         self.output_layout.addWidget(outputInstance)
-        self.outputInstances.append((text_name,text_x,text_y))
+        self.outputInstances.append((text_name,text_x,text_y,outputHide))
         
         self.outputCounter += 1
     
@@ -652,13 +976,19 @@ class createBlockDialog(QtWidgets.QDialog):
                 name = inp[0].text()
                 x = int(inp[1].text())
                 y = int(inp[2].text())
-                ret['input'].append((name,x,y))
+                if inp[3].isChecked():
+                    ret['input'].append((name,x,y,True))
+                else:
+                    ret['input'].append((name,x,y))
                 
             for outp in self.outputInstances:
                 name = outp[0].text()
                 x = int(outp[1].text())
                 y = int(outp[2].text())
-                ret['output'].append((name,x,y))
+                if outp[3].isChecked():
+                    ret['output'].append((name,x,y,True))
+                else:
+                    ret['output'].append((name,x,y))
                 
                 
             newProperties = dict()

@@ -12,7 +12,7 @@ import os
 #    sip.setapi('QString', 1)
 
 
-from supsisim.block import Block
+from supsisim.block import Block, textItem
 from supsisim.node import Node
 from supsisim.connection import Connection
 from supsisim.editor import Editor
@@ -100,6 +100,11 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
                                              statusTip = 'Paste',
                                              triggered = self.pasteAct)
                                              
+        self.undoAction = QtWidgets.QAction(QtGui.QIcon(mypath+'undo.png'),
+                                             '&Undo',self,
+                                             statusTip = 'Undo', 
+                                             triggered = self.undo)                                      
+                                             
         self.addNodeAction = QtWidgets.QAction(QtGui.QIcon(mypath+'AddNode.png'),
                                              '&Add Node', self,
                                              shortcut = 'N',
@@ -164,7 +169,7 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
                                              'Debugging',self,
                                              statusTip = 'Debug infos',
                                              triggered = self.debugAct)     
-                                             
+                                                     
         
         self.testIndex = QtWidgets.QAction(QtGui.QIcon(mypath+'debug.png'),
                                              '&Test index',self,
@@ -186,6 +191,7 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
         toolbarE.addAction(self.convertSymbolAction)
         toolbarE.addAction(self.addNodeAction)
         toolbarE.addAction(self.commentAction)
+        toolbarE.addAction(self.undoAction)
 
         toolbarS = self.addToolBar('Simuation')
         toolbarS.addAction(self.runAction)
@@ -195,13 +201,64 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
 
         toolbarP = self.addToolBar('Python')
         toolbarP.addAction(self.startPythonAction)
-        toolbarP.addAction(self.testIndex)
+        #toolbarP.addAction(self.testIndex)
         if DEBUG:
             toolbarD = self.addToolBar('Debug')
             toolbarD.addAction(self.debugAction)
+    
+    def undo(self):
+        if len(self.scene.status) > 1:
+            x = int(self.view.horizontalScrollBar().value())
+            y = int(self.view.verticalScrollBar().value())
+            t = self.view.transform()
+            fname = self.centralWidget.tabText(self.centralWidget.currentIndex())
+            try:
+                blockname = self.view.blockname
+                libname = self.view.libname            
+            except:
+                blockname = None
+                libname = None
+            symbol = self.view.symbol        
+                    
+            status = self.scene.status
+            content = status[-2]       
             
+            i = self.centralWidget.currentIndex()
+            
+            self.newFile(fname,symbol,blockname,libname)
+            blocks = []
+            connections = []
+            nodes = []
+            comments = []
+            
+            for b in content[0]:
+                blocks.append(eval(b))
+                
+            for b in content[1]:
+                connections.append(eval(b))
+            
+            for b in content[2]:
+                nodes.append(eval(b))
+            
+            for b in content[3]:
+                comments.append(eval(b))
+            self.scene.loadPython(blocks,connections,nodes,comments,False,True)  
+            self.scene.status = status[:-2] 
+            self.centralWidget.removeTab(i)
+            self.view.setTransform(t)
+            self.view.horizontalScrollBar().setValue(x)
+            self.view.verticalScrollBar().setValue(y)
     def testIndexAct(self):
-        print(self.centralWidget.currentIndex()) 
+        
+        
+        for item in self.scene.items(self.scene.selectionArea()):
+            if isinstance(item,Node):
+                if item.label:
+                    error(str(item.label.toPlainText()) + str(item.port_in.connections) + str(item.port_out.connections))
+            if isinstance(item, Connection):
+                error(str(item.port1) + str(item.port2))
+                #error(item.port1.parent.label.toPlainText())
+            print(item)
         #point = self.view.mapToScene(self.view.viewport().width()/2,self.view.viewport().height()/2)
         #print(point.x(),point.y())
             
@@ -217,6 +274,7 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
         editMenu.addAction(self.copyAction)
         editMenu.addAction(self.pasteAction)
         editMenu.addAction(self.convertSymbolAction)
+        editMenu.addAction(self.undoAction)
 #        editMenu.addSeparator()
 #        editMenu.addAction(self.updateAction)
 
@@ -231,7 +289,11 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
     
     def editSettingsAction(self):
         from supsisim.const import viewEditors
-        os.system(viewEditors['python'] + ' supsisim/const.py')
+        edit = None
+        for editor in viewEditors:
+            if editor['type'] == 'python':
+                edit = editor['editor']
+        os.system(edit + ' supsisim/const.py')
     
     def viewConfigAct(self):
         dialog = viewConfigDialog()
@@ -249,12 +311,12 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
                     
             for index,view in enumerate(ret):
                 if index == 0:
-                    string = 'viewEditors = dict('
+                    string = 'viewEditors = ['
                 else:
                     string = "                   "
-                string += view['key'] + "='" + view['text'] + "'"
+                string += "dict(type='{}', editor='{}', extension='{}')".format(view['type'],view['editor'],view['extension'])
                 if index == len(ret) - 1:
-                    string += ')'
+                    string += ']'
                 else:
                     string += ',\n'
                 lines.append(string)
@@ -285,8 +347,19 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
            
     def descend(self,item):
         self.view.returnSymbol = True
+        print(item.libname)
         self.newFile(item.name,symbol=True,blockname=item.blockname,libname=item.libname)
-        self.scene.loadPython('libraries.library_' + item.libname + '.' + item.blockname + '_diagram',None)
+        
+        fname = 'libraries.library_' + item.libname + '.' + item.blockname + '_diagram'
+        exec('import ' + fname)
+        reload(eval(fname))
+        
+        blocks = eval(fname + '.blocks')
+        connections = eval(fname + '.connections')
+        nodes = eval(fname + '.nodes')
+        comments = eval(fname + '.comments')
+        
+        self.scene.loadPython(blocks,connections,nodes,comments)
     
     def ascend(self):
         pass        
@@ -350,10 +423,6 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
                         if label in outpItems:#virtual connection
                             outpItems.remove(label)
                         else:
-                            n = 1
-                            while label in inpItems:
-                                label = item.label.toPlainText() + str(n)
-                                n += 1
                             inpItems.append(label)
                 if not item.port_out.connections:
                     if item.label:
@@ -361,11 +430,25 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
                         if label in inpItems:
                             inpItems.remove(label)
                         else:
-                            n = 1
-                            while label in outpItems:
-                                label = item.label.toPlainText() + str(n)
-                                n += 1
                             outpItems.append(label)
+                            
+        #make unique
+        for index,inp in enumerate(inpItems):
+            inpName = inp
+            n = 1
+            if inpItems.count(inpName) > 1:
+                while inpItems.count(inpName) > 0:
+                    inpName = inp + str(n)
+                    n += 1
+            inpItems[index] = inpName
+        for index,outp in enumerate(outpItems):
+            outpName = outp
+            n = 1
+            while outpItems.count(outpName) > 1:
+                outpName = outp + str(n)
+                n += 1
+            outpItems[index] = outpName
+                            
                             
         inp = []
         outp = []
@@ -440,7 +523,8 @@ views = {{'icon':iconSource,'diagram':diagramSource,'text':textSource}}"
         if selection and self.scene.selectedItems():
             blocks = []
             connections = []
-            nodes = []        
+            nodes = []          
+            comments = []  
             
             for item in selection:
                 if isinstance(item,Block):
@@ -449,6 +533,9 @@ views = {{'icon':iconSource,'diagram':diagramSource,'text':textSource}}"
                     connections.append(str(item.toPython()))
                 if isinstance(item,Node):
                     nodes.append(str(item.toPython()))
+                if isinstance(item,textItem):
+                    if item.comment:
+                        comments.append(str(dict(pos=dict(x=item.x(),y=item.y()),text=item.toPlainText())))
             
                         
             
@@ -487,7 +574,8 @@ views = {{'icon':iconSource,'diagram':diagramSource,'text':textSource}}"
                 f = open(self.path + '/libraries/library_' + libname + '/' + name + '_diagram.py','w+')
                 f.write("blocks = [" + ",\n          ".join(blocks) + "]\n\n" + 
                         "connections = [" + ",\n               ".join(connections) + "]\n\n" + 
-                        "nodes = [" + ",\n         ".join(nodes) + "]")
+                        "nodes = [" + ",\n         ".join(nodes) + "]\n\n" +
+                        "comments = [" + ",\n         ".join(comments) + "]")
                 f.close()
                 
                 
@@ -613,7 +701,19 @@ views = {{'icon':iconSource,'diagram':diagramSource,'text':textSource}}"
             self.path = str(fname.absolutePath())
 #            self.setWindowTitle(self.filename)
             self.newFile(self.filename)
-            self.scene.loadPython(self.filename,self.path)
+            
+            fname = self.filename
+            import sys
+            sys.path.append(self.path)
+            exec('import ' + fname)
+            reload(eval(fname))
+            
+            blocks = eval(fname + '.blocks')
+            connections = eval(fname + '.connections')
+            nodes = eval(fname + '.nodes')
+            comments = eval(fname + '.comments')
+        
+            self.scene.loadPython(blocks,connections,nodes,comments)
     
     def saveFile(self):
         if self.view.symbol:
@@ -633,7 +733,8 @@ views = {{'icon':iconSource,'diagram':diagramSource,'text':textSource}}"
             
             blocks = []
             connections = []
-            nodes = []        
+            nodes = [] 
+            comments = []
         
             for item in self.scene.items():
                 if isinstance(item,Block):
@@ -642,6 +743,9 @@ views = {{'icon':iconSource,'diagram':diagramSource,'text':textSource}}"
                     connections.append(str(item.toPython()))
                 if isinstance(item,Node):
                     nodes.append(str(item.toPython()))
+                if isinstance(item,textItem):
+                    if item.comment:
+                        comments.append(str(dict(pos=dict(x=item.x(),y=item.y()),text=item.toPlainText())))
                     
             inp, outp = self.itemsToInpOutp(self.scene.items())        
             
@@ -658,7 +762,8 @@ views = {{'icon':iconSource,'diagram':diagramSource,'text':textSource}}"
             f = open(self.path + '/libraries/library_' + libname + '/' + symbolName + '_diagram.py','w+')
             f.write("blocks = [" + ",\n          ".join(blocks) + "]\n\n" + 
                     "connections = [" + ",\n               ".join(connections) + "]\n\n" + 
-                    "nodes = [" + ",\n         ".join(nodes) + "]")
+                    "nodes = [" + ",\n         ".join(nodes) + "]\n\n" + 
+                    "comments = [" + ",\n         ".join(comments) + "]")
             f.close()
             
             if self.library.type == 'symbolView':
@@ -737,7 +842,13 @@ views = {{'icon':iconSource,'diagram':diagramSource,'text':textSource}}"
                 self.filename = str(fname.baseName())
                 self.path = str(fname.absolutePath())
                 self.centralWidget.setTabText(self.centralWidget.currentIndex(),self.filename)
-                self.scene.savePython(self.getFullFileName())
+                blocks,connections,nodes,comments = self.scene.savePython()
+                f = open(self.getFullFileName(),'w+')
+                f.write("blocks = [" + ",\n          ".join(blocks) + "]\n\n" + \
+                    "connections = [" + ",\n               ".join(connections) + "]\n\n" + \
+                    "nodes = [" + ",\n         ".join(nodes) + "]\n\n" + \
+                    "comments = [" + ",\n         ".join(comments) + "]")
+                f.close()
             else:
                 return True
 

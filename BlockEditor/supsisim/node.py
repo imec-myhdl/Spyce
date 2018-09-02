@@ -39,6 +39,7 @@ class Node(QtWidgets.QGraphicsPathItem):
         data = dict(type='node',pos=dict(x=self.x(),y=self.y()))
         if self.label:
             data['label'] = self.label.toPlainText()
+            data['labelPos'] = dict(x=self.label.x(),y=self.label.y())
         return data
         
     

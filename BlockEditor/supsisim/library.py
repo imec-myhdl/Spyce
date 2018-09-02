@@ -21,7 +21,7 @@ from supsisim.const import DB, PD, respath, svgpinlabels
 import os
 
 from supsisim.block import Block
-from supsisim.dialg import txtDialog,LibraryChoice_Dialog, textLineDialog, createBlockDialog, error
+from supsisim.dialg import txtDialog,LibraryChoice_Dialog, textLineDialog, createBlockDialog, error, addViewDialog, editPinsDialog
 
 from lxml import etree
 
@@ -51,6 +51,10 @@ class CompViewer(QtWidgets.QGraphicsScene):
         editPinsAction.triggered.connect(self.editPins)
         
         
+        editHeightAction   = self.menuBlk.addAction('Change height')
+        editHeightAction.triggered.connect(self.editHeight)
+        
+        
         cutBlockAction   = self.menuBlk.addAction('Cut')
         cutBlockAction.triggered.connect(self.cutBlock)
         
@@ -72,6 +76,9 @@ class CompViewer(QtWidgets.QGraphicsScene):
         self.viewMenu = QtWidgets.QMenu("Views")
         
         self.menuBlk.addMenu(self.viewMenu)
+
+    def editHeight(self):
+        self.parent.editHeight(self.actComp)
     
     def removeBlock(self):
         self.parent.removeBlock(self.actComp)
@@ -167,6 +174,9 @@ class CompViewer(QtWidgets.QGraphicsScene):
             if isinstance(item, Block):
                 self.viewMenu.clear()
                 self.addViewMenu()
+                
+                addViewAction = self.viewMenu.addAction("Add view")
+                addViewAction.triggered.connect(self.addViewAction)
                 self.menuBlk.exec_(event.screenPos())
                 break
         else:
@@ -175,7 +185,10 @@ class CompViewer(QtWidgets.QGraphicsScene):
             else:
                 self.pasteBlockAction.setEnabled(False)
             self.menuLibrary.exec_(event.screenPos())
-
+            
+    def addViewAction(self):
+        self.parent.addViewAction(self.actComp)
+    
     def setUniqueName(self, block):
         return block.name
 
@@ -492,18 +505,19 @@ class Library(QtWidgets.QMainWindow):
         self.addToolbars()
         self.closeFlag = False
         
-        dialog = LibraryChoice_Dialog(self)
-        ret = dialog.exec_()
-        if ret == 0:
-            self.listView()
-#            mypath = respath + '/icons/'
-#            textViewAction = QtWidgets.QAction(QtGui.QIcon(mypath+'textIcon.png'),
-#                                                    '&text view', self,
-#                                                    triggered = self.textView)             
-#            
-#            self.toolbar.addAction(textViewActiSaturationon)
-        else:
-            self.symbolView()
+        self.symbolView()
+#        dialog = LibraryChoice_Dialog(self)
+#        ret = dialog.exec_()
+#        if ret == 0:
+#            self.listView()
+##            mypath = respath + '/icons/'
+##            textViewAction = QtWidgets.QAction(QtGui.QIcon(mypath+'textIcon.png'),
+##                                                    '&text view', self,
+##                                                    triggered = self.textView)             
+##            
+##            self.toolbar.addAction(textViewActiSaturationon)
+#        else:
+#            self.symbolView()
     
     def addToolbars(self):
         mypath = respath + '/icons/'
@@ -526,9 +540,59 @@ class Library(QtWidgets.QMainWindow):
         self.toolbar.addAction(self.symbolViewAction)  
         self.toolbar.addAction(self.addLibraryAction)  
         
+    
+    def editHeight(self,actComp=None):
         
+        if actComp:
+            blockname = actComp.blockname
+            libname = actComp.libname
+        else:
+            libname = self.libraries.currentItem().text()
+            blockname = self.cells.currentItem().text()
+        try:
+            eval('libraries.library_' + libname + '.' + blockname + '.getSymbol')
+            error('you have to change the getSymbol function to change this blocks height')
+        except:        
+            try:
+                height = eval('libraries.library_' + libname + '.' + blockname + '.height')
+                add = False
+            except:
+                height = ''
+                add = True
+            dialog = textLineDialog('Height: ','Change height',str(height))
+            ret = dialog.getLabel()
+            if ret:
+                path = os.getcwd()
+                fname = '/libraries/library_{}/{}.py'.format(libname,blockname)
+                f = open(path + fname,'r')
+                lines = f.readlines()
+                f.close()
+                for index,line in enumerate(lines):
+                    if not add:
+                        if line.startswith('height = '):
+                            lines[index] = 'height = ' + ret + '\n'
+                    else:
+                        if line.startswith('outp = '):
+                            lines[index] = line + '\nheight = ' + ret + '\n'
+                
+                f = open(path + fname,'w+')
+                f.write("".join(lines))
+                f.close()    
+                
+                
+                if self.type == 'symbolView':
+                    i = self.tabs.currentIndex()
+                    self.symbolView()
+                    self.tabs.setCurrentIndex(i)
+                else:
+                    l = self.libraries.currentRow()
+                    c = self.cells.currentRow()
+                    self.listView()
+                    self.libraries.setCurrentRow(l)
+                    self.cells.setCurrentRow(c)
+    
     def addLibrary(self):
-        dialog = textLineDialog('Name: ')
+        dialog = textLineDialog('Name: ','Add library')
         ret = dialog.getLabel()
         if ret:
             try:
@@ -573,9 +637,18 @@ class Library(QtWidgets.QMainWindow):
             libname = self.libraries.currentItem().text()
             blockname = self.cells.currentItem().text()
         
-        source = libraries.getViews(blockname,libname)[type]
-        editor = viewEditors[type]
-        print(source,editor)
+        try:
+            source = libraries.getViews(blockname,libname)[type]
+        except:
+            error('view not found')
+        editor = False
+        
+        for viewEditor in viewEditors:
+            if type == viewEditor['type']:
+                editor = viewEditor['editor']
+        if not editor:
+            error('View type unkown, please see viewEditors in Edit settings')
+            return
         os.system(editor + " " + source)
     
         #reset library
@@ -697,6 +770,10 @@ class Library(QtWidgets.QMainWindow):
             editPinsAction.triggered.connect(self.editPins)
             
             
+            editHeightAction   = menuBlk.addAction('Change height')
+            editHeightAction.triggered.connect(self.editHeight)
+            
+            
             cutBlockAction   = menuBlk.addAction('Cut')
             cutBlockAction.triggered.connect(self.cutBlock)
             
@@ -704,7 +781,7 @@ class Library(QtWidgets.QMainWindow):
             changeIconAction.triggered.connect(self.changeIcon)
             
             
-            removeBlockAction = self.menuBlk.addAction('Remove block')
+            removeBlockAction = menuBlk.addAction('Remove block')
             removeBlockAction.triggered.connect(self.removeBlock)
             
             
@@ -726,6 +803,9 @@ class Library(QtWidgets.QMainWindow):
                     viewAction = getFunction(key)
                     action = viewMenu.addAction(key+" view")
                     action.triggered.connect(viewAction)
+            addViewAction = viewMenu.addAction("Add view")
+            addViewAction.triggered.connect(self.addViewAction)
+                    
             menuBlk.exec_(self.cells.mapToGlobal(point))
         else:
             self.menuLibrary = QtWidgets.QMenu()
@@ -738,7 +818,51 @@ class Library(QtWidgets.QMainWindow):
             self.pasteBlockAction   = self.menuLibrary.addAction('Paste')
             self.pasteBlockAction.triggered.connect(self.pasteBlock)
             self.menuLibrary.exec_(self.cells.mapToGlobal(point))
-
+    
+    def addView(self,blockname,libname,type,viewSource):
+        import os
+        path = os.getcwd()
+        fname = '/libraries/library_{}/{}.py'.format(libname,blockname)
+        f = open(path + fname,'r')
+        lines = f.readlines()
+        f.close()
+        
+        for index,line in enumerate(lines):
+            if line.startswith('iconSource = '):
+                source = "{type}Source = '{viewSource}'\n"
+                source = source.format(type=type,viewSource=viewSource)
+                lines.insert(index+1,source)
+            if line.startswith('views = {'):
+                lines[index] = line.replace('views = {',"views = {{'{type}':{type}Source,".format(type=type))
+        
+        
+        f = open(path + fname,'w+')
+        f.write("".join(lines))
+        f.close()    
+    
+    def addViewAction(self,actComp=None):
+        if actComp:
+            blockname = actComp.blockname
+            libname = actComp.libname
+        else:
+            blockname = self.cells.currentItem().text() 
+            libname = self.libraries.currentItem().text() 
+        dialog = addViewDialog(libname,blockname)
+        ret = dialog.getRet()
+        if ret:
+            try:
+                path = os.getcwd()
+                f = open(path + "/" + ret[1],'w+')
+                f.close()
+            except:
+                error('File source not correct')
+                return
+                
+            self.addView(blockname,libname,ret[0],ret[1])
+            
+            self.openView(ret[0],actComp)
+            
+    
     def pasteBlock(self):
         if self.copiedBlock and self.copiedBlockLibname:
             path = os.getcwd()
@@ -871,33 +995,84 @@ class Library(QtWidgets.QMainWindow):
         except OSError:
             raise Exception('Inkscape is not installed')
 
+
     def editPins(self,actComp=None):
-        if self.type == 'symbolView':
-            block = actComp
+        if actComp:
+            blockname = actComp.blockname
+            libname = actComp.libname
         else:
             libname = self.libraries.currentItem().text()
             blockname = self.cells.currentItem().text()
-            block = libraries.getBlock(blockname,libname)
-            block.setup(scene=None)
-        inputs, outputs, inouts = block.pins()
-        d = txtDialog('Pins of {}'.format(block.name))
-        pinlist = d.editList(inputs + outputs + inouts, header='io x y name')
-        if pinlist:
-            for p in block.ports():
-                p.setParentItem(None) # effectively removing port
+        try:
+            eval('libraries.library_' + libname + '.' + blockname + '.getSymbol')
+            error('the pins could be overwritten by the parameters')
+        except:      
+            pass
+        if 'diagram' in libraries.getViews(blockname,libname):
+            error('Cannot edit pins of block that has a diagram')
+            return
+        
+        inp = eval('libraries.library_' + libname + '.' + blockname + '.inp')
+        outp = eval('libraries.library_' + libname + '.' + blockname + '.outp')
+
+        dialog = editPinsDialog(inp,outp)
+        ret = dialog.getRet()
+        if ret:
+            path = os.getcwd()
+            fname = '/libraries/library_{}/{}.py'.format(libname,blockname)
+            f = open(path + fname,'r')
+            lines = f.readlines()
+            f.close()
+            
+            for index,line in enumerate(lines):
+                if line.startswith('inp = '):
+                    lines[index] = 'inp = ' + str(ret[0]) + '\n'
+                if line.startswith('outp = '):
+                    lines[index] = 'outp = ' + str(ret[1]) + '\n'
                 
-            block.inp  = []
-            block.outp = []
-            for tp, x, y, name in pinlist:
-                if tp == 'i':
-                    block.add_inPort([name, x, y])
-                    block.inp.append([name, x, y])
-                elif tp == 'o':
-                    block.add_outPort([name, x, y])
-                    block.outp.append([name, x, y])
-                else:
-                    print('{} is not an implemented io type'.format(tp))
-            block.update()
+            
+            
+            f = open(path + fname,'w+')
+            f.write("".join(lines))
+            f.close()    
+            
+            if self.type == 'symbolView':
+                i = self.tabs.currentIndex()
+                self.symbolView()
+                self.tabs.setCurrentIndex(i)
+            else:
+                l = self.libraries.currentRow()
+                c = self.cells.currentRow()
+                self.listView()
+                self.libraries.setCurrentRow(l)  
+                self.cells.setCurrentRow(c)
+#    def editPins(self,actComp=None):
+#        if self.type == 'symbolView':
+#            block = actComp
+#        else:
+#            libname = self.libraries.currentItem().text()
+#            blockname = self.cells.currentItem().text()
+#            block = libraries.getBlock(blockname,libname)
+#            block.setup(scene=None)
+#        inputs, outputs, inouts = block.pins()
+#        d = txtDialog('Pins of {}'.format(block.name))
+#        pinlist = d.editList(inputs + outputs + inouts, header='io x y name')
+#        if pinlist:
+#            for p in block.ports():
+#                p.setParentItem(None) # effectively removing port
+#                
+#            block.inp  = []
+#            block.outp = []
+#            for tp, x, y, name in pinlist:
+#                if tp == 'i':
+#                    block.add_inPort([name, x, y])
+#                    block.inp.append([name, x, y])
+#                elif tp == 'o':
+#                    block.add_outPort([name, x, y])
+#                    block.outp.append([name, x, y])
+#                else:
+#                    print('{} is not an implemented io type'.format(tp))
+#            block.update()
 
     def cutBlock(self,actComp=None):
         if self.type == 'symbolView':
