@@ -357,7 +357,7 @@ properties = {properties} #netlist properties\n\
 \n\
 \n\
 views = {{'icon':iconSource}}\n"
-    iconSource = "iconSource = '{}'\n".format(icon) if icon else ''
+    iconSource = "iconSource = '{}'\n".format(icon) if icon else 'iconSource = None\n'
     return template.format(name=name,libname=libname,inp=str(inp),outp=str(outp),properties=str(properties),parameters=str(parameters),iconSource=iconSource)
 
         
