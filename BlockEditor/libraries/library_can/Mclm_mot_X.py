@@ -1,5 +1,6 @@
-name = 'Mclm_mot_X' #zelfde als bestand naam 
-libname = 'can' #zelfde als map naam
+# cell definition
+# name = 'Mclm_mot_X'
+# libname = 'can'
 
 inp = 1
 outp = 0
@@ -8,7 +9,6 @@ parameters = dict() #parametriseerbare cell
 properties = {'Device ID': ' 0x01', 'Resolution': ' 125000', 'name': 'MCLM_MotXBlk'} #voor netlisten
 #view variables:
 iconSource = 'MOT_X'
-textSource = 'libraries/library_can/Mclm_mot_X.py'
 
 
-views = {'icon':iconSource,'text':textSource}
+views = {'icon':iconSource}

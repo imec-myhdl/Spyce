@@ -1,5 +1,6 @@
-name = 'Const' #zelfde als bestand naam 
-libname = 'input' #zelfde als map naam
+# cell definition
+# name = 'Const'
+# libname = 'input'
 
 inp = 0
 outp = 1
@@ -8,7 +9,6 @@ parameters = dict() #parametriseerbare cell
 properties = {'name': 'constBlk', 'Value': ' 0'} #voor netlisten
 #view variables:
 iconSource = 'CONST'
-textSource = 'libraries/library_input/Const.py'
 
 
-views = {'icon':iconSource,'text':textSource}
+views = {'icon':iconSource}

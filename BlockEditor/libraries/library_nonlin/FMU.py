@@ -1,5 +1,6 @@
-name = 'FMU' #zelfde als bestand naam 
-libname = 'nonlin' #zelfde als map naam
+# cell definition
+# name = 'FMU'
+# libname = 'nonlin'
 
 inp = 1
 outp = 1
@@ -8,7 +9,6 @@ parameters = dict(inp=1,outp=1)
 properties = {'Major step': ' 0.01', 'Feedthrough': ' 0', 'OUT_REF': " ['y']", 'IN_REF': " ['u']", 'FMU_NAME': " ''", 'name': 'FmuBlk'} #voor netlisten
 #view variables:
 iconSource = 'FMU'
-textSource = 'libraries/library_nonlin/FMU.py'
 
 
 
@@ -25,4 +25,4 @@ def getSymbol(param,parent=None,scene=None,):
     return supsisim.block.Block(attributes,param,properties,name,libname,parent,scene)
     
 
-views = {'icon':iconSource,'text':textSource}
+views = {'icon':iconSource}

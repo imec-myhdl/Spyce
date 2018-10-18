@@ -285,10 +285,10 @@ class propertiesDialog(QtWidgets.QDialog):
         
         if addButton:
             self.key_field = QtWidgets.QLineEdit('key')
-            self.addPropertie = QtWidgets.QPushButton('Add propertie')
-            self.addPropertie.clicked.connect(self.addPropertieAction)  
+            self.addProperty = QtWidgets.QPushButton('Add property')
+            self.addProperty.clicked.connect(self.addPropertyAction)  
             self.grid.addWidget(self.key_field,99,0)
-            self.grid.addWidget(self.addPropertie,99,1)
+            self.grid.addWidget(self.addProperty,99,1)
         
         
         self.pbOK = QtWidgets.QPushButton('OK')
@@ -300,7 +300,7 @@ class propertiesDialog(QtWidgets.QDialog):
         self.setLayout(self.grid)
 
 
-    def addPropertieAction(self):
+    def addPropertyAction(self):
         key = self.key_field.text()
         Lab = QtWidgets.QLabel(key)
         Val = QtWidgets.QLineEdit('0')
@@ -806,10 +806,10 @@ class createBlockDialog(QtWidgets.QDialog):
         self.n = 0
         
         self.key_field = QtWidgets.QLineEdit('key')
-        self.addPropertie = QtWidgets.QPushButton('Add propertie')
-        self.addPropertie.clicked.connect(self.addPropertieAction)  
+        self.addProperty = QtWidgets.QPushButton('Add property')
+        self.addProperty.clicked.connect(self.addPropertyAction)  
         self.grid.addWidget(self.key_field,99,0)
-        self.grid.addWidget(self.addPropertie,99,1)
+        self.grid.addWidget(self.addProperty,99,1)
         
         
         
@@ -860,7 +860,7 @@ class createBlockDialog(QtWidgets.QDialog):
         self.gridPar.addWidget(Val,self.nPar,1)
         self.nPar += 1  
         
-    def addPropertieAction(self):
+    def addPropertyAction(self):
         key = self.key_field.text()
         Lab = QtWidgets.QLabel(key)
         Val = QtWidgets.QLineEdit('0')
@@ -965,10 +965,12 @@ class createBlockDialog(QtWidgets.QDialog):
                 error('No valid variable name')
                 return False
             if not self.filename[0]:
-                error('No icon selected')
-                return False
+                error('empty icon, ignoring')
+                ret['icon']= None 
+            else:
+                ret['icon'] = QtCore.QFileInfo(self.filename[0]).baseName()
+               
             ret['name'] = self.text_name.text()
-            ret['icon'] = QtCore.QFileInfo(self.filename[0]).baseName()
             ret['input'] = []
             ret['output'] = []
             
@@ -1058,10 +1060,10 @@ class convertSymDialog(QtWidgets.QDialog):
         self.n = 0
         
         self.key_field = QtWidgets.QLineEdit('key')
-        self.addPropertie = QtWidgets.QPushButton('Add propertie')
-        self.addPropertie.clicked.connect(self.addPropertieAction)  
+        self.addProperty = QtWidgets.QPushButton('Add property')
+        self.addProperty.clicked.connect(self.addPropertyAction)  
         self.grid.addWidget(self.key_field,99,0)
-        self.grid.addWidget(self.addPropertie,99,1)
+        self.grid.addWidget(self.addProperty,99,1)
         
         
         
@@ -1097,7 +1099,7 @@ class convertSymDialog(QtWidgets.QDialog):
     
     
     
-    def addPropertieAction(self):
+    def addPropertyAction(self):
         key = self.key_field.text()
         Lab = QtWidgets.QLabel(key)
         Val = QtWidgets.QLineEdit('0')

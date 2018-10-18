@@ -3,18 +3,35 @@ import supsisim.block
 from supsisim.const import viewEditors
 from supsisim.dialg import error
 
+
+
+
+blocks = dict()
+
+
 def getBlock(blockname,libname,parent=None,scene=None, param=dict(), name=None):
+    source     = 'libraries.library_{}.{}'.format(libname, blockname)
     try:
-        exec('import libraries.library_' + libname + '.' + blockname)
-    except:
-        error('Symbol not found')
+        exec('import ' + source)
+    except Exception as e:
+        raise e
+        error('error in {}.py, message is '.format(source, str(e)))
         return False
-    reload(eval('libraries.library_' + libname + '.' + blockname))
+    reload(eval('libraries.library_' + libname + '.' + blockname)) # make sure we reload the module
+    blk = None    
+    exec('from libraries.library_{} import {} as blk'.format(libname, blockname))
+    blocks[libname+'/'+blockname] = blk
+    blk.name    = blockname
+    blk.libname = libname
+    blk.textSource = os.path.join('library_'+libname,  blockname+'.py')
+    if not 'iconSource' in blk.__dict__:
+        blk.iconSource = None
+    blk.views['textSource'] = blk.textSource
+
+    if not param:
+        param = blk.parameters # use defaults
     try:
-        if not param:
-            param = eval('libraries.library_{}.{}.parameters'.format(libname,blockname))
-        func = eval('libraries.library_{}.{}.getSymbol'.format(libname,blockname))
-        b = func(param,parent,scene)
+        b = blk.getSymbol(param, parent, scene)
         if isinstance(b,supsisim.block.Block):
             if name:
                 b.name = name
@@ -24,65 +41,53 @@ def getBlock(blockname,libname,parent=None,scene=None, param=dict(), name=None):
             error('getSymbol returned no block')
             return False
     except Exception as e:
-#        import sys
-#        exc_type, exc_obj, exc_tb = sys.exc_info()
-#        fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-#        print(exc_type, fname, exc_tb.tb_lineno,e)
-        options = ('parameters','properties')
-        for o in options:
-            exec(o + ' = libraries.library_' + libname + '.' + blockname + '.' + o)
+        parameters = blk.parameters
+        properties = blk.properties
         attributes = dict()
-        if name:
-            attributes['name'] = name
-        else:
-            attributes['name'] = blockname
+        attributes['name']    = name if name else blockname
         attributes['libname'] = libname
-        attributes['input'] = eval('libraries.library_' + libname + '.' + blockname + '.inp')
-        attributes['output'] = eval('libraries.library_' + libname + '.' + blockname + '.outp')
-        attributes['icon'] = eval('libraries.library_' + libname + '.' + blockname + '.iconSource')
-        try:
-            attributes['height'] = eval('libraries.library_' + libname + '.' + blockname + '.height')
-        except:
-            pass
-#        if 'inp' in param.keys():
-#            attributes['input'] = param['inp']
-#        if 'outp' in param.keys():
-#            attributes['output'] = param['outp']
+        attributes['input']   = blk.inp
+        attributes['output']  = blk.outp
+        attributes['icon']    = blk.iconSource
+#        try:
+#           attributes['height'] = bb.height
+#        except:
+#            pass
         return supsisim.block.Block(attributes,parameters,properties,blockname,libname,parent,scene)
 
 def getViews(blockname,libname):
-    exec('import libraries.library_' + libname + '.' + blockname)
-    reload(eval('libraries.library_' + libname + '.' + blockname))
-    views = eval('libraries.library_' + libname + '.' + blockname + '.views')
-    return views
+    return blocks[libname+'/'+blockname].views
     
 def readLibrary(libname):
     files = os.listdir('libraries/' + libname)
     blocks = set()
     for blockname in files:
-        if not blockname.startswith('__init__'):
-            block = True
-            if '_' in blockname:
-                ending = blockname.split('_')[-1]
-                if '.' in ending:
-                    type = ending.split('.')[0]
-                    if type == 'diagram':
+        if blockname.startswith('__init__'):
+            continue
+        if not blockname.lower().endswith('.py'):
+            continue
+        block = True
+        if '_' in blockname:
+            ending = blockname.split('_')[-1]
+            if '.' in ending:
+                type = ending.split('.')[0]
+                if type == 'diagram':
+                    block = False
+                for viewEditor in viewEditors:
+                    if type == viewEditor['type']:
                         block = False
-                    for viewEditor in viewEditors:
-                        if type == viewEditor['type']:
-                            block = False
-            if block:
-                blockname = blockname.replace('.pyc','')
-                blockname = blockname.replace('.py','')
-                blocks.add(blockname)
+        if block:
+            blockname = blockname.rpartition('.')[0]
+            blocks.add(blockname)
             
     return blocks
 
-files = os.listdir('libraries')
 
 libs = dict()
 
-for libname in files:
+libroot = os.path.dirname(__file__)
+
+for libname in os.listdir(libroot):
     if libname.startswith('library_'):
         libs[libname.replace('library_','')] = readLibrary(libname)
         

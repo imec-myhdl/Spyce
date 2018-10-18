@@ -498,8 +498,9 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
 #    f.close()\n\
 #    return content\n\
 #\n\
-        template = "name = '{name}' #same as file name (without .py) \n\
-libname = '{libname}' #same as directory name\n\
+        template = "# diagram definition\n\
+# name = '{name}'\n\
+# libname = '{libname}'\n\
 \n\
 inp = {inp}\n\
 outp = {outp}\n\
@@ -509,13 +510,14 @@ properties = {properties} #netlist properties\n\
 \
 \
 #view variables:\n\
-iconSource = '{icon}'\n\
+iconSource = {icon}\n\
 diagramSource = 'libraries/library_{libname}/{name}_diagram.py'\n\
 textSource = 'libraries/library_{libname}/{name}.py'\n\
 \n\
 \n\
-views = {{'icon':iconSource,'diagram':diagramSource,'text':textSource}}"
-        return template.format(name=name,libname=libname,inp=str(inp),outp=str(outp),properties=str(properties),parameters=str(parameters),icon=str(icon))
+views = {{'icon':iconSource,'diagram':diagramSource}}"
+        iconSource = "iconSource = '{}'\n".format(icon) if icon else ''
+        return template.format(name=name,libname=libname,inp=str(inp),outp=str(outp),properties=str(properties),parameters=str(parameters),iconSource=iconSource)
         
     
     def convertSymAct(self):

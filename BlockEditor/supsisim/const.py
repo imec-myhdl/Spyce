@@ -29,22 +29,17 @@ pycmd = 'ipython3 qtconsole &'
 pyrun = 'python'
 TEMP = '.'
 
-# named pins configuration
-qtpinlabels  = True # if set to true named ports will get a pinlabel
-svgpinlabels = True  # if set to true named ports generate a pinlabel when creating an icon
-
-
 
 projectname = 'placeholder'
 copyrightText = 'placeholder'
 copyrightPolicy = 'placeholder'
 
 # view editors:
-
-viewEditors = [dict(type='verilog', editor='gedit', extension='verilog.v'),
-                   dict(type='vhdl', editor='gedit', extension='vhdl.v'),
-                   dict(type='doc', editor='libreoffice --writer', extension='doc.odt'),
-                   dict(type='python', editor='spyder3', extension='python.py'),
-                   dict(type='text', editor='gedit', extension='text.txt'),
-                   dict(type='systemverilog', editor='gedit', extension='systemverilog.sv'),
-                   dict(type='myhdl', editor='gedit', extension='myhdl.py')]
+textEditor = 'kate'
+viewEditors = [dict(type='verilog',       editor=textEditor, extension='.v'),
+               dict(type='vhdl',          editor=textEditor, extension='.v'),
+               dict(type='doc',           editor='libreoffice --writer', extension='.odt'),
+               dict(type='python',        editor='spyder3',  extension='.py'),
+               dict(type='text',          editor=textEditor, extension='.txt'),
+               dict(type='systemverilog', editor=textEditor, extension='.sv'),
+               dict(type='myhdl',         editor=textEditor, extension='.py')]

@@ -1,5 +1,6 @@
-name = 'Sum' #zelfde als bestand naam 
-libname = 'common' #zelfde als map naam
+# cell definition
+# name = 'Sum'
+# libname = 'common'
 
 inp = 2
 outp = 1
@@ -8,7 +9,6 @@ parameters = dict(inp=2,outp=1)
 properties = {'name': 'sumBlk', 'Gains': ' [1,-1]'} #voor netlisten
 #view variables:
 iconSource = 'SUM'
-textSource = 'libraries/library_common/Sum.py'
 
 
 
@@ -26,4 +26,4 @@ def getSymbol(param,parent=None,scene=None,):
     return supsisim.block.Block(attributes,param,properties,name,libname,parent,scene)
     
 
-views = {'icon':iconSource,'text':textSource}
+views = {'icon':iconSource}

@@ -1,5 +1,6 @@
-name = 'Print' #zelfde als bestand naam 
-libname = 'common' #zelfde als map naam
+# cell definition
+# name = 'Print'
+# libname = 'common'
 
 inp = 1
 outp = 0
@@ -8,7 +9,6 @@ parameters = dict(inp=1,outp=0)
 properties = {'name': 'printBlk'} #voor netlisten
 #view variables:
 iconSource = 'PRINT'
-textSource = 'libraries/library_common/Print.py'
 
 
 
@@ -26,4 +26,4 @@ def getSymbol(param,parent=None,scene=None,):
     return supsisim.block.Block(attributes,param,properties,name,libname,parent,scene)
     
 
-views = {'icon':iconSource,'text':textSource}
+views = {'icon':iconSource}

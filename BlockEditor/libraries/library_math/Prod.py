@@ -1,5 +1,6 @@
-name = 'Prod' #zelfde als bestand naam 
-libname = 'math' #zelfde als map naam
+# cell definition
+# name = 'Prod'
+# libname = 'math'
 
 inp = 2
 outp = 1
@@ -8,7 +9,6 @@ parameters = dict(inp=2,outp=1)
 properties = {'name': 'prodBlk'} #voor netlisten
 #view variables:
 iconSource = 'PROD'
-textSource = 'libraries/library_math/Prod.py'
 
 
 
@@ -26,4 +26,4 @@ def getSymbol(param,parent=None,scene=None,):
     return supsisim.block.Block(attributes,param,properties,name,libname,parent,scene)
     
 
-views = {'icon':iconSource,'text':textSource}
+views = {'icon':iconSource}

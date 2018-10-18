@@ -15,9 +15,8 @@ from lxml import etree
 
 import libraries
 from supsisim.port import Port, InPort, OutPort
-from supsisim.const import GRID, PW, LW, BWmin, BHmin, PD, respath, qtpinlabels
-
-
+from supsisim.const import GRID, PW, LW, BWmin, BHmin, PD, respath
+from supsisim.const import path as libroot
 
 
 
@@ -37,7 +36,8 @@ class Block(QtWidgets.QGraphicsPathItem):
         self.name = attributes.pop('name')
         self.inp = attributes.pop('input')
         self.outp = attributes.pop('output')
-        self.icon = attributes.pop('icon')
+        self.icon = attributes.pop('icon') if 'icon' in attributes else None
+           
         self.flip = attributes.pop('flip') if 'flip' in attributes else False
         self.type = attributes.pop('type') if 'type' in attributes else 'Block'
         self.libname = attributes.pop('libname')
@@ -263,15 +263,22 @@ class Block(QtWidgets.QGraphicsPathItem):
         self.setIcon()
 
 
-
     def setIcon(self):
-        svgfilepath = os.path.join(respath, 'blocks' , self.icon + '.svg')
+        if self.icon is None: # not set
+            svgfilepath = os.path.join('libraries', 'library_'+self.libname, self.name+'.svg')
+        elif self.icon.lower().endswith('.svg'): # new style (path from libroot)
+            svgfilepath = self.icon
+        else: # old style
+            svgfilepath = os.path.join(respath, 'blocks' , self.icon + '.svg')
+        self.icon = svgfilepath
+
         self.img = QtGui.QImage()
-        if self.flip:
-            self.img.loadFromData(self.create_svg_mirror_txt(svgfilepath))
-        else:
-            self.img.load(svgfilepath)
-        self.update()
+        if os.path.isfile(self.icon):
+            if self.flip:
+                self.img.loadFromData(self.create_svg_mirror_txt(svgfilepath))
+            else:
+                self.img.load(svgfilepath)
+            self.update()
                     
     def add_inPort(self, n):
         if isinstance(n, int):
@@ -285,7 +292,7 @@ class Block(QtWidgets.QGraphicsPathItem):
             if xpos > -BWmin/2 - PW/2:
                 xpos = -BWmin/2 - PW/2
         port = InPort(self, self.scene, name=name)
-        if not isinstance(n, int) and qtpinlabels and len(n) == 3:
+        if not isinstance(n, int) and len(n) == 3:
             port.pinlabel = textItem(name, anchor=4, parent=port)
             port.pinlabel.setPos(10,0)
         port.block = self
@@ -304,7 +311,7 @@ class Block(QtWidgets.QGraphicsPathItem):
             if xpos < BWmin/2 + PW/2:
                 xpos = BWmin/2 + PW/2
         port = OutPort(self, self.scene, name=name)
-        if not isinstance(n, int) and qtpinlabels and len(n) == 3:
+        if not isinstance(n, int) and len(n) == 3:
             port.pinlabel = textItem(name, anchor=6, parent=port)
             port.pinlabel.setPos(-10,0)
         port.block = self
@@ -470,19 +477,11 @@ class textItem(QtWidgets.QGraphicsTextItem):
     def __init__(self, text, anchor=1, parent=None,comment=False):
         super(textItem, self).__init__(text, parent)
         self.anchor = anchor
+        self.scale = 1 
         
         # compute dx, dy absed on anchor
         self.dx, self.dy = 0, 0
-        if anchor in (4,5,6):
-            self.dy = -0.5*self.boundingRect().height()
-        elif anchor in (1,2,3):
-            self.dy = -self.boundingRect().height()
-        
-        if anchor in (2,5,8):
-            self.dx = -0.5*self.boundingRect().width()
-        if anchor in (3,6,9):
-            self.dx = -self.boundingRect().width()
-            
+        self.setAnchor()
         self.setNormal()
         self.setFlag(self.ItemIsMovable)
         self.setFlag(self.ItemIsSelectable)
@@ -493,10 +492,24 @@ class textItem(QtWidgets.QGraphicsTextItem):
 
     def setFlipped(self):
         '''mirror in place (use when parent is flipped'''
-        self.setTransform(QtGui.QTransform().translate(self.dx, self.dy).scale(-1,1).translate(-self.boundingRect().width(),0))
+        self.setTransform(QtGui.QTransform().translate(self.dx, self.dy).scale(-self.scale,self.scale).translate(-self.boundingRect().width(),0))
+        self.setAnchor()
+        self.setTransform(QtGui.QTransform().translate(self.dx, self.dy).scale(-self.scale,self.scale).translate(-self.boundingRect().width(),0))
 
     def setNormal(self):
         '''normal orientation'''
-        self.setTransform(QtGui.QTransform.fromScale(1,1).translate(self.dx, self.dy))
-
+        self.setTransform(QtGui.QTransform.fromScale(self.scale,self.scale).translate(self.dx, self.dy))
+        self.setAnchor()
+        self.setTransform(QtGui.QTransform.fromScale(self.scale,self.scale).translate(self.dx, self.dy))
+        
+    def setAnchor(self): 
+        if self.anchor in (4,5,6):
+            self.dy = -0.5*self.boundingRect().height()
+        elif self.anchor in (1,2,3):
+            self.dy = -self.boundingRect().height()
+        
+        if self.anchor in (2,5,8):
+            self.dx = -0.5*self.boundingRect().width()
+        if self.anchor in (3,6,9):
+            self.dx = -self.boundingRect().width()
 

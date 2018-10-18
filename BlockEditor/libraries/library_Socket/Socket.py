@@ -1,5 +1,6 @@
-name = 'Socket' #zelfde als bestand naam 
-libname = 'Socket' #zelfde als map naam
+# cell definition
+# name = 'Socket'
+# libname = 'Socket'
 
 inp = 0
 outp = 1
@@ -8,7 +9,6 @@ parameters = dict(inp=0,outp=1)
 properties = {'name': 'unixsocketSBlk', 'Default outputs': '[0.]', 'Socket': " 'ssock'"} #voor netlisten
 #view variables:
 iconSource = 'SOCK'
-textSource = 'libraries/library_Socket/Socket.py'
 
 
 
@@ -26,4 +26,4 @@ def getSymbol(param,parent=None,scene=None,):
     return supsisim.block.Block(attributes,param,properties,name,libname,parent,scene)
     
 
-views = {'icon':iconSource,'text':textSource}
+views = {'icon':iconSource}

@@ -15,7 +15,7 @@ import subprocess
 import shutil
 
 import svgwrite
-from supsisim.const import DB, PD, respath, svgpinlabels
+from supsisim.const import DB, PD, respath
 
 #import dircache
 import os
@@ -25,7 +25,9 @@ from supsisim.dialg import txtDialog,LibraryChoice_Dialog, textLineDialog, creat
 
 from lxml import etree
 
+
 import libraries
+
 
 class CompViewer(QtWidgets.QGraphicsScene):
     
@@ -312,139 +314,6 @@ class CompViewer(QtWidgets.QGraphicsScene):
         
         
 
-    def createIcon(self):
-        '''generate svg file'''
-        block = self.actComp
-        blockname = block.name
-        inputs, outputs, inouts = block.pins()
-        pinlist = inputs + outputs + inouts
-        
-        # find bounding box
-        x0, y0, x1, y1 = None, None, None, None
-        for tp, x, y, pname in pinlist:
-            x0 = x if x0 == None else min(x0, x)
-            x1 = x if x1 == None else max(x1, x)
-            y0 = y if y0 == None else min(y0, y)
-            y1 = y if y1 == None else max(y1, y)
-        
-        w = x1-x0 + PD
-        h = max(50, y1 - y0 + PD) # block height
-        dh2 = (h - (y1 - y0))/2
-        y0 = y0 - dh2
-        y1 = y1 + dh2
-        
-        
-        # defaults to be moved to conf
-        margin    = 10
-        font_size = 10 # height
-        pin_size  = 10 # length of line segment 
-        
-        #generate a tempfile
-        f = tempfile.NamedTemporaryFile(suffix='.svg', delete=False)
-        svgtempfilename = f.name
-        f.close()
-                
-        dwg = svgwrite.Drawing(filename=svgtempfilename, size=(2*margin+x1-x0,2*margin+y1-y0), profile='tiny', debug=False)
-        dwg.attribs['xmlns:sodipodi'] = "http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"  
-        dwg.attribs['xmlns:inkscape'] = "http://www.inkscape.org/namespaces/inkscape"
-        dwg.attribs['id'] = "svg2"
-        dwg.attribs['inkscape:version'] = "0.91 r13725"
-        dwg.attribs['sodipodi:docname'] = blockname
-        
-        sodipodi = svgwrite.base.BaseElement(debug=False)
-        sodipodi.elementname = 'sodipodi:namedview'
-        t = '''objecttolerance="10"
-               gridtolerance="10000"
-               guidetolerance="10"
-               showgrid="true"
-               inkscape:snap-grids="true"
-               inkscape:current-layer="svg2"
-               inkscape:window-width="{w}"
-               inkscape:window-height="{h}"'''.format(w=w, h=h)
-        g =  svgwrite.base.BaseElement(type="xygrid", units="px", spacingx="10", spacingy="10", debug=False)
-        g.elementname = 'inkscape:grid'
-        sodipodi.elements.append(g)
-        
-        for line in t.splitlines():
-            k, v = line.split('=')
-            sodipodi.attribs[k.strip()] = v.strip().strip('"')
-        dwg.elements.append(sodipodi)
-        
-        for tp, x, y, name in pinlist:
-            extra = dict()
-            extra['font-size'] = '{}px'.format(font_size)
-            x -= x0 - margin
-            y -= y0 - margin
-            if tp == 'i': # left align
-                dx, dy = pin_size, 0
-                tx, ty = x + dx + font_size*0.35, y + font_size*0.35
-            elif tp == 'o': # right align
-                extra['text-anchor'] = "end"
-                dx, dy = -pin_size, 0
-                tx, ty = x + dx - font_size*0.35, y + dy + font_size*0.35
-            elif tp == 'io': # mid align
-                extra['text-anchor'] = "mid"
-                dx, dy = 0, -pin_size
-                tx, ty = dx, dy
-
-            if svgpinlabels:
-                dwg.add(dwg.text(name, id='{}-portlabel_{}'.format(tp, name), insert=(tx, ty), **extra))
-            dwg.add(dwg.line(id='{}-port_{}'.format(tp, name), start=(x, y), end=(x+dx, y+dy), stroke='darkGreen'))
-        
-        
-        dwg.add(dwg.rect(insert=(margin+pin_size, margin+pin_size), size=(x1-x0-2*pin_size, y1-y0-2*pin_size),
-                            fill='none', stroke='darkGreen', stroke_width=1))
-        
-        dwg.save(pretty=True)
-        
-        try:
-            timestamp0 = os.stat(svgtempfilename).st_mtime
-            subprocess.call('inkscape {}'.format(svgtempfilename).split())
-            timestamp1 = os.stat(svgtempfilename).st_mtime
-            svgfilename = os.path.join(respath, 'blocks', blockname+'.svg')
-            if not os.path.exists(svgfilename):# not existing => copy'
-                shutil.move(svgtempfilename, svgfilename)
-                block.setIcon()
-                
-            elif  timestamp0 < timestamp1:# newer => copy'
-                shutil.move(svgtempfilename, svgfilename)
-                block.setIcon()
-            else: # ask
-                msg = "Not modified: Do you want to store the auto-generated icon??"
-                reply =QtWidgets. QMessageBox.question(None, 'Message', 
-                                 msg, QtWidgets.QMessageBox.Yes, QtWidgets.QMessageBox.No)
-
-                if reply == QtWidgets.QMessageBox.Yes:
-                     shutil.move(svgtempfilename, svgfilename)
-                     block.setIcon()
-
-            if os.path.exists(svgtempfilename):
-                os.remove(svgtempfilename)
-                
-                
-            
-            t = ['# -*- coding: utf-8 -*-']
-            t.append('# auto-saved file')
-            t.append('# edits outside blocks will be lost')
-            t.append('')
-            t.append('from supsisim.block import Block')
-            t.append('from collections import OrderedDict')
-            t.append('')
-            t.append('libs = OrderedDict()')
-            for libname in libraries.libs:
-                bb = []
-                for blockname in libraries.libs[libname]:
-                    print(blockname,libname)
-                    block = libraries.getBlock(blockname,libname)
-                    bb.append(block.toPython(lib=True))
-                t.append('libs[{}] = [ \\\n    {}]'.format(repr(libname), ', \n    '.join(bb)))
-            
-            print('\n'.join(t)+'\n')
-                        
-        except OSError:
-            raise Exception('Inkscape is not installed')
-        
-        return dwg
         
         
         
@@ -472,8 +341,9 @@ def getSymbolData(attributes,properties,parameters):
 #    f.close()\n\
 #    return content\n\
 #\n\
-    template = "name = '{name}' #same as file name (without .py) \n\
-libname = '{libname}' #same as directory name \n\
+    template = "# cell definition\n\
+# name = '{name}'\n\
+# libname = '{libname}'\n\
 \n\
 inp = {inp}\n\
 outp = {outp}\n\
@@ -483,12 +353,12 @@ properties = {properties} #netlist properties\n\
 \
 \
 #view variables:\n\
-iconSource = '{icon}'\n\
-textSource = 'libraries/library_{libname}/{name}.py'\n\
+{iconSource}\
 \n\
 \n\
-views = {{'icon':iconSource,'text':textSource}}"
-    return template.format(name=name,libname=libname,inp=str(inp),outp=str(outp),properties=str(properties),parameters=str(parameters),icon=str(icon))
+views = {{'icon':iconSource}}\n"
+    iconSource = "iconSource = '{}'\n".format(icon) if icon else ''
+    return template.format(name=name,libname=libname,inp=str(inp),outp=str(outp),properties=str(properties),parameters=str(parameters),iconSource=iconSource)
 
         
 class Library(QtWidgets.QMainWindow):
@@ -518,7 +388,8 @@ class Library(QtWidgets.QMainWindow):
 ##            self.toolbar.addAction(textViewActiSaturationon)
 #        else:
 #            self.symbolView()
-    
+
+
     def addToolbars(self):
         mypath = respath + '/icons/'
         self.listViewAction = QtWidgets.QAction(QtGui.QIcon(mypath+'listView.png'),
@@ -625,7 +496,7 @@ class Library(QtWidgets.QMainWindow):
         self.toolbar.addAction(textViewAction)    
         self.listView()
     
-    def openView(self,type,actComp=None):
+    def openView(self,viewtype,actComp=None):
         import supsisim.const
         reload(supsisim.const)
         from supsisim.const import viewEditors           
@@ -638,17 +509,22 @@ class Library(QtWidgets.QMainWindow):
             blockname = self.cells.currentItem().text()
         
         try:
-            source = libraries.getViews(blockname,libname)[type]
+            source = libraries.getViews(blockname,libname)[viewtype]
         except:
             error('view not found')
         editor = False
         
+        base, ext = os.path.splitext(source)       
         for viewEditor in viewEditors:
-            if type == viewEditor['type']:
+            if ext == viewEditor['extension']:
                 editor = viewEditor['editor']
+                break
         if not editor:
-            error('View type unkown, please see viewEditors in Edit settings')
+            error("extension '{}' unkown\nplease see viewEditors in menu Settings->Edit settings".format(ext))
             return
+        
+        if viewtype == 'textSource':
+            source = os.path.join(libraries.libroot, source)
         os.system(editor + " " + source)
     
         #reset library
@@ -673,12 +549,12 @@ class Library(QtWidgets.QMainWindow):
         self.centralWidget = QtWidgets.QWidget()        
         
         self.libraries = QtWidgets.QListWidget(self.centralWidget)
-        #self.catogories = QtWidgets.QListWidget(self.centralWidget)
+        #self.categories = QtWidgets.QListWidget(self.centralWidget)
         self.cells = QtWidgets.QListWidget(self.centralWidget)
         self.views = QtWidgets.QListWidget(self.centralWidget)
         
         self.libraries.currentItemChanged.connect(self.clickLibrary)
-        #self.catogories.currentItemChanged.connect(self.clickCatogory)
+        #self.categories.currentItemChanged.connect(self.clickCatogory)
         self.cells.currentItemChanged.connect(self.clickCell)
         self.views.currentItemChanged.connect(self.clickView)
         
@@ -692,7 +568,7 @@ class Library(QtWidgets.QMainWindow):
         self.layout = QtWidgets.QHBoxLayout(self.centralWidget)
         
         self.layout.addWidget(self.libraries)
-        #self.layout.addWidget(self.catogories)
+        #self.layout.addWidget(self.categories)
         self.layout.addWidget(self.cells)
         self.layout.addWidget(self.views)
         
@@ -960,6 +836,100 @@ class Library(QtWidgets.QMainWindow):
                 self.cells.setCurrentRow(c)
 
 
+    def scrub_svglabels(self, svgfilename):
+        '''scrub port labels from svg file'''
+        tree =  etree.parse(svgfilename)
+        root = tree.getroot()
+        rr = []
+        for child in root:
+            if child.tag.endswith('text') and 'id' in child.attrib:
+                if 'portlabel' in child.attrib['id']:
+                    rr.append(child)
+        for child in rr:
+            root.remove(child)
+        with open(svgfilename, 'wb') as f:
+            f.write(etree.tostring(root, pretty_print=True))
+
+    def createIcon(self, block, svgfilename):
+        '''generate svg file'''
+        blockname = block.name
+        inputs, outputs, inouts = block.pins()
+        pinlist = inputs + outputs + inouts
+        
+        # find bounding box
+        x0, y0, x1, y1 = None, None, None, None
+        for tp, x, y, pname in pinlist:
+            x0 = x if x0 == None else min(x0, x)
+            x1 = x if x1 == None else max(x1, x)
+            y0 = y if y0 == None else min(y0, y)
+            y1 = y if y1 == None else max(y1, y)
+        
+        w = x1-x0 + PD
+        h = max(50, y1 - y0 + PD) # block height
+        dh2 = (h - (y1 - y0))/2
+        y0 = y0 - dh2
+        y1 = y1 + dh2
+        
+        
+        # defaults to be moved to conf
+        margin    = 10
+        font_size = 10 # height
+        pin_size  = 10 # length of line segment 
+        
+                
+        dwg = svgwrite.Drawing(filename=svgfilename, size=(2*margin+x1-x0,2*margin+y1-y0), profile='tiny', debug=False)
+        dwg.attribs['xmlns:sodipodi'] = "http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"  
+        dwg.attribs['xmlns:inkscape'] = "http://www.inkscape.org/namespaces/inkscape"
+        dwg.attribs['id'] = "svg2"
+        dwg.attribs['inkscape:version'] = "0.91 r13725"
+        dwg.attribs['sodipodi:docname'] = blockname
+        
+        sodipodi = svgwrite.base.BaseElement(debug=False)
+        sodipodi.elementname = 'sodipodi:namedview'
+        t = '''objecttolerance="10"
+               gridtolerance="10000"
+               guidetolerance="10"
+               showgrid="true"
+               inkscape:snap-grids="true"
+               inkscape:current-layer="svg2"
+               inkscape:window-width="{w}"
+               inkscape:window-height="{h}"'''.format(w=w, h=h)
+        g =  svgwrite.base.BaseElement(type="xygrid", units="px", spacingx="10", spacingy="10", debug=False)
+        g.elementname = 'inkscape:grid'
+        sodipodi.elements.append(g)
+        
+        for line in t.splitlines():
+            k, v = line.split('=')
+            sodipodi.attribs[k.strip()] = v.strip().strip('"')
+        dwg.elements.append(sodipodi)
+        
+        for tp, x, y, name in pinlist:
+            extra = dict()
+            extra['font-size'] = '{}px'.format(font_size)
+            x -= x0 - margin
+            y -= y0 - margin
+            if tp == 'i': # left align
+                dx, dy = pin_size, 0
+                tx, ty = x + dx + font_size*0.35, y + font_size*0.35
+            elif tp == 'o': # right align
+                extra['text-anchor'] = "end"
+                dx, dy = -pin_size, 0
+                tx, ty = x + dx - font_size*0.35, y + dy + font_size*0.35
+            elif tp == 'io': # mid align
+                extra['text-anchor'] = "mid"
+                dx, dy = 0, -pin_size
+                tx, ty = dx, dy
+
+            dwg.add(dwg.text(name, id='{}-portlabel_{}'.format(tp, name), insert=(tx, ty), **extra))
+            dwg.add(dwg.line(id='{}-port_{}'.format(tp, name), start=(x, y), end=(x+dx, y+dy), stroke='darkGreen'))
+        
+        
+        dwg.add(dwg.rect(insert=(margin+pin_size, margin+pin_size), size=(x1-x0-2*pin_size, y1-y0-2*pin_size),
+                            fill='none', stroke='darkGreen', stroke_width=1))
+        
+        dwg.save(pretty=True)
+        return dwg
+
     def editIcon(self,actComp=None):
         '''edit svg file'''
         if self.type == 'symbolView':
@@ -970,22 +940,32 @@ class Library(QtWidgets.QMainWindow):
             block = libraries.getBlock(blockname,libname)
             block.setup()
         #blockname = block.name
-        svgiconname = os.path.join(respath, 'blocks', block.icon+'.svg')
-        #svgfilename = os.path.join(respath, 'blocks', blockname+'.svg')
-        with open(svgiconname) as fi:
-            t = fi.read()
-        #generate a tempfile
+#        svgiconname = os.path.join(respath, 'blocks', block.icon+'.svg')
+        svgiconname = block.icon
         fo = tempfile.NamedTemporaryFile(suffix='.svg', delete=False)
         svgtempfilename = fo.name
-        fo.write(t)
-        fo.close()
+
+        if os.path.isfile(svgiconname):
+            with open(svgiconname) as fi:
+                t = fi.read()
+            
+            #generate a tempfile
+            fo.write(t)
+            fo.close()
+        else:
+            self.createIcon(block, svgtempfilename)
+            
+        timestamp0 = os.stat(svgtempfilename).st_mtime
 
         try:
-            timestamp0 = os.stat(svgtempfilename).st_mtime
             subprocess.call('inkscape {}'.format(svgtempfilename).split())
             timestamp1 = os.stat(svgtempfilename).st_mtime
-            if  timestamp0 < timestamp1: # newer => copy'
+            self.scrub_svglabels(svgtempfilename)
+                
+            if timestamp0 and timestamp0 < timestamp1: # newer => copy'
                 shutil.move(svgtempfilename, svgiconname)
+                block.setIcon()
+            else:
                 block.setIcon()
                 
             # creanup tempfile
@@ -1145,16 +1125,21 @@ class Library(QtWidgets.QMainWindow):
             diagram.compLock = True
             for i, blockname in enumerate(lib):
                 cell = libraries.getBlock(blockname,libname)
-                px = i % 2
-                py = i/2
-                diagram.addItem(cell)
-                cell.scene = diagram
-                cell.setPos(px*150,py*150)
-                cell.setup()
-                w = cell.boundingRect().width()
-                h = cell.boundingRect().height()
-                if h > 100.0:
-                    set_orient(cell, scale=min(1.0, 80.0/w, 100.0/h))
+                if cell:
+                    px = i % 2
+                    py = i/2
+                    diagram.addItem(cell)
+                    cell.scene = diagram
+                    cell.setPos(px*150,py*150)
+                    cell.setup()
+                    w = cell.boundingRect().width()
+                    h = cell.boundingRect().height()
+                    if h > 100.0:
+                        scale = min(1.0, 80.0/w, 100.0/h)
+                        # keep label readable
+                        set_orient(cell, scale=scale)
+                        cell.label.scale = 1.0/scale
+                        cell.label.setNormal()
             tab = QtWidgets.QWidget()
 #            if libname == 'symbols':
 #                self.symbolTab = tab
@@ -1188,7 +1173,7 @@ class Library(QtWidgets.QMainWindow):
                 self.cells.addItem(cell)
         
     def clickCatogory(self):
-        catogory = self.catogories.currentItem().text()
+        category = self.categories.currentItem().text()
         
     def clickCell(self):
         cell = self.cells.currentItem()

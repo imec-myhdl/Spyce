@@ -1,5 +1,6 @@
-name = 'LTI_continous' #zelfde als bestand naam 
-libname = 'linear' #zelfde als map naam
+# cell definition
+# name = 'LTI_continous'
+# libname = 'linear'
 
 inp = 1
 outp = 1
@@ -8,7 +9,6 @@ parameters = dict(inp=1,outp=1)
 properties = {'Initial conditions': ' 0', 'name': 'cssBlk', 'System': ' sys'} #voor netlisten
 #view variables:
 iconSource = 'CSS'
-textSource = 'libraries/library_linear/LTI_continous.py'
 
 
 
@@ -26,4 +26,4 @@ def getSymbol(param,parent=None,scene=None,):
     return supsisim.block.Block(attributes,param,properties,name,libname,parent,scene)
     
 
-views = {'icon':iconSource,'text':textSource}
+views = {'icon':iconSource}
