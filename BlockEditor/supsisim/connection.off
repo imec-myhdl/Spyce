@@ -1,0 +1,192 @@
+#!/usr/bin/python
+# aim for python 2/3 compatibility
+'''
+base class to hold a connection
+
+originally connections always start and end at a node or port, but this 
+greatly complicates saving and redrawing. 
+New setup stores only vertices and resolves the connection afterwards
+
+'''
+from __future__ import (division, print_function, absolute_import,
+                        unicode_literals)
+
+from  Qt import QtGui, QtWidgets, QtCore # see https://github.com/mottosso/Qt.py
+
+
+from supsisim.const import LW, colors, DB
+from supsisim.port  import isPort, isNode
+#from supsisim.dialg import error
+#from lxml import etree
+
+class Segment(QtWidgets.QGraphicsLineItem):
+    '''segment of a connection
+    p1, p2 can be a port or a scene position
+    '''
+    def __init__(self, parent, scene, p0=None, p1=None):
+        if QtCore.qVersion().startswith('5'):
+            super(Segment, self).__init__(parent)
+            scene.addItem(self)
+        else:
+            super(Segment, self).__init__(parent, scene)
+        self.parent = parent
+        self.scene = scene
+        self.p    = [None, None]
+        self.link = [None, None]
+        p = [p0, p1]
+        for ix in [0,1]:
+            if isPort(p[ix]) or isSegment(p[ix]):
+                self.attach(ix, p[ix])
+            else: # position
+                self.setP(ix, p[ix])
+        self.line_color = colors['connection']
+        self.setup()
+    
+#    def line(self):
+#        pos  = self.scenePos()
+#        p0  = self.p[0] - pos
+#        p1  = self.p[1] - pos
+#        return QtCore.QLineF(p0.x(), p0.y(), p1.x(), p1.y())
+        
+ 
+    def attach(self, ix, item):
+        '''store position, update links'''
+        if ix < 0 or ix > 1:
+            return
+        if isPort(item):
+            pos = item.scenePos()
+            self.setP(ix, pos)
+            self.link[ix] = item
+            self.snap(1-ix)
+            item.connections.add(self)
+            return pos
+        elif isSegment(item):
+            # attach to other line end
+            self.setP(ix, item.p[1-ix]) # coordinate
+            self.link[ix] = item        # link
+
+            item.link[1-ix] = self # attach other segment to self as well
+            return self.p[ix]
+
+    def deattach(self, ix):
+        if ix < 0 or ix > 1:
+            return
+        item = self.p[ix]
+        if isPort(item):
+            item.connections.discard(self)
+            self.link[ix] = None
+        elif isSegment(item): # detach from other line
+            if item.link[0] == self:
+                item.link[0] = None
+            elif item.link[1] == self:
+                item.link[1] = None
+        
+    def setup(self):
+        pen = QtGui.QPen(self.line_color)
+        pen.setWidth(LW*4)
+        self.setPen(pen)
+        self.setPos(0,0)
+#        self.setFlag(self.ItemIsMovable)
+#        self.setFlag(self.ItemIsSelectable)
+#        self.setFlag(self.ItemSendsScenePositionChanges)
+
+
+    def movep(self, delta):
+        print('move', delta)
+        self.p[0] = self.p[0] + delta
+        self.p[1] = self.p[1] + delta
+        self.updateIntersect(0)
+        self.updateIntersect(1)
+        self.update_path()
+
+    def snap(self, ix):
+        # snap p[ix]
+        #    orthogonal if second point, or other is port
+        other = 1-ix
+        if self.p[0] and self.p[1]:
+            delta = self.p[ix] - self.p[other]
+            if ix == 1 or isPort(self.link[other], 'block'): # second point must be orthogonal
+                if abs(delta.x()) > abs(delta.y()):
+                    self.p[ix].setY(self.p[other].y())
+                else:
+                    self.p[ix].setX(self.p[other].x())
+            return self.p[ix]
+        
+
+    def setP(self, ix, pos=None):
+        '''Set p[ix] and if ix == 1 or other is block port: snap x or y to other '''
+        if pos:
+            self.p[ix] = pos
+#            print ('setP')
+#            print ('   ', self.p[ix])
+        # snap to orthogonal
+        self.snap(ix)
+#        print ('   snap->', self.p[ix])
+        return self.p[ix]
+            
+    def update_path(self, p1=None):
+        if isPort(p1):
+            delta = self.p[1] - p1.scenePos()
+            # check if segment is 'almost' connecting
+            if (delta.x()**2 + delta.y()**2) < DB**2: # finish self
+                self.attach(1, p1)
+            else: # finish with new segment
+                newSegment = Segment(None, self.scene, self.p[1], p1)
+                newSegment.update_path()
+        elif p1: # should be position QPOintF
+            self.setP(1, p1)
+        for ix in [0,1]:
+            if isPort(self.link[ix]):
+                self.setP(ix, self.link[ix].scenePos())
+                self.snap(1-ix)
+
+        if self.p[0] and self.p[1]:
+            self.setLine(QtCore.QLineF(self.p[0], self.p[1]))
+
+    def pp(self, item):
+        for line, p in [(self.line(), self.p), (item.line(), item.p)]:
+            x1, y1, x2, y2 = line.x1(), line.y1(), line.x2(), line.y2()
+            print('   line: ({:.1f}, {:.1f}), ({:.1f}, {:.1f})'.format(x1, y1, x2, y2))
+            print('         ({:.1f}, {:.1f})'.format(self.scenePos().x(),self.scenePos().y()))
+            x1, y1, x2, y2 = p[0].x(), p[0].y(), p[1].x(), p[1].y()
+            print('      p: ({:.1f}, {:.1f}), ({:.1f}, {:.1f})'.format(x1, y1, x2, y2))
+
+    def updateIntersect(self, ix, offset=None):        
+        other = 1 - ix
+        if isSegment(self.link[ix]):
+            intersectPoint = QtCore.QPointF()
+            line = self.line()
+            if offset:
+                line = QtCore.QLineF(line.p1()+offset, line.p2()+offset)
+                
+            ii = line.intersect(self.link[ix].line(), intersectPoint)
+            if ii:
+                print('intersect', ix)
+                print('    ', intersectPoint)
+                self.pp(self.link[ix])
+                self.setP(ix, intersectPoint)
+                self.link[ix].setP(other, intersectPoint)
+                print ('->')
+                self.pp(self.link[ix])
+                self.link[ix].update_path()
+                self.update_path()
+
+#    def itemChange(self, change, value):
+#        if change == self.ItemPositionHasChanged:
+#            # absorb changes
+#            if isPort(self.link[0]) or isPort(self.link[1]): # do nothing if attached to port
+#                return value
+#            else:
+#                self.updateIntersect(0, -value + self.scenePos())
+#                self.updateIntersect(1, -value + self.scenePos())
+#                pos = value # new position!
+#                self.setLine(QtCore.QLineF(self.p[0] - pos, self.p[1] - pos))
+#        return value
+    
+   
+   
+def isSegment(item): 
+    return isinstance(item, Segment)        
+    
+#def isConnection(item):
+#    return isinstance(item, Connection)

@@ -4,42 +4,144 @@ from __future__ import (division, print_function, absolute_import,
                         unicode_literals)
 
 from  Qt import QtGui, QtWidgets, QtCore # see https://github.com/mottosso/Qt.py
-
+from collections import OrderedDict
 
 #if sys.version_info>(3,0):
 #    import sip
 #    sip.setapi('QString', 1)
 
-from supsisim.const import PW
+from supsisim.const import PW, NW, colors
+from supsisim.dialg import error
+from supsisim.text  import textItem
 
 class Port(QtWidgets.QGraphicsPathItem):
-    """A block holds ports that can be connected to."""
-    def __init__(self, parent, scene, name = ''):
+    """A block holds ports that can be connected to.
+    porttype is any of [input, output, inout, ipin, opin, iopin, node]
+    labelside is any of [left, right, top, bottom]"""
+    def __init__(self, parent, scene, label=None, porttype='node', flip=False):
         if QtCore.qVersion().startswith('5'):
             super(Port, self).__init__(parent)
         else:
             super(Port, self).__init__(parent, scene)
         self.block = None
-        self.name = ''
-        self.line_color = QtCore.Qt.black
-        self.fill_color = QtCore.Qt.black
+        self.flip = parent.flip if not parent is None else flip
+        self.label_side = 'right'
         self.p = QtGui.QPainterPath()
-        self.connections = []
+        self.connections = set()
         self.nodeID = '0'
         self.parent = parent
-        self.pinlabel = None
+        if label:
+            self.label = textItem(label, parent=self)
+        else:
+            self.label = None
+        self.setType(porttype.lower())
+        self.setup()
+        self.setLabel()
+        self.setFlip()
 
     def setup(self):
-        pass
+        self.setPath(self.p)
+        if self.porttype in ['ipin', 'opin', 'iopin', 'node']:
+            self.setFlag(self.ItemIsSelectable)
+            self.setFlag(self.ItemIsMovable)
+        else:
+            self.setFlag(self.ItemIsSelectable, False)
+            self.setFlag(self.ItemIsMovable, False)
+        self.setFlag(self.ItemSendsScenePositionChanges)
+
+    def setType(self, porttype=None):
+        pp, cc = None, None  # polygon/circle coordinates
+        if porttype:
+            self.porttype = porttype
+        if self.porttype is None: # not set
+            return
+        if   self.porttype == 'input': # block input
+            pp = ((PW/2,0), (-PW/2,PW/2), (-PW/2,-PW/2))
+            self.label_side = 'right'
+
+        elif self.porttype == 'output': # block output
+            pp = ((-PW/2,-PW/2), (PW/2,-PW/2), (PW/2,PW/2), (-PW/2,PW/2))
+            self.label_side = 'left'
+
+        elif self.porttype == 'inout':  # block inout
+            pp = ((-PW/2,0), (0,PW/2), (PW/2,0), (0,-PW/2))
+            self.label_side = 'left'
+
+        elif self.porttype == 'ipin': # input terminal
+            pp = ((PW/2,0), (0,PW/2), (-PW,PW/2), (-PW,-PW/2), (0,-PW/2))
+            self.label_side = 'left'
+
+        elif self.porttype == 'opin': # output terminal
+            pp = ((PW/2,0), (0,PW/2), (-PW,PW/2), (-PW/2,0), (-PW,-PW/2), (0,-PW/2))
+            self.label_side = 'right'
+
+        elif self.porttype == 'iopin':  # inout terminal
+            pp = ((-PW,0), (-PW/2,PW/2), (PW/2,PW/2), (PW,0), (PW/2,-PW/2), (-PW/2,-PW/2))
+            self.label_side = 'right'
+
+        elif self.porttype == 'node':  # node
+            cc = (-NW/2, -NW/2, NW, NW)
+            self.label_side = 'top'
+
+        for k in [self.porttype, 'port_'+self.porttype]:
+            if k in colors:
+                self.lineColor, self.fillColor = colors[k]
+                pen = QtGui.QPen(self.lineColor)
+                pen.setWidth(1)
+                self.setPen(pen)
+                self.setBrush(self.fillColor)
+                break
+
+        self.p.swap(QtGui.QPainterPath()) # new painterpath
+        if pp:
+            polygon = QtGui.QPolygonF()
+            for (x, y) in pp:
+                polygon.append(QtCore.QPointF(x, y))
+            polygon.append(QtCore.QPointF(pp[0][0], pp[0][1])) # close polygon
+            self.p.addPolygon(polygon)
+        elif cc:
+            bb = QtCore.QRectF(*cc)
+            self.p.addEllipse(bb)
+
+        else:
+            error('unknown Port type: {}'.format(self.porttype))
+
+
+    def setLabel(self, label=None, label_side=None):
+        if self.label is None:
+            if label:
+                self.label = textItem(label, parent=self)
+            else:
+                return
+        elif label:
+            self.label.setPlainText(label)
+            
+        if label_side:
+            self.label_side = label_side
+            
+        if self.label_side == 'right':
+            self.label.setPos(10,0)
+            self.label.setAnchor(4)
+        elif self.label_side == 'left':
+            self.label.setPos(-10,0)
+            self.label.setAnchor(6)
+        elif self.label_side == 'top':
+            self.label.setPos(0,-10)
+            self.label.setAnchor(2)
+        elif self.label_side == 'bottom':
+            self.label.setPos(0,10)
+            self.label.setAnchor(8)
+        
+        self.label.setNormal()
+
 
     def itemChange(self, change, value):
         if change == self.ItemScenePositionHasChanged:
             for conn in self.connections:
                 try:
-                    conn.update_pos_from_ports()
                     conn.update_path()
-                except AttributeError:
-                    self.connections.remove(conn)
+                except:
+                    pass
         return value
 
     def is_connected(self, other_port):
@@ -49,7 +151,7 @@ class Port(QtWidgets.QGraphicsPathItem):
         return False
 
     def remove(self):
-        for conn in self.connections:
+        for conn in [c for c in self.connections]:
             try:
                 conn.remove()
             except:
@@ -59,74 +161,64 @@ class Port(QtWidgets.QGraphicsPathItem):
         except AttributeError:
             pass
 
-            try:
-                self.scene().removeItem(self)
-            except AttributeError:
-                pass
+    def setFlip(self):
+        if isPort(self, 'block'): # flip is done via parent (only label needa processing)
+            isflipped = self.parent.flip
+        else:
+            isflipped = self.flip
+            if isflipped:
+                self.setTransform(QtGui.QTransform.fromScale(-1, 1))
+            else:
+                self.setTransform(QtGui.QTransform.fromScale(1, 1))
 
-class InPort(Port):
-    def __init__(self, parent, scene, name=''):
-        super(InPort, self).__init__(parent, scene)
-        self.name = name
+        # check if label is present
+        if self.label:
+            if isflipped:
+                self.label.setFlipped()
+            else:
+                self.label.setNormal()
+                
+    def toData(self):
+        data = OrderedDict(type='port')
+        data['porttype'] = self.porttype
+        data['x'] = self.pos().x()
+        data['y'] = self.pos().y()
+        if self.label:
+            data['label'] = self.label.toData()
+        if self.flip:
+            data['flip'] = self.flip
+        return data
+
+    def fromData(self, data):
+        self.setType(data['porttype'])
+        self.setPos(data['x'], data['y'])
+        if 'flip' in data:
+            self.flip = data['flip']
+        
+        if 'label' in data: # do not use setLabel as that would reset the label position
+            self.label = textItem('', parent=self)
+            self.label.fromData(data['label'])
         self.setup()
 
-    def __str__(self):
-        txt  = 'InPort \n'
-        txt += 'Parent : ' + self.parent.name + '\n'
-        txt += 'Node ID :' + self.nodeID + '\n'
-        txt += 'Connections: ' + (len(self.connections)).__str__() + '\n'
-        return txt
+
+def isInPort(item):
+    return isinstance(item, Port) and item.porttype in ['input', 'opin', 'iopin']
     
-    def setup(self):
-        self.setPen(self.line_color)
-        self.setBrush(self.fill_color)
-        self.p.addRect(-PW/2, -PW/2, PW, PW)
-        self.setPath(self.p)
-        self.setFlag(QtWidgets.QGraphicsItem.ItemSendsScenePositionChanges)
-
-class OutPort(Port):
-    def __init__(self, parent, scene, name=''):
-        super(OutPort, self).__init__(parent, scene)
-        self.name = name
-        self.setup()
-
-    def __str__(self):
-        txt  = 'OutPort \n'
-        txt += 'Parent : ' + self.parent.name + '\n'
-        txt += 'Node ID :' + self.nodeID + '\n'
-        txt += 'Connections: ' + (len(self.connections)).__str__() + '\n'
-        return txt
+def isOutPort(item):
+    return isinstance(item, Port) and item.porttype in ['output', 'ipin', 'iopin']
     
-    def setup(self):
-        self.setPen(self.line_color)
-        self.setBrush(self.fill_color)
-        self.p.addEllipse(-PW/2, -PW/2, PW, PW)
-        self.setPath(self.p)
-        self.setFlag(QtWidgets.QGraphicsItem.ItemSendsScenePositionChanges)
-         
-class InNodePort(Port):
-    def __init__(self, parent, scene):
-        super(InNodePort, self).__init__(parent, scene)
-        self.setup()
+def isInoutPort(item):
+    return isinstance(item, Port) and item.porttype in ['inout', 'iopin']
 
-    def __str__(self):
-        txt  = 'Node In \n'
-        txt += 'Connections: ' + (len(self.connections)).__str__() + '\n'
-        return txt
+def isPort(item, tp=None):
+    if tp == 'block':
+        tp = ['input', 'output', 'inout']
+    if tp:
+        return isinstance(item, Port) and item.porttype in tp
+    else:
+        return isinstance(item, Port)
+        
 
-    def setup(self):
-        self.setFlag(QtWidgets.QGraphicsItem.ItemSendsScenePositionChanges)
-
-class OutNodePort(Port):
-    def __init__(self, parent, scene):
-        super(OutNodePort, self).__init__(parent, scene)
-        self.setup()
-
-    def __str__(self):
-        txt  = 'Node Out \n'
-        txt += 'Connections: ' + (len(self.connections)).__str__() + '\n'
-        return txt
-
-    def setup(self):
-        self.setFlag(QtWidgets.QGraphicsItem.ItemSendsScenePositionChanges)
-
+def isNode(item):
+    return isinstance(item, Port) and item.porttype == 'node'
+      

@@ -4,15 +4,15 @@ from __future__ import (division, print_function, absolute_import,
                         unicode_literals)
 
 from  Qt import QtGui, QtWidgets, QtCore # see https://github.com/mottosso/Qt.py
+from collections import OrderedDict
 
 #import sys
 #if sys.version_info>(3,0):
 #    import sip
 #    sip.setapi('QString', 1)
 
-import numpy as np
-from supsisim.const import LW
-from supsisim.port import InPort, OutPort
+from supsisim.const import LW, colors
+from supsisim.port import isPort, isInPort, isOutPort, isNode
 from supsisim.node import Node
 from supsisim.dialg import error
 from lxml import etree
@@ -20,39 +20,53 @@ from lxml import etree
 class Connection(QtWidgets.QGraphicsPathItem):
     """Connects one port to another."""
 
-    def __init__(self, parent, scene):
+    def __init__(self, parent, scene, p0=None, p1=None):
         if QtCore.qVersion().startswith('5'):
             super(Connection, self).__init__(parent)
             scene.addItem(self)
         else:
             super(Connection, self).__init__(parent, scene)
-        self.scene = scene
 
-        self.pos1 = None
-        self.pos2 = None
-
-        self.port1 = None
-        self.port2 = None
-        
+        self.pos = [None, None]
+        self.port = [None, None]
+        self.attach(0, p0)
+        self.attach(1, p1)
+       
         self.label = None
         self.signalType = None
 
-        self.line_color = QtCore.Qt.black
+        self.lineColor = colors['connection']
 
         self.setup()
 
+    def attach(self, ix, p):
+        if ix in [0,1]:
+            if isPort(p):
+                self.pos[ix]  = p.scenePos()
+                self.port[ix] = p
+                p.connections.add(self)
+            elif p:
+                self.pos[ix]  = p
+                self.port[ix] = None
+            # do nothing if p = None
+            
+
     def __str__(self):
         txt  = 'Connection\n'
-        txt += 'Position 1 : ' + self.pos1.__str__() + '\n'
-        txt += 'Position 2 : ' + self.pos2.__str__() + '\n'
+        txt += 'Position 1 : ' + self.pos[0].__str__() + '\n'
+        txt += 'Position 2 : ' + self.pos[1].__str__() + '\n'
         txt += 'Port1 :\n'
-        txt += self.port1.__str__() + '\n'
+        txt += self.port[0].__str__() + '\n'
         txt += 'Port2 :\n'
-        txt += self.port2.__str__() + '\n'
+        txt += self.port[1].__str__() + '\n'
         return txt
     
-    def toPython(self):
-        data = dict(type='connection',pos1=dict(x=self.pos1.x(),y=self.pos1.y()),pos2=dict(x=self.pos2.x(),y=self.pos2.y()))
+    def toData(self):
+        data = OrderedDict(type='connection')
+        data['x0'] = self.pos[0].x()
+        data['y0'] = self.pos[0].y()
+        data['x1'] = self.pos[1].x()
+        data['y1'] = self.pos[1].y()
         if self.label:
             data['label'] = self.label.toPlainText()
         if self.signalType:
@@ -60,64 +74,63 @@ class Connection(QtWidgets.QGraphicsPathItem):
         return data
     
     def setup(self):
-        pen = QtGui.QPen(self.line_color)
+        pen = QtGui.QPen(self.lineColor)
         pen.setWidth(LW)
         self.setPen(pen)
 
     def update_pos_from_ports(self):
-        self.pos1 = self.port1.scenePos()
-        self.pos2 = self.port2.scenePos()
+        self.pos[0] = self.port[0].scenePos()
+        self.pos[1] = self.port[1].scenePos()
 
-    def update_ports_from_pos(self,undo=False):
-        item = self.scene.find_itemAt(self.pos1)
-#        print('1 ' + str(item))
-        if isinstance(item, OutPort):
-            self.port1 = item
-        elif isinstance(item, Node):
-            self.port1 = item.port_out
-        else:
-            if not undo:
-                error("Connection couldn't find pin")
-            self.remove()
-            return
-        item = self.scene.find_itemAt(self.pos2)
-#        print('2 ' + str(item))
-        if isinstance(item, InPort):
-            self.port2 = item
-        elif isinstance(item, Node):
-            self.port2 = item.port_in
-        else:
-            if not undo:
-                error("Connection couldn't find pin")
-            self.remove()
-            return
-    
-        self.port1.connections.append(self)
-        self.port2.connections.append(self)
-        self.update_path()
+#    def update_ports_from_pos(self, undo=False):
+#        item = self.scene().find_itemAt(self.pos[0])
+##        print('1 ' + str(item))
+#        if isOutPort(item) or isNode(item):
+#            self.port[0] = item
+#        else:
+#            if not undo:
+#                error("Connection couldn't find pin")
+#            self.remove()
+#            return
+#        item = self.scene().find_itemAt(self.pos[1])
+##        print('2 ' + str(item))
+#        if isInPort(item)or isNode(item):
+#            self.port[1] = item
+#        else:
+#            if not undo:
+#                error("Connection couldn't find pin")
+#            self.remove()
+#            return
+#    
+#        self.port[0].connections.append(self)
+#        self.port[1].connections.append(self)
+#        self.update_path()
         
-    def update_path(self):
+    def update_path(self, portOrPos=None):
         p = QtGui.QPainterPath()
+        if portOrPos:
+            self.attach(1, portOrPos)
         item = None
-        if self.port2 == None:
-            item = self.scene.find_itemAt(self.pos2)
-        if isinstance(self.port1, OutPort):
-            pt = QtCore.QPointF(self.pos2.x(),self.pos1.y())
-        elif isinstance(self.port2, InPort) or isinstance(item, InPort):
-            pt = QtCore.QPointF(self.pos1.x(),self.pos2.y())
+        for ix in [0,1]:
+            if self.port[ix]:
+                self.pos[ix] = self.port[ix].scenePos()
+        if isOutPort(self.port[0]):
+            pt = QtCore.QPointF(self.pos[1].x(),self.pos[0].y())
+        elif isInPort(self.port[1]) or isInPort(item):
+            pt = QtCore.QPointF(self.pos[0].x(),self.pos[1].y())
         else:
-            dx = np.abs(self.pos2.x()-self.pos1.x())
-            dy = np.abs(self.pos2.y()-self.pos1.y())
+            dx = abs(self.pos[1].x()-self.pos[0].x())
+            dy = abs(self.pos[1].y()-self.pos[0].y())
             if dx > dy:
-                pt = QtCore.QPointF(self.pos2.x(),self.pos1.y())
+                pt = QtCore.QPointF(self.pos[1].x(),self.pos[0].y())
             else:
-                pt = QtCore.QPointF(self.pos1.x(),self.pos2.y())
+                pt = QtCore.QPointF(self.pos[0].x(),self.pos[1].y())
 
         if self.label:
-            self.label.setPos(self.pos2.x(),self.pos2.y())
-        p.moveTo(self.pos1)
+            self.label.setPos(self.pos[1].x(),self.pos[1].y())
+        p.moveTo(self.pos[0])
         p.lineTo(pt)
-        p.lineTo(self.pos2)
+        p.lineTo(self.pos[1])
         self.setPath(p)
 
     '''
@@ -132,28 +145,30 @@ class Connection(QtWidgets.QGraphicsPathItem):
 
     def remove(self):
         try:
-            self.port1.connections.remove(self)
-        except (AttributeError, ValueError):
+            self.port[0].connections.remove(self)
+        except (KeyError, AttributeError, ValueError):
             pass
         try:
-            self.port2.connections.remove(self)
-        except (AttributeError, ValueError):
+            self.port[1].connections.remove(self)
+        except (KeyError, AttributeError, ValueError):
             pass
         try:
-            self.scene.removeItem(self)
+            self.scene().removeItem(self)
         except AttributeError:
             pass
 
     def clone(self, pt):
         c = Connection(None, self.scene)
-        c.pos1 = self.pos1.__add__(pt)
-        c.pos2 = self.pos2.__add__(pt)
+        c.pos[0] = self.pos[0].__add__(pt)
+        c.pos[1] = self.pos[1].__add__(pt)
         return c
     
     def save(self,root):
         conn = etree.SubElement(root,'connection')
-        etree.SubElement(conn,'pos1X').text = self.pos1.x().__str__()
-        etree.SubElement(conn,'pos1Y').text = self.pos1.y().__str__()
-        etree.SubElement(conn,'pos2X').text = self.pos2.x().__str__()
-        etree.SubElement(conn,'pos2Y').text = self.pos2.y().__str__()
+        etree.SubElement(conn,'pos1X').text = self.pos[0].x().__str__()
+        etree.SubElement(conn,'pos1Y').text = self.pos[0].y().__str__()
+        etree.SubElement(conn,'pos2X').text = self.pos[1].x().__str__()
+        etree.SubElement(conn,'pos2Y').text = self.pos[1].y().__str__()
 
+def isConnection(item):
+    return isinstance(item, Connection)

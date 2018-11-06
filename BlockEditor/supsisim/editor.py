@@ -10,16 +10,18 @@ from  Qt import QtWidgets, QtCore # see https://github.com/mottosso/Qt.py
 #    import sip
 #    sip.setapi('QString', 1)
 
-from supsisim.port import Port, InPort, OutPort
-from supsisim.connection import Connection
-from supsisim.block import Block, textItem
-from supsisim.node import Node
-from supsisim.dialg import BlockName_Dialog, textLineDialog, overWriteNetlist, error,propertiesDialog
+import os
+from collections import OrderedDict
+
+from supsisim.port import Port, isInPort, isOutPort, isPort, isNode
+from supsisim.connection import Connection, isConnection
+from supsisim.block import isBlock, gridPos
+from supsisim.text  import textItem, isComment
+from supsisim.dialg import BlockName_Dialog, textLineDialog, overWriteNetlist, \
+                           error, propertiesDialog
 import supsisim.RCPDlg as pDlg
-from supsisim.const import GRID, DB
-import numpy as np
+from supsisim.const import DB
 import libraries
-import os.path
 
 class Editor(QtCore.QObject):
     """ Editor to handles events"""
@@ -33,9 +35,9 @@ class Editor(QtCore.QObject):
 
         self.menuIOBlk = QtWidgets.QMenu()
         #parBlkAction = self.menuIOBlk.addAction('Block I/Os')
-        paramsBlkAction = self.menuIOBlk.addAction('Block Parameters')
-        propertiesBlkAction = self.menuIOBlk.addAction('Block Properties')
-        flpBlkAction = self.menuIOBlk.addAction('Flip Block')
+        paramsBlkAction = self.menuIOBlk.addAction('Parameters')
+        propertiesBlkAction = self.menuIOBlk.addAction('Properties')
+        flpBlkAction = self.menuIOBlk.addAction('Flip')
         nameBlkAction = self.menuIOBlk.addAction('Change Name')
         cloneBlkAction = self.menuIOBlk.addAction('Clone Block')
         deleteBlkAction = self.menuIOBlk.addAction('Delete Block')        
@@ -44,27 +46,27 @@ class Editor(QtCore.QObject):
 #        netListAction = self.menuIOBlk.addAction('Netlist')
         
         #parBlkAction.triggered.connect(self.parBlock)
-        flpBlkAction.triggered.connect(self.flpBlock)
+        flpBlkAction.triggered.connect(self.flipBlock)
         nameBlkAction.triggered.connect(self.nameBlock)
-        paramsBlkAction.triggered.connect(self.paramsBlock)
-        propertiesBlkAction.triggered.connect(self.propertiesBlock)
+        paramsBlkAction.triggered.connect(self.blockParams)
+        propertiesBlkAction.triggered.connect(self.blockProperties)
         cloneBlkAction.triggered.connect(self.cloneBlock)
         deleteBlkAction.triggered.connect(self.deleteBlock)
 #        netListAction.triggered.connect(self.netList)
 
-        self.subMenuNode = QtWidgets.QMenu()
-        nodeDelAction = self.subMenuNode.addAction('Delete node')
-        nodeBindAction = self.subMenuNode.addAction('Bind node')
-        nodeLabelAction = self.subMenuNode.addAction('Add/Edit label')
-        nodeDelAction.triggered.connect(self.deleteNode)
-        nodeBindAction.triggered.connect(self.bindNode)
-        nodeLabelAction.triggered.connect(self.addNodeLabel)
+        self.subMenuPort = QtWidgets.QMenu()
+        portEditAction = self.subMenuPort.addAction('Edit')
+        portFlipAction = self.subMenuPort.addAction('Flip')
+        portDelAction  = self.subMenuPort.addAction('Delete')
+        portEditAction.triggered.connect(self.portEdit)
+        portFlipAction.triggered.connect(self.flipBlock)
+        portDelAction.triggered.connect(self.portDelete)
         
         self.subMenuConn = QtWidgets.QMenu()
-        connDelAction = self.subMenuConn.addAction('Delete connection')
-        connInsAction = self.subMenuConn.addAction('Insert node')
+        connDelAction   = self.subMenuConn.addAction('Delete connection')
+        connInsAction   = self.subMenuConn.addAction('Insert node')
         connLabelAction = self.subMenuConn.addAction('Add/Edit label')
-        connTypeAction = self.subMenuConn.addAction('Add/Edit signal type')
+        connTypeAction  = self.subMenuConn.addAction('Add/Edit signal type')
         connDelAction.triggered.connect(self.deleteConn)
         connInsAction.triggered.connect(self.insConn)
         connLabelAction.triggered.connect(self.addConnLabel)
@@ -72,6 +74,124 @@ class Editor(QtCore.QObject):
     
 
     
+    
+    def addConnLabel(self):
+        conn = self.scene.item
+        if conn.label:
+            dialog = textLineDialog('Label: ',content=conn.label.toPlainText())
+        else:
+            dialog = textLineDialog('Label: ')
+        ret = dialog.getLabel()
+        if ret:
+            if conn.label:
+                conn.label.setPlainText(ret)
+            else:
+                conn.label = textItem(ret, anchor=3, parent=conn)
+                conn.label.setPos(conn.pos2.x(),conn.pos2.y())
+
+    def addConnType(self):
+        item = self.scene.item
+        if item.signalType:
+            dialog = textLineDialog('Signal type: ','Signal type',item.signalType.toPlainText())
+        else:
+            dialog = textLineDialog('Signal type: ','Signal type')
+        ret = dialog.getLabel()
+        if ret:
+            item.signalType = textItem(ret, anchor=3, parent=item)
+            item.signalType.setPos(item.pos2.x(),item.pos2.y())
+    
+    
+    def addView(self,blockname,libname,type):
+        error('fix me: addView in editor.py')
+        return
+        path = os.getcwd()
+        fname = '/libraries/library_{}/{}.py'.format(libname,blockname)
+        f = open(path + fname,'r')
+        lines = f.readlines()
+        f.close()
+        
+        for index,line in enumerate(lines):
+            if line.startswith('iconSource = '):
+                source = "{type}Source = 'libraries/library_{libname}/{blockname}_{extension}'\n"
+                from supsisim.const import viewEditors
+                for viewEditor in viewEditors:
+                    if type == viewEditor['type']:
+                        extension = viewEditor['extension']
+                source = source.format(type=type,libname=libname,blockname=blockname,extension = extension)
+                lines.insert(index+1,source)
+            if line.startswith('views = {'):
+                lines[index] = line.replace('views = {',"views = {{'{type}':{type}Source,".format(type=type))
+        
+        
+        f = open(path + fname,'w+')
+        f.write("".join(lines))
+        f.close()
+
+    def cloneBlock(self):
+        item = self.scene.item
+        b = item.clone(QtCore.QPointF(100,100))
+#        b.name = self.scene.setUniqueName(b)
+        b.setup()
+
+    def ConnectionAt(self, pos):
+        items = self.scene.items(QtCore.QRectF(pos-QtCore.QPointF(4*DB,4*DB), QtCore.QSizeF(8*DB,8*DB)))
+        for item in items:
+            if isConnection(item):
+                return item
+        return None
+
+    def deleteBlock(self):
+        item = self.scene.item
+        item.remove()
+        
+    def portDelete(self):
+        self.scene.item.remove()
+
+    def deleteConn(self):
+        self.scene.item.remove()
+
+        
+    def flipBlock(self):
+        item = self.scene.item
+        item.flip = not item.flip
+        item.setFlip()
+
+    def insConn(self):
+        if not self.conn:
+            self.insertConnection(self.event)
+ 
+    def install(self, scene):
+        scene.installEventFilter(self)
+        self.scene = scene
+
+    def itemAt(self, pos, exclude=[], single=True):
+        items = []
+        for item in self.scene.items(QtCore.QRectF(pos-QtCore.QPointF(DB,DB), QtCore.QSizeF(2*DB,2*DB))):
+            if isinstance(item, QtWidgets.QGraphicsItem):
+                items.append(item)            
+                for testfunc in exclude:
+                    if testfunc(item):
+                        items.pop() # remove
+                        break
+            if single and items:
+                return items[0]
+        return items
+
+    def nameBlock(self):
+        item = self.scene.item
+        dialog = BlockName_Dialog(self.scene.mainw)
+        dialog.name.setText(item.name)
+        res = dialog.exec_()
+        if res == 1:
+#            item.name = str(dialog.name.text())
+            item.setLabel(dialog.name.text())
+#            item.label.setNormal()
+#            w = item.label.boundingRect().width()
+#            item.label.setPos(-w/2, item.h/2+5)    
+
+        self.scene.isInsConn = False
+        self.scene.isConnecting = True
+
     def netList(self,type):
         try:
             item = self.scene.item
@@ -112,334 +232,80 @@ class Editor(QtCore.QObject):
             else:
                 error('netlist not found')
                 
-    def addView(self,blockname,libname,type):
-        import os
-        path = os.getcwd()
-        fname = '/libraries/library_{}/{}.py'.format(libname,blockname)
-        f = open(path + fname,'r')
-        lines = f.readlines()
-        f.close()
-        
-        for index,line in enumerate(lines):
-            if line.startswith('iconSource = '):
-                source = "{type}Source = 'libraries/library_{libname}/{blockname}_{extension}'\n"
-                from supsisim.const import viewEditors
-                for viewEditor in viewEditors:
-                    if type == viewEditor['type']:
-                        extension = viewEditor['extension']
-                source = source.format(type=type,libname=libname,blockname=blockname,extension = extension)
-                lines.insert(index+1,source)
-            if line.startswith('views = {'):
-                lines[index] = line.replace('views = {',"views = {{'{type}':{type}Source,".format(type=type))
-        
-        
-        f = open(path + fname,'w+')
-        f.write("".join(lines))
-        f.close()
-    
-    def addConnType(self):
-        item = self.scene.item
-        if item.signalType:
-            dialog = textLineDialog('Signal type: ','Signal type',item.signalType.toPlainText())
-        else:
-            dialog = textLineDialog('Signal type: ','Signal type')
-        ret = dialog.getLabel()
-        if ret:
-            item.signalType = textItem(ret, anchor=3, parent=item)
-            item.signalType.setPos(item.pos2.x(),item.pos2.y())
-    
-    def addNodeLabel(self):
-        item = self.scene.item
-        if item.label:
-            dialog = textLineDialog('Label: ',content=item.label.toPlainText())
-        else:
-            dialog = textLineDialog('Label: ')
-        ret = dialog.getLabel()
-        if ret:
-            if item.label:
-                item.label.setPlainText(ret)
-            else:
-                item.label = textItem(ret, anchor=3, parent=self.scene.item)
-                item.label.setPos(0,20)
-    
-    def addConnLabel(self):
-        conn = self.scene.item
-        if conn.label:
-            dialog = textLineDialog('Label: ',content=conn.label.toPlainText())
-        else:
-            dialog = textLineDialog('Label: ')
-        ret = dialog.getLabel()
-        if ret:
-            if conn.label:
-                conn.label.setPlainText(ret)
-            else:
-                conn.label = textItem(ret, anchor=3, parent=conn)
-                conn.label.setPos(conn.pos2.x(),conn.pos2.y())
-        
     def parBlock(self):
         self.scene.mainw.parBlock()
     
-    def flpBlock(self):
-        item = self.scene.item
-        item.flip = not item.flip
-        item.setFlip()
-
-    def nameBlock(self):
-        item = self.scene.item
-        dialog = BlockName_Dialog(self.scene.mainw)
-        dialog.name.setText(item.name)
-        res = dialog.exec_()
-        if res == 1:
-            item.name = str(dialog.name.text())
-            item.label.setPlainText(item.name)
-            w = item.label.boundingRect().width()
-            item.label.setPos(-w/2, item.h/2+5)    
         
-    def propertiesBlock(self):
+    def portEdit(self):
         item = self.scene.item
-        dialog = propertiesDialog(item.properties)
-        ret = dialog.getRet()
-        if ret:
-            item.properties = ret      
+        if not isPort(item):
+            error('not a port')
+        dd = OrderedDict()
+        dd['Pin_label'] = item.label.toPlainText() if item.label else ''
+        
+        options = 'ipin opin iopin node'.split()
+        dd['Pin_type'] = (item.porttype, options)
+        
+        dialog = propertiesDialog(self.scene.mainw, dd)
+        dd = dialog.getRet()
+        if dd:
+            item.setType( dd['Pin_type'])
+            item.setLabel(dd['Pin_label'])
+            item.setup()
+
+    def blockProperties(self):
+        item = self.scene.item
+        dialog = propertiesDialog(self.scene.mainw, item.properties, addButton=True)
+        dd = dialog.getRet()
+        if dd:
+           item.properties = dd   
             
-    def paramsBlock(self):
+    def blockParams(self):
         item = self.scene.item
-        dialog = propertiesDialog(item.parameters,False)
+        dialog = propertiesDialog(self.scene.mainw, item.parameters, addButton=False)
         ret = dialog.getRet()
         if ret:
-            block = item.toPython()
+            block = item.toData()
             item.remove()
             b = libraries.getBlock(block['blockname'],block['libname'],scene=self.scene,param=ret,name=block['name'])
             b.setPos(block['pos']['x'],block['pos']['y'])
             b.properties = block['properties']
 
-    def cloneBlock(self):
-        item = self.scene.item
-        item.clone(QtCore.QPointF(100,100))
 
 
-    def deleteBlock(self):
-        item = self.scene.item
-        item.remove()
-        
-    def deleteNode(self):
-        self.scene.item.remove()
-
-    def bindNode(self):
-        item = self.scene.item
-        if len(item.port_out.connections) == 1:
-            c1 = item.port_in.connections[0]
-            c2 = item.port_out.connections[0]
-            c = Connection(None, self.scene)
-            c.pos1 = c1.pos1
-            c.pos2 = c2.pos2
-            item.remove()
-            c.update_ports_from_pos()
-            if isinstance(c.port1, OutPort) and isinstance(c.port2, InPort):
-                pos = QtCore.QPointF((c.pos2.x()+c.pos1.x())/2, c.pos1.y()) 
-                self.newNode(c, pos)                            
-
-    def deleteConn(self):
-        self.scene.item.remove()
-
-    def insConn(self):
-        if not self.conn:
-            self.insertConnection(self.event)
- 
-    def install(self, scene):
-        scene.installEventFilter(self)
-        self.scene = scene
-
-    def connectionAt(self, pos):
-        items = self.scene.items(QtCore.QRectF(pos-QtCore.QPointF(4*DB,4*DB), QtCore.QSizeF(8*DB,8*DB)))
-        for item in items:
-            if isinstance(item, Connection):
-                return item
-        return None
-
-    def blockAt(self, pos):
-        items = self.scene.items(QtCore.QRectF(pos-QtCore.QPointF(DB,DB), QtCore.QSizeF(2*DB,2*DB)))
-        for item in items:
-            if isinstance(item, QtWidgets.QGraphicsItem) and not isinstance(item, Connection):
-                return item
-        return None
     
-    def itemAt(self, pos):
-        items = self.scene.items(QtCore.QRectF(pos-QtCore.QPointF(DB,DB), QtCore.QSizeF(2*DB,2*DB)))
-        for item in items:
-            if isinstance(item, QtWidgets.QGraphicsItem):
-                if isinstance(item,Node):
-                    pass
-                return item
-        return None
-
-    def newNode(self, item, pos):
-        port2 = item.port2
-        pos2 = item.pos2
-        c = Connection(None, self.scene)
-        b = Node(None, self.scene)
-        b.setPos(pos)
-        item.port2.connections.remove(item)
-        item.port2.connections.append(c)
-        item.port2 = b.port_in
-        item.port2.connections.append(item)
-        item.pos2 = b.pos()
-        c.port1 = b.port_out
-        c.port2 = port2
-        c.port1.connections.append(c)
-        c.pos1 = b.pos()
-        c.pos2 = pos2
-        item.update_path()
-        c.update_path()
-        self.scene.isInsConn = False
-        self.scene.isConnecting = True
         
     def insertConnection(self,event):
-        item = self.connectionAt(event.scenePos())
-        if item and isinstance(item, Connection):
-            self.newNode(item, event.scenePos())
+        pos = gridPos(event.scenePos())
+        item = self.ConnectionAt(pos)
+        if item and isConnection(item):
+            self.connectionInsertNode(item, pos)
 
-    def genInterPoint(self):
-        p1 = self.conn.pos1
-        p2 = self.conn.pos2
-        item = self.blockAt(p2)
 
-        if isinstance(self.conn.port1, OutPort):
-            pt = QtCore.QPointF(p2.x(),p1.y())
-        elif isinstance(item, InPort):
-            pt = QtCore.QPointF(p1.x(),p2.y())
-        else:
-            dx = np.abs(p2.x() - p1.x())
-            dy = np.abs(p2.y() - p1.y())
-            if dx > dy:
-                pt = QtCore.QPointF(p2.x(),p1.y())
-            else:
-                pt = QtCore.QPointF(p1.x(),p2.y())
-        return pt
 
-    def moveMouse(self, obj, event):
-        if self.connFromNode:
-            return
-        item = self.itemAt(event.scenePos())
-        if self.conn:
-            self.scene.mainw.view.setCursor(QtCore.Qt.ArrowCursor)
-            if item and isinstance(item, InPort):
-                if len(item.connections) == 0:
-                    self.scene.mainw.view.setCursor(QtCore.Qt.CrossCursor)
-                else:
-                    self.scene.mainw.view.setCursor(QtCore.Qt.ArrowCursor)
-            elif item and isinstance(item, Node):
-                if len(item.port_in.connections) == 0:
-                    self.scene.mainw.view.setCursor(QtCore.Qt.CrossCursor)
-                else:
-                    self.scene.mainw.view.setCursor(QtCore.Qt.ArrowCursor)
-            self.conn.pos2 = event.scenePos()
-            self.conn.update_path()
-            #return True
-        else:
-            if isinstance(item, Block):
-                items = self.scene.selectedItems()
+    def connectionStart(self, p):
+        self.conn = Connection(None, self.scene, p)
             
-                for item in items:                                           
-                    if isinstance(item, Block):
-                        for thing in item.childItems():
-                            if isinstance(thing, InPort):
-                                if len(thing.connections) != 0:
-                                    conn = thing.connections[0]
-                                    nd = conn.port1.parent
-                                    if isinstance(nd, Node):
-                                        pt = QtCore.QPointF(nd.pos().x(), item.pos().y()+thing.pos().y())
-                                        nd.setPos(pt)
-                                        conn.update_pos_from_ports()
-                                        conn.update_path()                        
-                                            
-                        for thing in item.childItems():
-                            if isinstance(thing, OutPort):
-                                if len(thing.connections) != 0:
-                                    conn = thing.connections[0]
-                                    nd = conn.port2.parent
-                                    if isinstance(nd, Node):
-                                        pt = QtCore.QPointF(nd.pos().x(), item.pos().y()+thing.pos().y())
-                                        nd.setPos(pt)
-                                        conn.update_pos_from_ports()
-                                        conn.update_path()
-            #elif isinstance(item, Connection):
-                #self.scene.mainw.view.setCursor(QtCore.Qt.PointingHandCursor)
-            elif isinstance(item, OutPort):
-                self.scene.mainw.view.setCursor(QtCore.Qt.CrossCursor)
-            elif isinstance(item, Node):
-                if item in self.scene.selectedItems():
-                    self.scene.mainw.view.setCursor(QtCore.Qt.PointingHandCursor)
-                else:
-                    self.scene.mainw.view.setCursor(QtCore.Qt.CrossCursor)
-            else:
-                self.scene.mainw.view.setCursor(QtCore.Qt.ArrowCursor)
-                
+    def connectionNext(self, pos):
+        newnode = Port(None, self.scene, porttype='node')
+        newnode.setPos(pos)
+        self.conn.update_path(newnode) # last point
+        self.conn = Connection(None, self.scene, newnode) #new Connection
+        
+    def connectionFinish(self, port):
+        self.conn.update_path(port)
+        self.conn = None
+        self.scene.mainw.view.setCursor(QtCore.Qt.ArrowCursor)
+        self.scene.update()
 
-    def mouseLeftButtonPressed(self, obj, event):
-        item = self.blockAt(event.scenePos())
-        if self.conn:
-            if isinstance(item, Node):
-                # Try to connect to Node
-                if item.port_in.connections == []:
-                    self.conn.port2 = item.port_in
-                    self.conn.pos2 = item.scenePos()                               
-                    self.conn.port1.connections.append(self.conn)
-                    self.conn.port2.connections.append(self.conn)                            
-                    self.conn.update_path()
-                    self.conn = None
-            elif isinstance(item,InPort):
-                # Try to finish connection to a Port
-                if len(item.connections) == 0:
-                    self.conn.port2 = item
-                    self.conn.pos2 = item.scenePos()
-                    self.conn.port1.connections.append(self.conn)
-                    self.conn.port2.connections.append(self.conn)
-                    self.conn.update_path()
-                    if isinstance(self.conn.port1, OutPort):
-                        pos = QtCore.QPointF((self.conn.pos2.x()+self.conn.pos1.x())/2, self.conn.pos1.y()) 
-                        self.newNode(self.conn, pos)
-                    self.conn = None
-                    self.scene.mainw.view.setCursor(QtCore.Qt.ArrowCursor)
-            else:
-                # Generate a new node and continue drawing connections
-                pt = self.genInterPoint()
-                b = Node(None, self.scene)
-                b.setPos(pt)
-                self.conn.port2 = b.port_in
-                self.conn.pos2 = b.scenePos()
-                self.conn.port1.connections.append(self.conn)
-                self.conn.port2.connections.append(self.conn)
-                self.conn.update_path()
-                
-                self.conn = Connection(None, self.scene)
-                self.conn.port1 = b.port_out
-                self.conn.pos1 = b.scenePos()
-                self.conn.pos2 = b.scenePos()        
-
-        else:
-            if item and isinstance(item, OutPort):
-                # Try to create new connection starting at selected output port
-                if len(item.connections) == 0:
-                    self.conn = Connection(None, self.scene)
-                    self.conn.port1 = item
-                    self.conn.pos1 = item.scenePos()
-                    self.conn.pos2 = item.scenePos()
-            elif item and isinstance(item, Node):
-                # Try to create new connection starting at selected node
-                if item in self.scene.selectedItems():
-                    #selected the node to move it
-                    for item in self.scene.selectedItems():
-                        if isinstance(item,Node):
-                            item.setFlag(item.ItemIsMovable)
-                else:
-                    #starting the connection
-                    self.conn = Connection(None, self.scene)
-                    self.connFromNode = True
-                    self.conn.port1 = item.port_out
-                    self.conn.pos1 = item.scenePos()
-                    self.conn.pos2 = item.scenePos()
-
+    def connectionInsertNode(self, conn, pos):
+        newnode = Port(None, self.scene, porttype='node')
+        newnode.setPos(pos)
+        p = conn.port[1]
+        conn.update_path(newnode) # last point
+        newconn = Connection(None, self.scene, newnode)
+        newconn.update_path(p)
+        
     def addNetlistMenu(self):
         blockname = self.scene.item.blockname
         libname = self.scene.item.libname
@@ -462,47 +328,129 @@ class Editor(QtCore.QObject):
             action = self.netlistMenu.addAction(type+" netlist")
             action.triggered.connect(netlistAction)
 
+    def mouseDoubleClicked(self, obj, event):
+        pos = gridPos(event.scenePos())
+        item = self.itemAt(pos, exclude=[isConnection])
+        if isBlock(item):
+            if item.hasDiagram():
+                self.scene.mainw.descend(item)
+        if isPort(item, tp='ipin opin iopin node'.split()):
+            self.scene.item = item
+            self.portEdit()
+            if self.conn:
+                self.conn.remove()
+                self.conn = None
+                self.scene.mainw.view.setCursor(QtCore.Qt.ArrowCursor)
+            
+    def mouseLeftButtonPressed(self, obj, event):
+        pos = gridPos(event.scenePos())
+        items = self.itemAt(pos, single=False, )
+        if self.conn: # connection mode
+            while True: # continue until either empty, or Port/Node found
+                if len(items) == 0:
+                    self.connectionNext(pos)
+                    return
+                item = items.pop()
+                if isNode(item): # connect to node
+                    self.connectionFinish(item)
+                    break
+                elif isInPort(item):
+                    if len(item.connections) == 0: # connect to free port
+                        self.connectionFinish(item)
+                        break
+                
+        elif items: # not in connection mode
+            while len(items) > 0:
+                item = items.pop(0)
+                if isOutPort(item):
+                    # Try to create new connection starting at selected output port
+                    if len(item.connections) == 0:
+                        self.connectionStart(item)
+                elif isNode(item):
+                    # Try to create new connection starting at selected node
+                    if item in self.scene.selectedItems():
+                        #selected the node to move it
+                        for item in self.scene.selectedItems():
+                            if isNode(item):
+                                item.setFlag(item.ItemIsMovable)
+                    else:
+                        #starting the connection
+                        self.connectionStart(item)
+                        self.connFromNode = True
+
+    def moveMouse(self, obj, event):
+        if self.connFromNode:
+            return
+        pos = gridPos(event.scenePos())    
+        item = self.itemAt(pos)
+        
+        if self.conn:
+            self.scene.mainw.view.setCursor(QtCore.Qt.ArrowCursor)
+            if item and isInPort(item) or isNode(item):
+                if len(item.connections) == 0:
+                    self.scene.mainw.view.setCursor(QtCore.Qt.CrossCursor)
+                else:
+                    self.scene.mainw.view.setCursor(QtCore.Qt.ArrowCursor)
+            elif item and isNode(item):
+                if len(item.connections) == 0:
+                    self.scene.mainw.view.setCursor(QtCore.Qt.CrossCursor)
+                else:
+                    self.scene.mainw.view.setCursor(QtCore.Qt.ArrowCursor)
+            self.conn.update_path(pos)
+            #return True
+        elif item:
+            if isBlock(item):
+                items = self.scene.selectedItems()
+            
+                for item in items:                                           
+                    if isBlock(item):
+                        for thing in item.childItems():
+                            if isPort(thing, 'block'):
+                                for conn in thing.connections:
+                                        conn.update_path()                        
+                                            
+            #elif isConnection(item):
+                #self.scene.mainw.view.setCursor(QtCore.Qt.PointingHandCursor)
+            elif isOutPort(item):
+                self.scene.mainw.view.setCursor(QtCore.Qt.CrossCursor)
+            elif isNode(item):
+                if item in self.scene.selectedItems():
+                    self.scene.mainw.view.setCursor(QtCore.Qt.PointingHandCursor)
+                else:
+                    self.scene.mainw.view.setCursor(QtCore.Qt.CrossCursor)
+            else:
+                self.scene.mainw.view.setCursor(QtCore.Qt.ArrowCursor)
+                
+
+    def mouseReleased(self, obj, event):
+        self.connFromNode = False
+        items = self.scene.selectedItems()
+        for item in items:                   
+            if isBlock(item) or isPort(item) or isComment(item):
+                item.setPos(gridPos(item.pos()))
+                for thing in item.childItems():
+                    if isPort(thing, 'block'):
+                        for conn in thing.connections:
+                            conn.update_path()
+
     def mouseRightButtonPressed(self, obj, event):
         if self.conn == None:
             item = self.itemAt(event.scenePos())
-            if isinstance(item, Block):
+            if isBlock(item):
                 self.scene.item = item
-                self.scene.evpos = event.scenePos()
-                                
-                
                 self.netlistMenu.clear()
                 self.addNetlistMenu()
-                
-                
                 self.menuIOBlk.exec_(event.screenPos())
-            elif isinstance(item, Node):
+            elif isPort(item, ['node', 'ipin', 'opin','iopin']):
                 self.scene.item = item
-                self.subMenuNode.exec_(event.screenPos())
-            elif isinstance(item, Connection):
+                self.subMenuPort.exec_(event.screenPos())
+            elif isConnection(item):
                 self.scene.item = item
                 self.event = event
                 self.subMenuConn.exec_(event.screenPos())
             else:
                 pass
 
-    def mouseReleased(self, obj, event):
-        if self.connFromNode:
-            self.connFromNode = False
-        items = self.scene.selectedItems()
-        for item in items:                   
-            if isinstance(item, Block) or isinstance(item, Node):
-                item.setPos(item.scenePos())
-                for thing in item.childItems():
-                    if isinstance(thing, Port):
-                        for conn in thing.connections:
-                            conn.update_pos_from_ports()
-
-    def mouseDoubleClicked(self, obj, event):
-        item = self.blockAt(event.scenePos())
-        if isinstance(item, Block):
-            if item.hasDiagram():
-                self.scene.mainw.descend(item)
-            
     def eventFilter(self, obj, event):
         if event.type() ==  QtCore.QEvent.GraphicsSceneMouseMove:
              self.moveMouse(obj, event)
@@ -527,7 +475,7 @@ class Editor(QtCore.QObject):
                         item.remove()
                     except:
                         try:
-                            if item.comment:
+                            if isComment(item):
                                 self.scene.removeItem(item)
                         except:
                             pass
@@ -546,9 +494,4 @@ class Editor(QtCore.QObject):
             self.scene.mainw.view.setDragMode(QtWidgets.QGraphicsView.RubberBandDrag)
         return super(Editor, self).eventFilter(obj, event)
 
-    def gridPos(self, pt):
-         gr = GRID
-         x = gr * ((pt.x() + gr /2) // gr)
-         y = gr * ((pt.y() + gr /2) // gr)
-         return QtCore.QPointF(x,y)
 

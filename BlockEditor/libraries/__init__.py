@@ -1,95 +1,70 @@
+# -*- coding: utf-8 -*-
+"""
+#==============================================================================
+# libaries initialisation
+#==============================================================================
+
+
+
+"""
 import os
-import supsisim.block 
-from supsisim.const import viewEditors
-from supsisim.dialg import error
+
+from supsisim.const import viewTypes
+#from supsisim.dialg import error
+
+libs = dict()  # key = library name (minus the 'library_' prefix)
+#                value = a set containing all blocknames
+
+libroot = os.path.dirname(__file__) # home of all libaries
+libprefix = 'library_'
 
 
+def libpath(libname, root=libroot):
+    '''return full path of libary libname'''
+    if libname.startswith(libprefix):
+        return os.path.join(root, libname)
+    else:
+        return os.path.join(root, libprefix + libname)
 
+def blockpath(libname, blockname):
+    '''return full path of libary libname'''
+    return os.path.join(libpath(libname), blockname+'.py')
+    
+def moduleName(libname, blockname):
+    return '{}.{}.{}'.format(os.path.basename(libroot), libprefix+libname, blockname)
 
-blocks = dict()
-
-
-def getBlock(blockname,libname,parent=None,scene=None, param=dict(), name=None):
-    source     = 'libraries.library_{}.{}'.format(libname, blockname)
-    try:
-        exec('import ' + source)
-    except Exception as e:
-        raise e
-        error('error in {}.py, message is '.format(source, str(e)))
-        return False
-    reload(eval('libraries.library_' + libname + '.' + blockname)) # make sure we reload the module
-    blk = None    
-    exec('from libraries.library_{} import {} as blk'.format(libname, blockname))
-    blocks[libname+'/'+blockname] = blk
-    blk.name    = blockname
-    blk.libname = libname
-    blk.textSource = os.path.join('library_'+libname,  blockname+'.py')
-    if not 'iconSource' in blk.__dict__:
-        blk.iconSource = None
-    blk.views['textSource'] = blk.textSource
-
-    if not param:
-        param = blk.parameters # use defaults
-    try:
-        b = blk.getSymbol(param, parent, scene)
-        if isinstance(b,supsisim.block.Block):
-            if name:
-                b.name = name
-                b.label.setPlainText(name)
-            return b
-        else:
-            error('getSymbol returned no block')
-            return False
-    except Exception as e:
-        parameters = blk.parameters
-        properties = blk.properties
-        attributes = dict()
-        attributes['name']    = name if name else blockname
-        attributes['libname'] = libname
-        attributes['input']   = blk.inp
-        attributes['output']  = blk.outp
-        attributes['icon']    = blk.iconSource
-#        try:
-#           attributes['height'] = bb.height
-#        except:
-#            pass
-        return supsisim.block.Block(attributes,parameters,properties,blockname,libname,parent,scene)
-
-def getViews(blockname,libname):
-    return blocks[libname+'/'+blockname].views
+def readLibraries():
+    dirs = next(os.walk(libroot))[1]
+    for dirname in dirs:
+        if dirname.startswith(libprefix):
+            libname = dirname[len(libprefix):]
+            libs[libname] = readLibrary(libname)
     
 def readLibrary(libname):
-    files = os.listdir('libraries/' + libname)
+    files = next(os.walk(libpath(libname)))[2]
     blocks = set()
     for blockname in files:
-        if blockname.startswith('__init__'):
+        if not blockname.endswith('.py'): # only python files
             continue
-        if not blockname.lower().endswith('.py'):
+        if blockname.startswith('__init__'): # skip __init__
             continue
-        block = True
-        if '_' in blockname:
-            ending = blockname.split('_')[-1]
-            if '.' in ending:
-                type = ending.split('.')[0]
-                if type == 'diagram':
-                    block = False
-                for viewEditor in viewEditors:
-                    if type == viewEditor['type']:
-                        block = False
-        if block:
-            blockname = blockname.rpartition('.')[0]
-            blocks.add(blockname)
-            
+        for  viewtype, (editor, extension) in viewTypes.items():
+            if blockname.endswith(extension):
+                if viewtype == 'python':
+                    blockname = blockname[:-len(extension)]
+                    blocks.add(blockname)
+                else: # other python type (e.g. diagram/myhdl)
+                    break 
     return blocks
 
-
-libs = dict()
-
-libroot = os.path.dirname(__file__)
-
-for libname in os.listdir(libroot):
-    if libname.startswith('library_'):
-        libs[libname.replace('library_','')] = readLibrary(libname)
+def rmBlock(libname, blockname):
+    '''remove a block from library administration (and disk)'''
+    # remove self (if not yet removed)
+    fp = blockpath(libname, blockname)
+    if os.path.isfile(fp):
+        os.remove(fp)
+    # update libary administration
+    libs[libname].remove(blockname)
         
-        
+readLibraries()
 default = 'common'

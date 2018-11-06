@@ -1,28 +1,230 @@
-#!/usr/bin/python
+# -*- coding: utf-8 -*-
+"""
+#==============================================================================
+# block module
+#==============================================================================
+
+getBlockModule
+    read the python module of block from disk
+    returns module
+    
+getBlock
+    create a Block object (to be used in the graphical environment)
+
+rmBlock
+    removes a Block from disk
+
+saveBlock
+    save a (new) block to disk (as python module
+    returns src
+    
+Block
+    class definition for the Block object
+"""
 # aim for python 2/3 compatibility
+
 from __future__ import (division, print_function, absolute_import,
                         unicode_literals)
 
 from  Qt import QtGui, QtWidgets, QtCore # see https://github.com/mottosso/Qt.py
 
-import sys, os, ast
-#if sys.version_info>(3,0):
-#    import sip
-#    sip.setapi('QString', 1)
-
-#import sip
-from lxml import etree
+import os
+import subprocess
+from copy import copy
+from collections import OrderedDict
 
 import libraries
-from supsisim.port import Port, InPort, OutPort
-from supsisim.const import GRID, PW, LW, BWmin, BHmin, PD, respath
-from supsisim.const import path as libroot
+from supsisim.port  import Port, isPort
+from supsisim.const import GRID, PW, LW, BWmin, BHmin, PD, respath, celltemplate
+from supsisim.dialg import error
+from supsisim.text  import textItem
+from supsisim.src_import import import_module_from_source_file
 
+from supsisim.svg_utils import svg2png #createSvgMirrorTxt
 
+block_modules = dict()
 
+#==============================================================================
+# block module functions deal with the imported python module (block definition)
+#==============================================================================
+def _addBlockModuleDefaults(libname, blockname):
+    '''add default settings to a loaded block_module'''
+    blk = block_modules[libname+'/'+blockname]
+    blk.name    = blockname
+    blk.libname = libname
+    blk.textSource = libraries.blockpath(libname, blockname)
+    if not 'icon' in blk.views:
+        blk.views['icon'] = None
+    if not 'bbox' in blk.__dict__:
+        blk.bbox = None
+    blk.views['textSource'] = blk.textSource
+
+def getBlockModule(libname, blockname):
+    '''read python module of block from disk'''
+    fpath = libraries.blockpath(libname, blockname)
+    blk = import_module_from_source_file(fpath)
+    block_modules[libname+'/'+blockname] = blk
+    
+#    blkkey        = libname+'/'+blockname
+#    source     = libraries.moduleName(libname, blockname)
+#    if blkkey in block_modules: # already loaded
+#        blk = block_modules[blkkey]
+#        reload(blk) # reload
+#    else:
+#        try:
+#            exec('import {} as blk'.format(source))
+#        except Exception as e:
+#            raise e
+#            error('error in {}.py, message is '.format(source, str(e)))
+#            return False
+#        block_modules[libname+'/'+blockname] = blk 
+    _addBlockModuleDefaults(libname, blockname)
+    return blk
+
+#==============================================================================
+# snap to grid
+#==============================================================================
+def gridPos(pt):
+     gr = GRID
+     x = gr * ((pt.x() + gr /2) // gr)
+     y = gr * ((pt.y() + gr /2) // gr)
+     return QtCore.QPointF(x,y)
+    
+#==============================================================================
+# helper function to easily create a Block object        
+#==============================================================================
+def getBlock(libname, blockname, parent=None, scene=None, param=dict(), name=None, flip=False):
+    '''create a Block'''
+    blk = getBlockModule(libname, blockname)
+    if param: # pcell
+        try:
+            b = blk.getSymbol(param, parent, scene)
+            
+            if isinstance(b, Block):
+                if name:
+                    b.name = name
+                    b.label.setPlainText(name)
+                    b.flip = flip
+                    b.setFlip()
+                return b
+            else:
+                error('getSymbol returned no block')
+            return False
+        except Exception as e:
+            error('libary_{}/{}.py contains error:\n{}'.format(libname, blockname, str(e)))
+            return False
+
+    else: # std block
+        parameters = blk.parameters
+        properties = blk.properties
+        attributes = dict()
+        attributes['name']    = name if name else blockname
+        attributes['libname'] = libname
+        attributes['input']   = blk.inp
+        attributes['output']  = blk.outp
+        attributes['icon']    = blk.views['icon']
+        attributes['bbox']    = blk.bbox
+        attributes['flip']    = flip
+        b =  Block(attributes,parameters,properties,blockname,libname,parent,scene)
+        return b
+
+def getViews(libname, blockname):
+    '''return the views that are defined for this block
+    if viewType is specified, return the value if present'''
+    return getBlockModule(libname, blockname).views
+
+    
+#==============================================================================
+# helper function to easily remove a Block   
+#==============================================================================
+def rmBlock(libname, blockname):
+    # first remove views (one of them is the file itself)
+    blk = block_modules[libname + '/'+ blockname]
+    for type, filename in blk.views.items():
+        if filename:
+            fn1 = os.path.join(libraries.libpath(libname), filename)
+            fn2 = os.path.join(os.getcwd(), filename)
+            if os.path.isfile(fn1):
+                os.remove(fn1)
+            elif os.path.isfile(fn2):
+                os.remove(fn2)
+            elif os.path.isfile(filename):
+                os.remove(filename)
+    libraries.rmBlock(libname, blockname)
+        
+#==============================================================================
+# helper function to easily save a (new) Block   
+#==============================================================================
+def saveBlock(libname, blockname, pins, icon=None, bbox=None, properties=dict(), parameters=dict()):
+    '''if library is set, save a (new) block to disk (as python module)
+    returns src'''
+    
+    inp, outp, io = pins
+    
+    # optionals
+    views = dict()
+    views['icon'] = icon
+    
+    bbox = 'bbox = {}\n'.format(str(bbox)) if bbox else None
+    src = celltemplate.format(name=blockname,
+                            libname=libname,
+                            inp=inp,
+                            outp=outp,
+                            io=io,
+                            bbox=bbox,
+                            properties=properties,
+                            parameters=parameters,
+                            views=views)
+    if libname:
+        fname = os.path.join(libraries.libroot, 'libary_'+libname, blockname+'.py')
+        with open(fname, 'wb') as f:
+            f.write(src)
+        libraries.libs[libname].add(blockname)
+        getBlockModule(libname, blockname)
+        return src
+
+#==============================================================================
+# helper function to calculate the bounding box, based on pins
+#==============================================================================
+def calcBboxFromPins(inp, outp, io=[]):
+    if isinstance(inp, int):
+        Ni = inp  if isinstance(inp, int) else len(inp)
+        No = outp if isinstance(outp, int) else len(outp)
+        Nports = max(Ni, No)
+        w = BWmin
+        h = max(Nports*PD, BHmin)
+        left = -w/2
+        top = -h/2
+    else:
+        # find bounding box
+        x0, y0, x1, y1 = None, None, None, None
+        for item in inp + outp + io:
+            x0 = item[1] if x0 == None else min(x0, item[1])
+            x1 = item[1] if x1 == None else max(x1, item[1])
+            y0 = item[2] if y0 == None else min(y0, item[2])
+            y1 = item[2] if y1 == None else max(y1, item[2])
+            #print(y0,y1,y,self.name)
+        if x0 != None and x1 != None:
+            left = x0
+            w = max(x1 - x0, BWmin)
+        else:
+            w = BWmin
+            left = -w/2
+            
+            
+        if y0 != None and y1 != None:
+            top = y0 - PD/2
+            h = max(y1 - y0 + PD, BHmin)
+        else:
+            h = BHmin
+            top = - h/2
+    return (left, top, w, h)        
+#==============================================================================
+# main Block class
+#==============================================================================
 class Block(QtWidgets.QGraphicsPathItem):
     """A block holds ports that can be connected to."""
-    def __init__(self,attributes,parameters,properties,blockname,libname,parent=None,scene=None,):
+    def __init__(self,attributes, parameters, properties, blockname, libname, parent=None, scene=None):
         self.scene = scene
         if QtCore.qVersion().startswith('5'):
             super(Block, self).__init__(parent)
@@ -41,67 +243,21 @@ class Block(QtWidgets.QGraphicsPathItem):
         self.flip = attributes.pop('flip') if 'flip' in attributes else False
         self.type = attributes.pop('type') if 'type' in attributes else 'Block'
         self.libname = attributes.pop('libname')
-        self.height = attributes.pop('height') if 'height' in attributes else 0
+        self.bbox = attributes.pop('bbox') if 'bbox' in attributes else None
         
         self.parameters = parameters
         self.properties = properties
+        
+        self.label = None
+        
+        self.png = None
+        self.pngmirr = None
         
         self.line_color = QtCore.Qt.black
         self.fill_color = QtCore.Qt.black
         if self.scene:
             self.setup()
-            
-#    def __init__(self,old=True, *args, **kwargs):
-#        if len(args) >= 2:
-#            parent, self.scene = args[0], args[1]
-#        elif len(args) == 1:
-#            parent, self.scene = None, args[0]
-#        else:
-#            parent, self.scene = None, None
-#        if QtCore.qVersion().startswith('5'):
-#            super(Block, self).__init__(parent)
-#            if self.scene:
-#                self.scene.addItem(self)
-#        else:
-#            super(Block, self).__init__(parent, self.scene)
-#        if len(args) == 9:
-#            parent, self.scene, self.name, self.inp, self.outp, self.iosetble, self.icon, self.params, self.flip = args
-#        elif len(args) == 3:
-#            parent, self.scene, strBlk = args
-#            ln = strBlk.split('@')
-#            self.name   = str(ln[0])
-#            self.inp    = ast.literal_eval(ln[1]) # ast.literal_eval is a lot safer than 'eval'
-#            self.outp   = ast.literal_eval(ln[2])
-#            self.icon   = str(ln[4])
-#            self.params = str(ln[5])
-#            self.flip   = False
-#            io          = int(ln[3])
-#            iosetble = (io==1)
-#            self.iosetble = iosetble
-#        elif len(args) <= 2:
-#            self.name     = kwargs.pop('name')     if 'name' in kwargs else ''
-#            self.inp      = kwargs.pop('inp')      if 'inp' in kwargs else 0
-#            self.outp     = kwargs.pop('outp')     if 'outp' in kwargs else 0
-#            self.icon     = kwargs.pop('icon')     if 'icon' in kwargs else ''
-#            self.params   = kwargs.pop('params')   if 'params' in kwargs else ''
-#            self.flip     = kwargs.pop('flip')     if 'flip' in kwargs else False
-#            self.iosetble = kwargs.pop('iosetble') if 'iosetble' in kwargs else False
-#            x             = float(kwargs.pop('x')) if 'x' in kwargs else 0.0
-#            y             = float(kwargs.pop('y')) if 'y' in kwargs else 0.0
-#            self.setPos(x, y)
-#            self.flip     = kwargs.pop('flip')     if 'flip' in kwargs else False
-##            self.__dict__.update(kwargs) # update the block attributes, maybe a bit dangerous
-#        else:
-#            raise ValueError('Needs 9 or 3 arguments; received %i.' % len(args))
-#        
-#        self.line_color = QtCore.Qt.black
-#        self.fill_color = QtCore.Qt.black
-#        if self.scene:
-#            self.setup()
-            
-    def from_txt(s):
-        '''convert text to int or list'''
-        
+    
     def __str__(self):
         txt  = 'Name         :' + self.name.__str__() +'\n'
         txt += 'Input ports  :' + self.inp.__str__() + '\n'
@@ -113,100 +269,226 @@ class Block(QtWidgets.QGraphicsPathItem):
         return txt
         
     def __repr__(self):
-        return str(self.toPython())
-    
-    
-    def toPython(self):
-        data = dict(labelPos=dict(x=self.label.x(),y=self.label.y()),
-                    properties=self.properties,type='block',
-                    name=self.label.toPlainText(),
-                    blockname=self.blockname,
-                    libname=self.libname,
-                    pos=dict(x=self.x(),y=self.y()))
-        if self.parameters:
-            data['parameters'] = self.parameters
-        return data
-    
-#    def toPython(self, lib=False):
-#        fmt = 'Block({kwargs})'
-#        fields = 'name inp outp icon parameters properties views'.split()
-#        kwargs = []
-#        x, y, flip = int(self.x()), int(self.y()), self.flip
-#        if not lib: # add x, y, flip for schematic(diagrams)
-#            if x:
-#                fields.append('x')
-#            if y:
-#                fields.append('y')
-#            if flip:
-#                fields.append('flip')
-#        for k in fields:
-#            if k in self.__dict__:
-#                v = self.__dict__[k]
-#            else:
-#                v = eval(k)
-#            if v:
-#                kwargs.append('{}={}'.format(k, repr(v)))
-#
-#        return fmt.format(kwargs=', '.join(kwargs))
-    
-    def hasDiagram(self):
-        fname = 'libraries.library_' + self.libname + '.' + self.blockname
-        exec('import ' + fname)
-        reload(eval(fname))
-        if 'diagram' in eval(fname + '.views'):
-            return True
-        else:
-            return False
-        
-    def setup(self,scene=True):
-        self.ports_in = []
-        self.name = self.scene.setUniqueName(self) if scene else self.blockname
-        if isinstance(self.inp, int):
-            Ni = self.inp  if isinstance(self.inp, int) else len(self.inp)
-            No = self.outp if isinstance(self.outp, int) else len(self.outp)
-            Nports = max(Ni, No)
-            self.w = BWmin
-            self.h = BHmin+PD*(max(Nports-1,0))
-            self.leftOffset = -self.w/2
-            self.topOffset = -self.h/2
-        else:
-            # find bounding box
-            x0, y0, x1, y1 = None, None, None, None
-            for item in self.inp + self.outp:
-                x0 = item[1] if x0 == None else min(x0, item[1])
-                x1 = item[1] if x1 == None else max(x1, item[1])
-                y0 = item[2] if y0 == None else min(y0, item[2])
-                y1 = item[2] if y1 == None else max(y1, item[2])
-                #print(y0,y1,y,self.name)
-            if x0 != None and x1 != None:
-                self.leftOffset = min(x0+PW/2,-BWmin/2)
-                self.w = - self.leftOffset + max(x1 -PW/2,BWmin/2)
-            else:
-                self.w = BWmin
-                self.leftOffset = -self.w/2
-                
-                
-            if y0 != None and y1 != None:
-                self.topOffset = min(y0-PD/2,-BHmin/2)
-                self.h = - self.topOffset + max(y1 + PD/2,BHmin/2)
-            else:
-                self.h = BHmin
-                self.topOffset = - self.h/2
-                
-                
-#            self.w = max(BWmin - PW, x1-x0 - PW) if x1 != None and x0 != None else BWmin# + PD
-#            self.leftOffset = min(x0,-BWmin/2) + self.w/2 + PW/2 if x0 != None else 0
-#            #print(BHmin,y1 - y0 + PD,self.name)
-#            self.h = max(BHmin + PD, y1 - y0 + PD) if y1 != None and y0 != None else BHmin # block height
-#            self.topOffset = min(y0,-BHmin/2) + self.h/2 - PD/2 if y0 != None else 0
+        return str(self.toData())
 
-        self.h = max(self.h,self.height)
-        p = QtGui.QPainterPath()
+
+    def add_inPort(self, n):
+        label = ''
+        if isinstance(n, int):
+            ypos = -PD*(self.inp-1)/2 + n*PD
+            xpos = -(self.w)/2
+            name = 'i_pin{}'.format(n)
+        else: # tuple (name, x, y)
+            name = n[0]
+            xpos = n[1]
+            ypos = n[2]
+            label = name
+            if xpos > -BWmin/2:
+                xpos = -BWmin/2
+        port = Port(self, self.scene, label=label, porttype='input')
+        port.block = self
+        port.setPos(QtCore.QPoint(xpos, ypos) - self.center)
+        return port
+
+    def add_outPort(self, n):
+        label = ''
+        if isinstance(n, int):
+            xpos = (self.w)/2
+            ypos = -PD*(self.outp-1)/2 + n*PD
+            name = 'o_pin{}'.format(n)
+        else: # tuple (name, x, y)
+            name = n[0]
+            xpos = n[1]
+            ypos = n[2]
+            label = name
+            if xpos < BWmin/2 :
+                xpos = BWmin/2 
+        port = Port(self, self.scene, label=label, porttype='output')
+        port.block = self
+        port.setPos(QtCore.QPoint(xpos, ypos) - self.center)
+        return port
+
+    def calcBboxFromPins(self):
+        return calcBboxFromPins(self.inp, self.outp)
         
-        p.addRect(self.leftOffset, self.topOffset, self.w, self.h)
+    def clone(self, pt):
+        b = getBlock(self.libname, self.blockname,scene=self.scene, \
+                     param=self.parameters, name=self.name)
+        b.properties = self.properties
+        b.setPos(self.scenePos().__add__(pt))
+        return b
+
+    def getViews(self):
+        '''return the views that are defined for this block
+        if viewType is specified, return the value if present'''
+        return getViews(self.libname, self.blockname)
+
+    def gridPos(self, pt):
+         gr = GRID
+         x = gr * ((pt.x() + gr /2) // gr)
+         y = gr * ((pt.y() + gr /2) // gr)
+         return QtCore.QPointF(x,y)
+
+#    def hasDiagram(self):
+#        fname = 'libraries.library_' + self.libname + '.' + self.blockname
+#        exec('import ' + fname)
+#        reload(eval(fname))
+#        if 'diagram' in eval(fname + '.views'):
+#            return True
+#        else:
+#            return False
+
+#    def itemChange(self, change, value):
+#        return value
+
+    def paint(self, painter, option, widget):
+        pen = QtGui.QPen()
+        pen.setBrush(self.line_color)
+        pen.setWidth = LW
+        if self.isSelected():
+            pen.setStyle(QtCore.Qt.DotLine)
+        painter.setPen(pen)
+        painter.drawPath(self.path())
+        rect = self.img.rect()
+        painter.drawImage(-rect.width()/2,-rect.height()/2, self.img)
+
+        
+#    def pins(self):
+#        '''return (inputs, outputs, inouts) that lists of tuples (io, x, y, name)'''
+#        inputs, outputs, inouts  = [], [], []
+#        ports = self.ports()
+#        for p in ports:
+#            x, y = int(p.x() + self.center.x()) , int(p.y() + self.center.y())
+#            name = p.name
+#            if isinstance(p, InPort):
+#                 inputs.append(('i', x, y, name))
+#            elif isinstance(p, OutPort):
+#                outputs.append(('o', x, y, name))
+#            else:
+#                inouts.append(('io', x, y, name))
+#        return inputs, outputs, inouts
+
+    def ports(self):
+        ports = []
+        for item in self.childItems():
+            if isinstance(item, Port):
+                ports.append(item)
+        return ports
+
+                     
+    def remove(self):
+        self.scene.nameList.remove(self.name)
+        for thing in self.childItems():
+            try:
+                thing.remove()
+            except:
+                pass
+        self.scene.removeItem(self)
+
+    def rmView(self, viewname):
+        '''add a view and update disk'''
+        dd = self.getViews.copy()
+        if 'textSource' in dd:
+            del dd['textSource']
+        if viewname in dd:
+            del dd[viewname]
+        self.updateOnDisk(dd)
+
+    def setFlip(self, flip=None):
+        if flip: 
+            self.flip = flip
+        if self.flip:
+            self.setTransform(QtGui.QTransform.fromScale(-1, 1))
+            self.label.setFlipped()
+        else:
+            self.setTransform(QtGui.QTransform.fromScale(1, 1))
+            self.label.setNormal()
+        for p in self.ports():
+            p.setFlip()
+        self.setIcon()
+
+
+    def setIcon(self, iconpath=None):
+        self.img = QtGui.QImage()
+        if iconpath:
+            self.icon = iconpath
+        if self.icon is None: # not set
+            return
+        elif self.icon.lower().endswith('.svg'): # new style (path from libroot)
+            svgfilepath = self.icon
+            # make relative to the directory of the block
+            if not os.path.isabs(svgfilepath):
+                svgfilepath = os.path.join(libraries.libpath(self.libname, '.'), svgfilepath)
+        else: # old style
+            svgfilepath = os.path.join(respath, 'blocks' , self.icon + '.svg')
+
+        self.icon = svgfilepath
+#==============================================================================
+#         hack png 
+#==============================================================================
+        ret = svg2png(svgfilepath)
+        if ret:
+            self.png, self.pngmirr = ret 
+        
+        if self.flip and self.pngmirr and os.path.isfile(self.pngmirr):
+            self.img.load(self.pngmirr)
+        elif self.png and os.path.isfile(self.png):
+            self.img.load(self.png)
+        
+#        pngfilepath = svgfilepath.rstrip('.svg') + '.png'
+#        pngflippath = svgfilepath.rstrip('.svg') + 'flip.png'
+#        if not os.path.isfile(pngfilepath):
+#            subprocess.call('inkscape -z {} -e {}'.format(svgfilepath, pngfilepath).split())
+#            
+#        if not os.path.isfile(pngflippath):
+#            svgflippath = svgfilepath.rstrip('.svg') + 'flip.svg'
+#            with open(svgflippath, 'wb') as f:
+#                f.write(createSvgMirrorTxt(svgfilepath))
+#            subprocess.call('inkscape -z {} -e {}'.format(svgflippath, pngflippath).split())
+##            os.remove(svgflippath)
+#
+#        if os.path.isfile(self.icon):
+#            if self.flip:
+##                self.img.loadFromData(createSvgMirrorTxt(svgfilepath))
+#                self.img.load(pngflippath)
+#            else:
+#                self.img.load(pngfilepath)
+            self.update()
+
+    def setPos(self, *args):
+        if len(args) == 1:
+            pt = self.gridPos(args[0])
+            super(Block, self).setPos(pt)
+        else:
+            pt = QtCore.QPointF(args[0],args[1])
+            pt = self.gridPos(pt)
+            super(Block, self).setPos(pt)
+            
+    def setLabel(self, name=None):
+        if name:
+            self.name = name
+        if self.scene:
+            self.name = self.scene.setUniqueName(self) # make sure it is unique
+        if self.label:
+            self.label.setPlainText(self.name)
+        else:
+            self.label = textItem(self.name, anchor=8, parent=self)
+        self.label.setPos(0, self.h/2)
+        self.setFlip()
+        
+
+    def setup(self):
+        self.setIcon()
+        self.ports_in = []
+        bbox = self.bbox if self.bbox else calcBboxFromPins(self.inp, self.outp)
+#        print (self.name, bbox)
+        left, top, self.w, self.h = bbox
+        self.center = QtCore.QPoint(int(left+self.w/2), int(top+self.h/2))
+        p = QtGui.QPainterPath()
+        p.addRect(-self.w/2 + PW/2, -self.h/2, self.w - PW, self.h)
 
         self.setPath(p)
- 
+        
         if isinstance(self.inp, int):
             for n in range(0,self.inp): # legacy: self.inp is integer number
                 self.add_inPort(n)
@@ -220,296 +502,103 @@ class Block(QtWidgets.QGraphicsPathItem):
         else:
             for n in self.outp: # new: self.outp is list of tuples (name, x,y)
                 self.add_outPort(n)
-                
-        self.label = textItem(self.name, anchor=8, parent=self)
-        self.label.setPos(0, self.topOffset + self.h)
-
-#        self.label = QGraphicsTextItem(self)
-#        self.label.setPlainText(self.name)
-#        w = self.label.boundingRect().width()
-#        if self.flip:
-#            self.setTransform(QTransform.fromScale(-1,1))
-#            self.label.setTransform(QTransform.fromScale(-1,1))
-#            self.label.setPos(w/2, self.h/2+5)
-#        else:
-#            self.label.setPos(-w/2, self.h/2+5)
-
         self.setFlag(self.ItemIsMovable)
         self.setFlag(self.ItemIsSelectable)
-        self.setFlip()
-        self.setIcon()
+        self.setLabel()
+
+    def setView(self, viewname, viewvalue):
+        '''add a view and update disk'''
+        views = copy(self.getViews())
+        if 'textSource' in views:
+            del views['textSource']
+        views[viewname] = viewvalue
+        self.updateOnDisk(dd=dict(views=views))
+
+    def toData(self):
+        data = OrderedDict(type='block')
+        data['properties'] = self.properties
+        data['blockname'] = self.blockname
+        data['libname'] = self.libname
+        data['x'] = self.x()
+        data['y'] = self.y()
+        data['flip'] = self.flip
+
+        if self.label:
+            data['label'] = self.label.toData()
+
+        if self.parameters:
+            data['parameters'] = self.parameters
+
+        return data
         
-    def setFlip(self):
-        if self.flip:
-            self.setTransform(QtGui.QTransform.fromScale(-1, 1))
-            self.label.setFlipped()
-            for c in self.childItems():
-                try:
-                    if isinstance(c, Port):
-                            c.pinlabel.setFlipped()
-
-                except AttributeError:
-                    pass
-        else:
-            self.setTransform(QtGui.QTransform.fromScale(1, 1))
-            self.label.setNormal()
-            for c in self.childItems():
-                try:
-                    if isinstance(c, Port):
-                            c.pinlabel.setNormal()
-
-                except AttributeError:
-                    pass
-        self.setIcon()
-
-
-    def setIcon(self):
-        if self.icon is None: # not set
-            svgfilepath = os.path.join('libraries', 'library_'+self.libname, self.name+'.svg')
-        elif self.icon.lower().endswith('.svg'): # new style (path from libroot)
-            svgfilepath = self.icon
-        else: # old style
-            svgfilepath = os.path.join(respath, 'blocks' , self.icon + '.svg')
-        self.icon = svgfilepath
-
-        self.img = QtGui.QImage()
-        if os.path.isfile(self.icon):
-            if self.flip:
-                self.img.loadFromData(self.create_svg_mirror_txt(svgfilepath))
-            else:
-                self.img.load(svgfilepath)
-            self.update()
-                    
-    def add_inPort(self, n):
-        if isinstance(n, int):
-            ypos = -PD*(self.inp-1)/2 + n*PD
-            xpos = -(self.w+PW)/2
-            name = 'i_pin{}'.format(n)
-        else: # tuple (x, y)
-            name = n[0]
-            xpos = n[1]
-            ypos = n[2]
-            if xpos > -BWmin/2 - PW/2:
-                xpos = -BWmin/2 - PW/2
-        port = InPort(self, self.scene, name=name)
-        if not isinstance(n, int) and len(n) == 3:
-            port.pinlabel = textItem(name, anchor=4, parent=port)
-            port.pinlabel.setPos(10,0)
-        port.block = self
-        port.setPos(xpos, ypos)
-        return port
-
-    def add_outPort(self, n):
-        if isinstance(n, int):
-            xpos = (self.w+PW)/2
-            ypos = -PD*(self.outp-1)/2 + n*PD
-            name = 'o_pin{}'.format(n)
-        else: # tuple (x, y)
-            name = n[0]
-            xpos = n[1]
-            ypos = n[2]
-            if xpos < BWmin/2 + PW/2:
-                xpos = BWmin/2 + PW/2
-        port = OutPort(self, self.scene, name=name)
-        if not isinstance(n, int) and len(n) == 3:
-            port.pinlabel = textItem(name, anchor=6, parent=port)
-            port.pinlabel.setPos(-10,0)
-        port.block = self
-        port.setPos(xpos, ypos)
-        return port
-
-    def ports(self):
-        ports = []
-        for thing in self.childItems():
-            if isinstance(thing, Port):
-                ports.append(thing)
-        return ports
-        
-    def pins(self):
-        '''return (inputs, outputs, inouts) that lists of tuples (io, x, y, name)'''
-        inputs, outputs, inouts  = [], [], []
-        ports = self.ports()
-        for p in ports:
-            x, y = p.x(), p.y()
-            name = p.name
-            if isinstance(p, InPort):
-                 inputs.append(('i', x, y, name))
-            elif isinstance(p, OutPort):
-                outputs.append(('o', x, y, name))
-            else:
-                inouts.append(('io', x, y, name))
-        return inputs, outputs, inouts
-
-
-    def paint(self, painter, option, widget):
-        pen = QtGui.QPen()
-        pen.setBrush(self.line_color)
-        pen.setWidth = LW
-        if self.isSelected():
-            pen.setStyle(QtCore.Qt.DotLine)
-        painter.setPen(pen)
-        painter.drawPath(self.path())
-        rect = self.img.rect()
-        painter.drawImage(-rect.width()/2,-rect.height()/2, self.img)
-
-    def itemChange(self, change, value):
-        return value
-
-    def remove(self):
-        self.scene.nameList.remove(self.name)
-        for thing in self.childItems():
-            try:
-                thing.remove()
-            except:
-                pass
-        self.scene.removeItem(self)
-
-    def setPos(self, *args):
-        if len(args) == 1:
-            pt = self.gridPos(args[0])
-            super(Block, self).setPos(pt)
-        else:
-            pt = QtCore.QPointF(args[0],args[1])
-            pt = self.gridPos(pt)
-            super(Block, self).setPos(pt)
-        
-    def gridPos(self, pt):
-         gr = GRID
-         x = gr * ((pt.x() + gr /2) // gr)
-         y = gr * ((pt.y() + gr /2) // gr)
-         return QtCore.QPointF(x,y)
-
-    def clone(self, pt):
-        b = libraries.getBlock(self.blockname,self.libname,scene=self.scene,param=self.parameters,name=self.name)
-        b.properties = self.properties
-        b.setPos(self.scenePos().__add__(pt))
-       
-    def save(self, root):
-        blk = etree.SubElement(root,'block')
-        etree.SubElement(blk,'name').text = self.name
-        etree.SubElement(blk,'inp').text = self.inp.__str__()
-        etree.SubElement(blk,'outp').text = self.outp.__str__()
-        if self.iosetble:
-            etree.SubElement(blk,'ioset').text = '1'
-        else:
-            etree.SubElement(blk,'ioset').text = '0'
-        etree.SubElement(blk,'icon').text = self.icon
-        etree.SubElement(blk,'parameters').text = self.parameters
-        if self.flip:
-            etree.SubElement(blk,'flip').text = '1'
-        else:
-            etree.SubElement(blk,'flip').text = '0'
-        etree.SubElement(blk,'posX').text = self.pos().x().__str__()
-        etree.SubElement(blk,'posY').text = self.pos().y().__str__()
-
-    def create_svg_mirror_txt(self, svgfilename):
-        #generate an svg flie that has text-labels flipped
-        dirpath, fname = os.path.split(svgfilename)
-#        svgflipped = os.path.join(dirpath, 'flipped', fname)
-#        if os.path.exists(svgflipped):
-#            return svgflipped
-        parser = etree.XMLParser(remove_blank_text=True)
-        tree = etree.parse(svgfilename, parser)
-        root = tree.getroot()
-        svg_namespace = root.nsmap[None]
-        svg_path = '{{{}}}'.format(svg_namespace)
-    #    texts = [dom2dict(el) for el in doc.getElementsByTagName('text')]
-        texts = root.findall(svg_path+'text')
-        for e in texts:
-            ff = 'x y text-anchor style'.split()
-            rr = []
-            for k in ff:
-                try:
-                    v = e.attrib[k]
-                    del e.attrib[k]
-                except KeyError:
-                    v = '0'
-                rr.append(v)
-            x, y, anchor, style = rr
-            
-            
-
-            if style != '0':
-                ix = -1
-                styleelmnts = style.split(';')
-                if 'text-anchor' in style:
-                     for ix, se in enumerate(styleelmnts):
-                        k, summy, v = se.partition(':')
-                        if k == 'text-anchor':
-                            anchor = v
-                            styleelmnts.pop(ix)
-                            break
-
-            if anchor in ['0', 'start'] :
-                anchor = 'end'
-            elif anchor == 'end':
-                anchor = ''
-
-            if anchor:
-                if style != '0':
-                    styleelmnts.append('text-anchor:'+anchor)
-                    e.attrib['style'] = ';'.join(styleelmnts)
-                else:
-                    e.attrib['text-anchor'] = anchor
-
-            e.attrib['transform'] = 'translate({},{})scale(-1,1)'.format(x, y)
-
-        svgflipped = etree.tostring(root, pretty_print=True)
-#        tree.write(svgflipped, pretty_print=True)
-        return svgflipped
-
-
-class textItem(QtWidgets.QGraphicsTextItem):
-    '''convenience class, extension of QGraphicsTextItem, that realises aligned text
-    textItem.setFlipped() will mirror the text  (in place)
-    textItem.setNormal() will put txt in normal (non-mirrored) state
+#    def fromData(self, data):
+#        self.properties = data['properties']
+#        self.blockname  = data['blockname']
+#        self.
     
-    anchor is (look at numpad):
-    1: bottom-left
-    2: bottom-center
-    3: bottom-right
-    4: center-left
-    5: center-center
-    6: center-right
-    7: top-left
-    8: top-center
-    9: top-right'''
-    def __init__(self, text, anchor=1, parent=None,comment=False):
-        super(textItem, self).__init__(text, parent)
-        self.anchor = anchor
-        self.scale = 1 
-        
-        # compute dx, dy absed on anchor
-        self.dx, self.dy = 0, 0
-        self.setAnchor()
-        self.setNormal()
-        self.setFlag(self.ItemIsMovable)
-        self.setFlag(self.ItemIsSelectable)
-#        self.setFlag(self.ItemIgnoresTransformations)
-        self.setTextInteractionFlags(QtCore.Qt.TextEditorInteraction)
-        self.comment = comment
-        self.setAcceptDrops(False)
+    def updateOnDisk(self, dd=dict(), writeback=True):
+        '''replace assignments with new values for variable names in dd
+        and write back to disk'''
+        fname = libraries.blockpath(self.libname, self.blockname)
+        src = []
+        with open(fname) as f:
+            lines = f.readlines()
+            ix = 0
+            while ix < len(lines):
+                line = lines[ix]
+                s = line.replace('=', ' = ').split()
+                if len(s) > 2  and line.startswith(s[0]) and  s[0] in dd and s[1] == '=':
+                    # assignment without leading whitespace
+                    key = s[0]
+                    while line.endswith('\\\n') or line.strip().endswith(','):
+                        ix += 1
+                        line = lines[ix]
+                    # get comment if present
+                    line, _ , cmt = line.partition('#')
+                    if cmt:
+                        cmt = ' # '+ cmt.strip()
+                    line = '{} = {}\n'.format(key, dd[key], cmt)
+                
+                src.append(line)
+                ix += 1
 
-    def setFlipped(self):
-        '''mirror in place (use when parent is flipped'''
-        self.setTransform(QtGui.QTransform().translate(self.dx, self.dy).scale(-self.scale,self.scale).translate(-self.boundingRect().width(),0))
-        self.setAnchor()
-        self.setTransform(QtGui.QTransform().translate(self.dx, self.dy).scale(-self.scale,self.scale).translate(-self.boundingRect().width(),0))
+        src = ''.join(src)
+        if writeback:
+            with open(fname, 'wb') as f:
+                f.write(src)
+                
+        getBlockModule(self.libname, self.blockname) # update module
+        return src
 
-    def setNormal(self):
-        '''normal orientation'''
-        self.setTransform(QtGui.QTransform.fromScale(self.scale,self.scale).translate(self.dx, self.dy))
-        self.setAnchor()
-        self.setTransform(QtGui.QTransform.fromScale(self.scale,self.scale).translate(self.dx, self.dy))
+    
+    
+            
         
-    def setAnchor(self): 
-        if self.anchor in (4,5,6):
-            self.dy = -0.5*self.boundingRect().height()
-        elif self.anchor in (1,2,3):
-            self.dy = -self.boundingRect().height()
-        
-        if self.anchor in (2,5,8):
-            self.dx = -0.5*self.boundingRect().width()
-        if self.anchor in (3,6,9):
-            self.dx = -self.boundingRect().width()
+                    
 
+
+
+
+        
+       
+#    def save(self, root):
+#        blk = etree.SubElement(root,'block')
+#        etree.SubElement(blk,'name').text = self.name
+#        etree.SubElement(blk,'inp').text = self.inp.__str__()
+#        etree.SubElement(blk,'outp').text = self.outp.__str__()
+#        if self.iosetble:
+#            etree.SubElement(blk,'ioset').text = '1'
+#        else:
+#            etree.SubElement(blk,'ioset').text = '0'
+#        etree.SubElement(blk,'icon').text = self.icon
+#        etree.SubElement(blk,'parameters').text = self.parameters
+#        if self.flip:self
+#            etree.SubElement(blk,'flip').text = '1'
+#        else:
+#            etree.SubElement(blk,'flip').text = '0'
+#        etree.SubElement(blk,'posX').text = self.pos().x().__str__()
+#        etree.SubElement(blk,'posY').text = self.pos().y().__str__()
+
+
+def isBlock(item):
+    return isinstance(item, Block)

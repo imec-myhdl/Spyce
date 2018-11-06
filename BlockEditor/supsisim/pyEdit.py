@@ -12,15 +12,14 @@ import os
 #    sip.setapi('QString', 1)
 
 
-from supsisim.block import Block, textItem
-from supsisim.node import Node
-from supsisim.connection import Connection
+from supsisim.block import Block
+from supsisim.text import textItem
 from supsisim.editor import Editor
-from supsisim.library import Library
 from supsisim.scene import Scene, GraphicsView
 from supsisim.dialg import IO_Dialog, convertSymDialog, viewConfigDialog,error
-from supsisim.const import respath, pycmd, PD,PW,BWmin
-from supsisim.port import Port,InPort,OutPort,InNodePort,OutNodePort
+from supsisim.const import respath, pycmd, PD,PW,BWmin, celltemplate
+from supsisim.port import isInPort, isOutPort, isNode, isPort
+from supsisim.src_import import import_module_from_source_file
 import libraries
 
 DEBUG = False
@@ -62,7 +61,7 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
         self.status = self.statusBar()
         self.evpos = QtCore.QPointF(0,0)
         self.editor = Editor(self)     
-        self.newFile()
+        self.newTab()
         self.editor.install(self.scene)
         self.status.showMessage('Ready')
 
@@ -74,7 +73,7 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
                                                 '&New', self,
                                                 shortcut = 'Ctrl+N',
                                                 statusTip = 'New File',
-                                                triggered = self.newFile)
+                                                triggered = self.newTab)
         
         self.openFileAction = QtWidgets.QAction(QtGui.QIcon(mypath+'fileopen.png'),
                                                 '&Open', self,
@@ -105,11 +104,11 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
                                              statusTip = 'Undo', 
                                              triggered = self.undo)                                      
                                              
-        self.addNodeAction = QtWidgets.QAction(QtGui.QIcon(mypath+'AddNode.png'),
-                                             '&Add Node', self,
+        self.addPinAction = QtWidgets.QAction(QtGui.QIcon(mypath+'AddPin.png'),
+                                             '&Add Pin', self,
                                              shortcut = 'N',
-                                             statusTip = 'Add Node',
-                                             triggered = self.addNodeAct)                                    
+                                             statusTip = 'Add Pin',
+                                             triggered = self.addPinAct)                                    
         
         self.convertSymbolAction = QtWidgets.QAction(QtGui.QIcon(mypath+'convertSymbol.png'),
                                              '&Convert symbol', self,
@@ -171,10 +170,10 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
                                              triggered = self.debugAct)     
                                                      
         
-        self.testIndex = QtWidgets.QAction(QtGui.QIcon(mypath+'debug.png'),
-                                             '&Test index',self,
-                                             statusTip = 'Test index',
-                                             triggered = self.testIndexAct) 
+#        self.testIndex = QtWidgets.QAction(QtGui.QIcon(mypath+'debug.png'),
+#                                             '&Test index',self,
+#                                             statusTip = 'Test index',
+#                                             triggered = self.testIndexAct) 
         
                                              
     def addToolbars(self):
@@ -189,7 +188,7 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
         toolbarE.addAction(self.copyAction)
         toolbarE.addAction(self.pasteAction)
         toolbarE.addAction(self.convertSymbolAction)
-        toolbarE.addAction(self.addNodeAction)
+        toolbarE.addAction(self.addPinAction)
         toolbarE.addAction(self.commentAction)
         toolbarE.addAction(self.undoAction)
 
@@ -225,7 +224,7 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
             
             i = self.centralWidget.currentIndex()
             
-            self.newFile(fname,symbol,blockname,libname)
+            self.newTab(fname,symbol,blockname,libname)
             blocks = []
             connections = []
             nodes = []
@@ -248,19 +247,20 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
             self.view.setTransform(t)
             self.view.horizontalScrollBar().setValue(x)
             self.view.verticalScrollBar().setValue(y)
-    def testIndexAct(self):
-        
-        
-        for item in self.scene.items(self.scene.selectionArea()):
-            if isinstance(item,Node):
-                if item.label:
-                    error(str(item.label.toPlainText()) + str(item.port_in.connections) + str(item.port_out.connections))
-            if isinstance(item, Connection):
-                error(str(item.port1) + str(item.port2))
-                #error(item.port1.parent.label.toPlainText())
-            print(item)
-        #point = self.view.mapToScene(self.view.viewport().width()/2,self.view.viewport().height()/2)
-        #print(point.x(),point.y())
+            
+#    def testIndexAct(self):
+#        
+#        
+#        for item in self.scene.items(self.scene.selectionArea()):
+#            if isNode(item):
+#                if item.label:
+#                    error(str(item.label.toPlainText()) + str(item.connections) + str(item.connections))
+#            if isSegment(item):
+#                error(str(item.port1) + str(item.port2))
+#                #error(item.port1.parent.label.toPlainText())
+#            print(item)
+#        #point = self.view.mapToScene(self.view.viewport().width()/2,self.view.viewport().height()/2)
+#        #print(point.x(),point.y())
             
     def addMenubar(self):
         menubar = self.menuBar()
@@ -301,9 +301,8 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
         if ret:
             path = os.getcwd()
             fname = '/supsisim/const.py'
-            f = open(path + fname,'r')
-            lines = f.readlines()
-            f.close()
+            with open(path + fname,'r') as f:
+                lines = f.readlines()
             
             for index,line in enumerate(lines):
                 if line.startswith('viewEditors = '):
@@ -322,8 +321,8 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
                 lines.append(string)
             
             
-            f = open(path + fname,'w+')
-            f.write("".join(lines))
+            with open(path + fname,'w+') as f:
+                f.write("".join(lines))
             f.close()
             
             
@@ -348,7 +347,7 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
     def descend(self,item):
         self.view.returnSymbol = True
         print(item.libname)
-        self.newFile(item.name,symbol=True,blockname=item.blockname,libname=item.libname)
+        self.newTab(item.name,symbol=True,blockname=item.blockname,libname=item.libname)
         
         fname = 'libraries.library_' + item.libname + '.' + item.blockname + '_diagram'
         exec('import ' + fname)
@@ -364,10 +363,10 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
     def ascend(self):
         pass        
     
-    def addNodeAct(self):
+    def addPinAct(self):
         mimeData = QtCore.QMimeData()
             
-        data = 'Node'
+        data = 'ipin'
         mimeData.setText(data)
         drag = QtGui.QDrag(self)
         drag.setMimeData(mimeData)
@@ -392,39 +391,41 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
     def pasteAct(self):
         if self.scene.selection != []:
             for item in self.scene.selection:
-                if isinstance(item, Block) or isinstance(item, Node):
+                if isinstance(item, Block) or isNode(item):
                     try:
                         item.clone(QtCore.QPointF(200,200))
                     except:
                         pass
-            for item in self.scene.selection:
-                if isinstance(item, Connection):
-                    ports = []
-                    for portItem in self.scene.selection:
-                        if isinstance(portItem, Node):
-                            ports.append(portItem.port_out)
-                            ports.append(portItem.port_in)
-                    if (item.port1 in self.scene.selection or item.port1 in ports) and (item.port2 in ports or item.port2 in self.scene.selection):
-                        try:
-                            c = item.clone(QtCore.QPointF(200,200))
-                            c.update_ports_from_pos()
-                        except:
-                            pass        
+                    
+#TODO: fix connections
+#            for item in self.scene.selection:
+#                if isSegment(item):
+#                    ports = []
+#                    for portItem in self.scene.selection:
+#                        if isNode(portItem):
+#                            ports.append(portItem)
+#                            ports.append(portItem)
+#                    if (item.port1 in self.scene.selection or item.port1 in ports) and (item.port2 in ports or item.port2 in self.scene.selection):
+#                        try:
+#                            c = item.clone(QtCore.QPointF(200,200))
+#                            c.update_ports_from_pos()
+#                        except:
+#                            pass        
     
     def itemsToInpOutp(self,items):
         inpItems = []
         outpItems = []
         
         for item in items:
-            if isinstance(item,Node):
-                if not item.port_in.connections:
+            if isNode(item):
+                if not item.connections:
                     if item.label:
                         label = item.label.toPlainText()
                         if label in outpItems:#virtual connection
                             outpItems.remove(label)
                         else:
                             inpItems.append(label)
-                if not item.port_out.connections:
+                if not item.connections:
                     if item.label:
                         label = item.label.toPlainText()
                         if label in inpItems:
@@ -480,44 +481,11 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
         inp = attributes['input']
         outp = attributes['output']
         icon = attributes['icon']
+        views = attributes['views']
+        views['icon'] = icon
         
-#\n\
-#def getDiagram():\n\
-#    fname = 'libraries.' + libname + '.' + name + '_diagram'\n\
-#    exec('import ' + fname)\n\
-#    reload(eval(fname))\n\
-#\n\
-#    items = eval(fname + '.items')\n\
-#\n\
-#    return items\n\
-#\n\
-#def getText():\n\
-#    fname = 'libraries/' + libname + '/' + name + '.py'\n\
-#    f = open(fname,'r')\n\
-#    content = f.read()\n\
-#    f.close()\n\
-#    return content\n\
-#\n\
-        template = "# diagram definition\n\
-# name = '{name}'\n\
-# libname = '{libname}'\n\
-\n\
-inp = {inp}\n\
-outp = {outp}\n\
-\n\
-parameters = {parameters} #programmable cell\n\
-properties = {properties} #netlist properties\n\
-\
-\
-#view variables:\n\
-iconSource = {icon}\n\
-diagramSource = 'libraries/library_{libname}/{name}_diagram.py'\n\
-textSource = 'libraries/library_{libname}/{name}.py'\n\
-\n\
-\n\
-views = {{'icon':iconSource,'diagram':diagramSource}}"
-        iconSource = "iconSource = '{}'\n".format(icon) if icon else ''
-        return template.format(name=name,libname=libname,inp=str(inp),outp=str(outp),properties=str(properties),parameters=str(parameters),iconSource=iconSource)
+        return celltemplate.format(name=name,libname=libname,inp=inp,outp=outp,bbox=None, 
+                               properties=properties,parameters=parameters,views=views)
         
     
     def convertSymAct(self):
@@ -530,11 +498,11 @@ views = {{'icon':iconSource,'diagram':diagramSource}}"
             
             for item in selection:
                 if isinstance(item,Block):
-                    blocks.append(str(item.toPython()))
-                if isinstance(item,Connection):
-                    connections.append(str(item.toPython()))
-                if isinstance(item,Node):
-                    nodes.append(str(item.toPython()))
+                    blocks.append(str(item.toData()))
+                if isSegment(item):
+                    connections.append(str(item.toData()))
+                if isNode(item):
+                    nodes.append(str(item.toData()))
                 if isinstance(item,textItem):
                     if item.comment:
                         comments.append(str(dict(pos=dict(x=item.x(),y=item.y()),text=item.toPlainText())))
@@ -561,7 +529,7 @@ views = {{'icon':iconSource,'diagram':diagramSource}}"
                     libname = self.library.libraries.currentItem().text()
                 
                 attributes = {'name':name,'input':inp,'output':outp,'icon':icon,'libname':libname,'type':'symbol'} 
-                        
+                attributes ['views'] = dict(diagram = '/libraries/library_' + libname + '/' + name + '_diagram.py')        
                 
                 parameters = dict()
                 properties = ret['properties']
@@ -570,15 +538,13 @@ views = {{'icon':iconSource,'diagram':diagramSource}}"
                 
     
                 self.path = os.getcwd()            
-                f = open(self.path + '/libraries/library_' + libname + '/' + name + '.py','w+')
-                f.write(str(data))
-                f.close()
-                f = open(self.path + '/libraries/library_' + libname + '/' + name + '_diagram.py','w+')
-                f.write("blocks = [" + ",\n          ".join(blocks) + "]\n\n" + 
-                        "connections = [" + ",\n               ".join(connections) + "]\n\n" + 
-                        "nodes = [" + ",\n         ".join(nodes) + "]\n\n" +
-                        "comments = [" + ",\n         ".join(comments) + "]")
-                f.close()
+                with open(self.path + '/libraries/library_' + libname + '/' + name + '.py','w+') as f:
+                    f.write(str(data))
+                with open(self.path + '/libraries/library_' + libname + '/' + name + '_diagram.py','w+') as f:
+                    f.write("blocks = [" + ",\n          ".join(blocks) + "]\n\n" + 
+                            "connections = [" + ",\n               ".join(connections) + "]\n\n" + 
+                            "nodes = [" + ",\n         ".join(nodes) + "]\n\n" +
+                            "comments = [" + ",\n         ".join(comments) + "]")
                 
                 
                 
@@ -598,7 +564,7 @@ views = {{'icon':iconSource,'diagram':diagramSource}}"
     def updateAct(self):
         items = self.scene.items()
         for item in items:
-            if isinstance(item, Connection):
+            if isSegment(item):
                 self.scene.removeItem(item)
                 item.update_path()
             
@@ -641,6 +607,7 @@ views = {{'icon':iconSource,'diagram':diagramSource}}"
                                         QtWidgets.QMessageBox.Cancel)
             ret = msg.exec_()
             return ret
+            
     def closeTab(self, currentIndex):
         self.centralWidget.setCurrentIndex(currentIndex)
         ret = self.askSaving()
@@ -650,7 +617,7 @@ views = {{'icon':iconSource,'diagram':diagramSource}}"
         if ret != QtWidgets.QMessageBox.Cancel and not cancel:
             self.centralWidget.removeTab(currentIndex)
                  
-    def newFile(self,fname=False,symbol=False,blockname=None,libname=None):
+    def newTab(self,fname=False,symbol=False,blockname=None,libname=None):
         if not fname:
             fname = 'untitled'
         view = GraphicsView(self.centralWidget,symbol)
@@ -680,40 +647,24 @@ views = {{'icon':iconSource,'diagram':diagramSource}}"
 #        self.setWindowTitle(self.filename)
         
     def openFile(self):
-#        fname = self.filename
-#        try:
-#            os.remove(fname+'.py')
-#        except:
-#            pass
-        
-#            self.filename = 'untitled'
-#            self.path = os.getcwd()
-#            self.setWindowTitle(self.filename)
         filename = QtWidgets.QFileDialog.getOpenFileName(self, 'Open', self.path+'/saves/', filter='*.py')
         if isinstance(filename, tuple):
             filename = filename[0]
-        if filename != '':
-#            ret = self.askSaving()
-#            if ret == QtWidgets.QMessageBox.Save:
-#                self.saveFile()
-#            if ret != QtWidgets.QMessageBox.Cancel:
-#                self.scene.newDgm()
-            fname = QtCore.QFileInfo(filename)
-            self.filename = str(fname.baseName())
-            self.path = str(fname.absolutePath())
-#            self.setWindowTitle(self.filename)
-            self.newFile(self.filename)
+        if filename:
+            path, ffname = os.path.split(filename) # path, full filename
+            bname, ext= os.path.splitext(ffname)# basename, extension('.py')
+            if ext != '.py':
+                return
+            self.path = path
+            self.filename = bname
+            self.newTab(self.filename)
             
-            fname = self.filename
-            import sys
-            sys.path.append(self.path)
-            exec('import ' + fname)
-            reload(eval(fname))
+            dgm = import_module_from_source_file(os.path.abspath(filename))
             
-            blocks = eval(fname + '.blocks')
-            connections = eval(fname + '.connections')
-            nodes = eval(fname + '.nodes')
-            comments = eval(fname + '.comments')
+            blocks      = dgm.blocks
+            nodes       = dgm.nodes
+            connections = dgm.connections
+            comments    = dgm.comments
         
             self.scene.loadPython(blocks,connections,nodes,comments)
     
@@ -724,14 +675,15 @@ views = {{'icon':iconSource,'diagram':diagramSource}}"
             libname = self.centralWidget.currentWidget().libname
             exec('import libraries.library_' + libname + '.' + symbolName)
             
+            blk = libraries.blocks[libname + '/' + symbolName]
             attributes = dict()
-            attributes['name'] = eval('libraries.library_' + libname + '.' + symbolName + '.name')
-            attributes['libname'] = eval('libraries.library_' + libname + '.' + symbolName + '.libname')
-            attributes['icon'] = eval('libraries.library_' + libname + '.' + symbolName + '.iconSource')
-                
+            attributes['name'] = blk.name
+            attributes['libname'] = blk.libname
+            attributes['icon'] = blk.views['icon']
+            attributes['views'] = blk.views
             
-            parameters = eval('libraries.library_' + libname + '.' + symbolName + '.parameters')
-            properties = eval('libraries.library_' + libname + '.' + symbolName + '.properties')
+            parameters = blk.parameters
+            properties = blk.properties
             
             blocks = []
             connections = []
@@ -740,11 +692,10 @@ views = {{'icon':iconSource,'diagram':diagramSource}}"
         
             for item in self.scene.items():
                 if isinstance(item,Block):
-                    blocks.append(str(item.toPython()))
-                if isinstance(item,Connection):
-                    connections.append(str(item.toPython()))
-                if isinstance(item,Node):
-                    nodes.append(str(item.toPython()))
+                    blocks.append(str(item.toData()))
+                if isPort(item, tp=['ipin', 'opin', 'iopin', 'node']):
+                    print(item.porttype)
+                    nodes.append(str(item.toData()))
                 if isinstance(item,textItem):
                     if item.comment:
                         comments.append(str(dict(pos=dict(x=item.x(),y=item.y()),text=item.toPlainText())))
@@ -757,16 +708,15 @@ views = {{'icon':iconSource,'diagram':diagramSource}}"
             data = self.getSymbolData(attributes,properties,parameters)
             
 
-            self.path = os.getcwd()            
-            f = open(self.path + '/libraries/library_' + libname + '/' + symbolName + '.py','w+')
-            f.write(str(data))
-            f.close()
-            f = open(self.path + '/libraries/library_' + libname + '/' + symbolName + '_diagram.py','w+')
-            f.write("blocks = [" + ",\n          ".join(blocks) + "]\n\n" + 
-                    "connections = [" + ",\n               ".join(connections) + "]\n\n" + 
-                    "nodes = [" + ",\n         ".join(nodes) + "]\n\n" + 
-                    "comments = [" + ",\n         ".join(comments) + "]")
-            f.close()
+            self.path = os.getcwd()
+            with open(self.path + '/libraries/library_' + libname + '/' + symbolName + '.py','w+') as f:
+                f.write(str(data))
+
+            with open(self.path + '/libraries/library_' + libname + '/' + symbolName + '_diagram.py','w+') as f:
+                f.write("blocks = [" + ",\n          ".join(blocks) + "]\n\n" + 
+                        "connections = [" + ",\n               ".join(connections) + "]\n\n" + 
+                        "nodes = [" + ",\n         ".join(nodes) + "]\n\n" + 
+                        "comments = [" + ",\n         ".join(comments) + "]")
             
             if self.library.type == 'symbolView':
                 self.library.symbolView()
@@ -799,13 +749,13 @@ views = {{'icon':iconSource,'diagram':diagramSource}}"
                                 
                                 for conn in connections:
                                     if conn.port1 in ports:
-                                        if isinstance(conn.port1, InPort):
+                                        if isInPort(conn.port1):
                                             inOrOut = 'in'
                                         else:
                                             inOrOut = 'out'
                                         newConn.append(dict(inOrOut=inOrOut,pos2=conn.pos2,pinlabel=conn.port1.pinlabel.toPlainText()))
                                     elif conn.port2 in ports:
-                                        if isinstance(conn.port2, InPort):
+                                        if isOutPort(conn.port2):
                                             inOrOut = 'in'
                                         else:
                                             inOrOut = 'out'
@@ -817,20 +767,20 @@ views = {{'icon':iconSource,'diagram':diagramSource}}"
                                 b.setPos(pos)
                                 
                                 for nConn in newConn:
-                                    conn = Connection(None,tab.scene())
+                                    conn = Segment(None,tab.scene())
                                     if 'pos1' in nConn:
                                         conn.pos1 = nConn['pos1']
                                         for port in b.ports():
                                             if port.pinlabel.toPlainText() == nConn['pinlabel']:
-                                                if (isinstance(port,InPort) and nConn['inOrOut'] == 'in')\
-                                                or (isinstance(port,OutPort) and nConn['inOrOut'] == 'out'):
+                                                if (isInPort(port) and nConn['inOrOut'] == 'in')\
+                                                or (isOutPort(port) and nConn['inOrOut'] == 'out'):
                                                     conn.pos2 = port.scenePos()
                                     else:
                                         conn.pos2 = nConn['pos2']
                                         for port in b.ports():
                                             if port.pinlabel.toPlainText() == nConn['pinlabel']:
-                                                if (isinstance(port,InPort) and nConn['inOrOut'] == 'in')\
-                                                or (isinstance(port,OutPort) and nConn['inOrOut'] == 'out'):
+                                                if (isInPort(port) and nConn['inOrOut'] == 'in')\
+                                                or (isOutPort(port) and nConn['inOrOut'] == 'out'):
                                                     conn.pos1 = port.scenePos()
                                     conn.update_ports_from_pos()
 #            
@@ -845,12 +795,11 @@ views = {{'icon':iconSource,'diagram':diagramSource}}"
                 self.path = str(fname.absolutePath())
                 self.centralWidget.setTabText(self.centralWidget.currentIndex(),self.filename)
                 blocks,connections,nodes,comments = self.scene.savePython()
-                f = open(self.getFullFileName(),'w+')
-                f.write("blocks = [" + ",\n          ".join(blocks) + "]\n\n" + \
-                    "connections = [" + ",\n               ".join(connections) + "]\n\n" + \
-                    "nodes = [" + ",\n         ".join(nodes) + "]\n\n" + \
-                    "comments = [" + ",\n         ".join(comments) + "]")
-                f.close()
+                with open(self.getFullFileName(),'w+') as f:
+                    f.write("blocks = [" + ",\n          ".join(blocks) + "]\n\n" + \
+                        "connections = [" + ",\n               ".join(connections) + "]\n\n" + \
+                        "nodes = [" + ",\n         ".join(nodes) + "]\n\n" + \
+                        "comments = [" + ",\n         ".join(comments) + "]")                
             else:
                 return True
 

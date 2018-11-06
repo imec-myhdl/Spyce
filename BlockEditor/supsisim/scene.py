@@ -3,23 +3,32 @@
 from __future__ import (division, print_function, absolute_import,
                         unicode_literals)
 
-import sys
 import Qt
 from  Qt import QtGui, QtWidgets, QtCore # see https://github.com/mottosso/Qt.py
+from collections import OrderedDict
 
-
-from supsisim.block import Block, textItem
-from supsisim.port import Port, InPort, OutPort, OutNodePort, InNodePort
-from supsisim.node import Node
-from supsisim.connection import Connection
-from supsisim.dialg import RTgenDlg
-from supsisim.const import pyrun, TEMP
 from lxml import etree
 import os
 import subprocess
 import time
 
+from supsisim.block import Block, isBlock, getBlock, gridPos
+from supsisim.text  import textItem, Comment, isComment
+from supsisim.port  import Port, isInPort, isOutPort, isNode, isPort
+from supsisim.connection import Connection, isConnection
+from supsisim.dialg import RTgenDlg
+from supsisim.const import pyrun, TEMP, DB
 import libraries
+
+def d2s(d):
+    '''dict to string'''
+    items = []
+    for k, v in d.items():
+        if isinstance(v, (dict, OrderedDict)):
+            items.append('{}={}'.format(k, d2s(v)))
+        else:
+            items.append('{}={}'.format(k, repr(v)))
+    return 'dict({})'.format(', '.join(items))
 
 class GraphicsView(QtWidgets.QGraphicsView):
     def __init__(self, parent=None,symbol=False):
@@ -59,7 +68,7 @@ class Scene(QtWidgets.QGraphicsScene):
         self.script = ''
         self.Tf = '10'      
         self.selectionChanged.connect(self.selectionChangedSlot) 
-        self.changed.connect(self.saveUndo)
+#        self.changed.connect(self.saveUndo)
         
         self.status = []
         self.undoLength = -1
@@ -93,20 +102,24 @@ class Scene(QtWidgets.QGraphicsScene):
         return index
 
     def setUniqueName(self, block):
-        cnt = 1
-        nm = block.name
+        cnt = 0
+        base = block.name
+        while base and base[-1] in '0123456789':
+            base = base[:-1]
+        nm = base
         while self.getIndex(nm) != -1:
-            nm = nm.rstrip('0123456789') + str(cnt)
+            nm = base + str(cnt)
             cnt += 1
         self.nameList.append(nm)
         self.nameList.sort()
         return nm
     
     def selectionChangedSlot(self):
-        for item in self.items():
-            if isinstance(item, Node):
-                if not item in self.selectedItems():
-                    item.setFlag(item.ItemIsMovable,False)
+        pass
+#        for item in self.items():
+#            if isinstance(item, Node):
+#                if not item in self.selectedItems():
+#                    item.setFlag(item.ItemIsMovable,False)
     
     def dragEnterEvent(self, event):
         event.accept()
@@ -118,13 +131,14 @@ class Scene(QtWidgets.QGraphicsScene):
         event.accept()
         
     def dropEvent(self, event):
-        if event.mimeData().text() == 'Node':
-            n = Node(None,self)
-            n.setPos(event.scenePos())
+        pos = gridPos(event.scenePos())
+        if event.mimeData().text().lower() in ['ipin', 'opin', 'iopin', 'node']:
+            tp = event.mimeData().text().lower()
+            n = Port(None, self, porttype=tp)
+            n.setPos(pos)
         elif event.mimeData().text() == 'Comment':
-            comment = textItem('', anchor=3, parent=None,comment=True)
-            comment.setDefaultTextColor(QtGui.QColor('darkGray'))
-            comment.setPos(event.scenePos())
+            comment = Comment('')
+            comment.setPos(pos)
             self.addItem(comment)
             comment.setFocus()
         else:
@@ -133,9 +147,9 @@ class Scene(QtWidgets.QGraphicsScene):
                 if self.mainw.view.symbol and self.mainw.view.libname == data[0] and self.mainw.view.blockname == data[1]:
                     pass
                 else:
-                    
-                    b = libraries.getBlock(data[1],data[0],scene=self)                    
-                    b.setPos(event.scenePos())
+# TODO: this is old style                    
+                    b = getBlock(data[0],data[1],scene=self)                    
+                    b.setPos(pos)
 #                    b = Block(eval(data[0]),eval(data[1]),eval(data[2]),data[3],data[4],None, self)
             else:
                 data = event.mimeData().text().split('@')
@@ -145,8 +159,8 @@ class Scene(QtWidgets.QGraphicsScene):
                     libs = libraries.libs
                     for blockname in libs[data[0]]:
                         if(blockname == data[1]):
-                            b = libraries.getBlock(blockname,data[0],scene=self)                    
-                            b.setPos(event.scenePos())
+                            b = getBlock(data[0], blockname,scene=self)                    
+                            b.setPos(pos)
 
     def newDgm(self):
         items = self.items()
@@ -168,54 +182,68 @@ class Scene(QtWidgets.QGraphicsScene):
         comments = []
     
         for item in self.items():
-            if isinstance(item,Block):
-                blocks.append(str(item.toPython()))
-            if isinstance(item,Connection):
-                connections.append(str(item.toPython()))
-            if isinstance(item,Node):
-                nodes.append(str(item.toPython()))
-            if isinstance(item,textItem):
-                if item.comment:
-                    comments.append(str(dict(pos=dict(x=item.x(),y=item.y()),text=item.toPlainText())))
+            if isBlock(item):
+                blocks.append(d2s(item.toData()))
+            if isConnection(item):
+                connections.append(d2s(item.toData()))
+            if isPort(item, tp=['ipin', 'opin', 'iopin', 'node']):
+                nodes.append(d2s(item.toData()))
+            if isComment(item):
+                comments.append(d2s(item.toData()))
                     
         
         return (blocks, connections, nodes, comments)
         
-    def loadPython(self,blocks,connections,nodes,comments,center=True,undo=False):
+    def loadPython(self,blocks,connections,nodes,comments,center=True, undo=False):
         
         
-        for block in blocks:
-            if 'parameters' in block.keys():
-                b = libraries.getBlock(block['blockname'],block['libname'],scene=self,param=block['parameters'],name=block['name'])
+        for data in blocks:
+            if 'parameters' in data:
+                #getBlock(libname, blockname, parent=None, scene=None, param=dict(), name=None, flip=False)
+                b = getBlock(data['libname'], data['blockname'], scene=self,\
+                    param=data['parameters'])
             else:
-                b = libraries.getBlock(block['blockname'],block['libname'],scene=self,name=block['name'])
+                b = getBlock(data['libname'], data['blockname'],scene=self)
             if b:
-                b.setPos(block['pos']['x'],block['pos']['y'])
-                b.label.setPos(block['labelPos']['x'],block['labelPos']['y'])
-                b.properties = block['properties']
-        for node in nodes:
-            n = Node(None,self)
-            n.setPos(node['pos']['x'],node['pos']['y'])
-            if 'label' in node:
-                n.label = textItem(node['label'], anchor=3, parent=n)
-                n.label.setPos(node['labelPos']['x'],node['labelPos']['y'])
-        for connection in connections:        
-            conn = Connection(None,self)
-            conn.pos1 = QtCore.QPointF(connection['pos1']['x'],connection['pos1']['y'])
-            conn.pos2 = QtCore.QPointF(connection['pos2']['x'],connection['pos2']['y'])
-            conn.update_ports_from_pos(undo)
-            if 'label' in connection:
-                conn.label = textItem(connection['label'], anchor=3, parent=conn)
+                b.setPos(data['x'],data['y'])
+                if 'label' in data:
+                    b.label = textItem(' ')
+                    b.label.fromData(data['label'])
+                    b.name = b.label.toPlainText()
+
+                b.properties = data['properties']
+                if 'flip' in data:
+                    b.setFlip(data['flip'])
+                    
+        for item in nodes:
+            p = Port(None, self)
+            p.fromData(item)
+
+        for data in connections:        
+            conn = Connection(None, self)
+            pos = [QtCore.QPointF(data['x0'], data['y0'])]
+            pos.append(QtCore.QPointF(data['x1'], data['y1']))
+            
+            for ix in [0,1]:
+                port = self.find_itemAt(pos[ix], exclude=(Block, Connection, textItem))
+                if port:
+                    conn.attach(ix, port)
+                else:
+                    print('no port at ', pos[ix])
+            conn.update_path()
+                    
+            if 'label' in data:
+                conn.label = textItem(data['label'], anchor=3, parent=conn)
                 conn.label.setPos(conn.pos2.x(),conn.pos2.y())
-            if 'signalType' in connection:
-                conn.signalType = textItem(connection['signalType'], anchor=3, parent=conn)
+            if 'signalType' in data:
+                conn.signalType = textItem(data['signalType'], anchor=3, parent=conn)
                 conn.signalType.setPos(conn.pos2.x(),conn.pos2.y())
-        for comm in comments:
-            comment = textItem(comm['text'], anchor=3, parent=None,comment=True)
-            comment.setDefaultTextColor(QtGui.QColor('darkGray'))
-            comment.setPos(comm['pos']['x'],comm['pos']['y'])
+
+        for data in comments:
+            comment = Comment('')
+            comment.fromData(data)
             self.addItem(comment)
-            comment.setFocus()
+
         if center:
             self.mainw.view.centerOn(self.getCenter()[0],self.getCenter()[1])
     
@@ -223,7 +251,7 @@ class Scene(QtWidgets.QGraphicsScene):
         coordinatesX = []
         coordinatesY = []
         for item in self.items():
-            if isinstance(item, Block) or isinstance(item,Node):
+            if isinstance(item, Block) or isNode(item):
                 coordinatesX.append(item.x())
                 coordinatesY.append(item.y())
         if len(coordinatesX):
@@ -241,9 +269,9 @@ class Scene(QtWidgets.QGraphicsScene):
         for item in items:
             if isinstance(item, Block):
                 dgmBlocks.append(item)
-            elif isinstance(item, Node):
+            elif isNode(item):
                 dgmNodes.append(item)
-            elif isinstance(item, Connection):
+            elif isConnection(item):
                 dgmConnections.append(item)
             else:
                 pass
@@ -303,25 +331,25 @@ class Scene(QtWidgets.QGraphicsScene):
         b.setPos(float(item.findtext('posX')), float(item.findtext('posY')))
 
     def loadNode(self, item):
-        n = Node(None, self)
+        n = Port(None, self, porttype='node')
         n.setPos(float(item.findtext('posX')), float(item.findtext('posY')))       
 
-    def find_itemAt(self, pos):
-        items = self.items(QtCore.QRectF(pos-QtCore.QPointF(1,1), QtCore.QSizeF(3,3)))
+    def find_itemAt(self, pos, exclude=textItem):
+        items = self.items(QtCore.QRectF(pos-QtCore.QPointF(DB,DB), QtCore.QSizeF(2*DB+1,2*DB+1)))
         for item in items:
             if isinstance(item, QtWidgets.QGraphicsItem) and \
-            not isinstance(item, Connection) and \
-            not isinstance(item, textItem):
+            not isinstance(item, exclude):
                 return item
         return None
     
     def loadConn(self, item):
-        c = Connection(None, self)
-        pt1 = QtCore.QPointF(float(item.findtext('pos1X')), float(item.findtext('pos1Y')))
-        pt2 = QtCore.QPointF(float(item.findtext('pos2X')), float(item.findtext('pos2Y')))
-        c.pos1 = pt1
-        c.pos2 = pt2
-        c.update_ports_from_pos()
+        raise Exception('todo: implement loadConn')
+#        c = Connection(None, self)
+#        pt1 = QtCore.QPointF(float(item.findtext('pos1X')), float(item.findtext('pos1Y')))
+#        pt2 = QtCore.QPointF(float(item.findtext('pos2X')), float(item.findtext('pos2Y')))
+#        c.pos1 = pt1
+#        c.pos2 = pt2
+#        c.update_ports_from_pos()
         
     def setParamsBlk(self):
         self.mainw.paramsBlock()
@@ -355,16 +383,16 @@ class Scene(QtWidgets.QGraphicsScene):
         nid = 1
         for item in dgmBlocks:
             for thing in item.childItems():
-                if isinstance(thing, OutPort):
+                if isOutPort(thing):
                     thing.nodeID = str(nid)
                     nid += 1
         for item in dgmBlocks:
             for thing in item.childItems():
-                if isinstance(thing, InPort):
+                if isInPort(thing):
                     c = thing.connections[0]
-                    while not isinstance(c.port1, OutPort):
+                    while not isOutPort(c.port1):
                         try:
-                            c = c.port1.parent.port_in.connections[0]
+                            c = c.port1.parent.connections[0]
                         except (AttributeError, ValueError):
                             raise ValueError('Problem in diagram: outputs connected together!')
                     thing.nodeID = c.port1.nodeID
@@ -390,7 +418,7 @@ class Scene(QtWidgets.QGraphicsScene):
         if item.inp != 0:
             inp = '['
             for thing in item.childItems():
-                if isinstance(thing, InPort):
+                if isInPort(thing):
                     inp += thing.nodeID +','
             inp = inp.rstrip(',') + ']'
             txt += inp + ','
@@ -398,7 +426,7 @@ class Scene(QtWidgets.QGraphicsScene):
         if item.outp != 0:
             outp = '['
             for thing in item.childItems():
-                if isinstance(thing, OutPort):
+                if isOutPort(thing):
                     outp += thing.nodeID +','
             outp = outp.rstrip(',') + ']'
             txt += outp +','
@@ -496,9 +524,9 @@ class Scene(QtWidgets.QGraphicsScene):
         for item in items:
             if isinstance(item, Block):
                 dgmBlocks.append(item)
-            elif isinstance(item, Node):
+            elif isNode(item):
                 dgmNodes.append(item)
-            elif isinstance(item, Connection):
+            elif isConnection(item):
                 dgmConnections.append(item)
             else:
                 pass

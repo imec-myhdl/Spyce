@@ -5,6 +5,8 @@ from __future__ import (division, print_function, absolute_import,
 
 from  Qt import QtGui, QtWidgets, QtCore # see https://github.com/mottosso/Qt.py
 import sys, os, re
+from collections import OrderedDict
+
 #if sys.version_info>(3,0):
 #    import sip
 #    sip.setapi('QString', 1)
@@ -267,59 +269,59 @@ class editPinsDialog(QtWidgets.QDialog):
 
 
 
-class propertiesDialog(QtWidgets.QDialog):
-    def __init__(self, properties,addButton=True):
-        super(propertiesDialog, self).__init__(None)
-        self.properties = properties
-        self.grid = QtWidgets.QGridLayout()
-        self.values = dict()
-        self.n = 0
-        for p in properties.keys():
-            if p != "name":
-                Lab = QtWidgets.QLabel(p)
-                Val = QtWidgets.QLineEdit(str(properties[p]))
-                self.values[p] = Val
-                self.grid.addWidget(Lab,self.n,0)
-                self.grid.addWidget(Val,self.n,1)
-                self.n += 1
-        
-        if addButton:
-            self.key_field = QtWidgets.QLineEdit('key')
-            self.addProperty = QtWidgets.QPushButton('Add property')
-            self.addProperty.clicked.connect(self.addPropertyAction)  
-            self.grid.addWidget(self.key_field,99,0)
-            self.grid.addWidget(self.addProperty,99,1)
-        
-        
-        self.pbOK = QtWidgets.QPushButton('OK')
-        self.pbCANCEL = QtWidgets.QPushButton('CANCEL')
-        self.grid.addWidget(self.pbOK,100,0)
-        self.grid.addWidget(self.pbCANCEL,100,1)
-        self.pbOK.clicked.connect(self.accept)
-        self.pbCANCEL.clicked.connect(self.reject)
-        self.setLayout(self.grid)
-
-
-    def addPropertyAction(self):
-        key = self.key_field.text()
-        Lab = QtWidgets.QLabel(key)
-        Val = QtWidgets.QLineEdit('0')
-        self.values[key] = Val
-        self.grid.addWidget(Lab,self.n,0)
-        self.grid.addWidget(Val,self.n,1)
-        self.n += 1
-
-    def getRet(self):
-        if self.exec_():
-            if 'name' in self.properties.keys():
-                newProperties = dict(name=self.properties['name'])
-            else:
-                newProperties = dict()
-            for key in self.values.keys():
-                newProperties[key] = eval(self.values[key].text())
-            return newProperties
-        else:
-            False
+#class propertiesDialog(QtWidgets.QDialog):
+#    def __init__(self, properties, addButton=True):
+#        super(propertiesDialog, self).__init__(None)
+#        self.properties = properties
+#        self.grid = QtWidgets.QGridLayout()
+#        self.values = dict()
+#        self.n = 0
+#        for p in properties.keys():
+#            if p != "name":
+#                Lab = QtWidgets.QLabel(p)
+#                Val = QtWidgets.QLineEdit(str(properties[p]))
+#                self.values[p] = Val
+#                self.grid.addWidget(Lab,self.n,0)
+#                self.grid.addWidget(Val,self.n,1)
+#                self.n += 1
+#        
+#        if addButton:
+#            self.key_field = QtWidgets.QLineEdit('key')
+#            self.addProperty = QtWidgets.QPushButton('Add property')
+#            self.addProperty.clicked.connect(self.addPropertyAction)  
+#            self.grid.addWidget(self.key_field,99,0)
+#            self.grid.addWidget(self.addProperty,99,1)
+#        
+#        
+#        self.pbOK = QtWidgets.QPushButton('OK')
+#        self.pbCANCEL = QtWidgets.QPushButton('CANCEL')
+#        self.grid.addWidget(self.pbOK,100,0)
+#        self.grid.addWidget(self.pbCANCEL,100,1)
+#        self.pbOK.clicked.connect(self.accept)
+#        self.pbCANCEL.clicked.connect(self.reject)
+#        self.setLayout(self.grid)
+#
+#
+#    def addPropertyAction(self):
+#        key = self.key_field.text()
+#        Lab = QtWidgets.QLabel(key)
+#        Val = QtWidgets.QLineEdit('0')
+#        self.values[key] = Val
+#        self.grid.addWidget(Lab,self.n,0)
+#        self.grid.addWidget(Val,self.n,1)
+#        self.n += 1
+#
+#    def getRet(self):
+#        if self.exec_():
+#            if 'name' in self.properties.keys():
+#                newProperties = dict(name=self.properties['name'])
+#            else:
+#                newProperties = dict()
+#            for key in self.values.keys():
+#                newProperties[key] = eval(self.values[key].text())
+#            return newProperties
+#        else:
+#            False
 
 class LibraryChoice_Dialog(QtWidgets.QMessageBox):
     def __init__(self,parent=None):
@@ -340,11 +342,15 @@ class overWriteNetlist(QtWidgets.QMessageBox):
         self.addButton('No',self.NoRole)
         
 class error(QtWidgets.QMessageBox):
-    def __init__(self,errorMessage,parent=None):
+    def __init__(self,errorMessage,parent=None, warn=False):
         super(error,self).__init__(parent)
         self.setWindowModality(QtCore.Qt.ApplicationModal)
-        self.setWindowTitle('Error')
-        self.setText("Error: " + errorMessage)
+        if warn: 
+            self.setWindowTitle('Warning')
+            self.setText("Warning: " + errorMessage)
+        else:
+            self.setWindowTitle('Error')
+            self.setText("Error: " + errorMessage)
         self.exec_()
 
 class IO_Dialog(QtWidgets.QDialog):
@@ -371,6 +377,102 @@ class IO_Dialog(QtWidgets.QDialog):
         self.setLayout(layout)
         self.pbOK.clicked.connect(self.accept)
         self.pbCANCEL.clicked.connect(self.reject)
+
+class propertiesDialog(QtWidgets.QDialog):
+    '''general dialog
+    takes dict dd: keys are the fieldnames (underscore replaced with space), 
+    values:
+        stringtype                  -> line_edit
+        (default, [list of options] -> combo box
+        int                         -> spinbox
+            alternatively use tuple:
+            (int, dict(prefix='', suffix='', min=None, max=None))
+            '''
+
+    def __init__(self, parent=None, dd=dict(), addButton=True):
+        super(propertiesDialog, self).__init__(parent)
+        self.layout = QtWidgets.QGridLayout()
+        self.keyix = OrderedDict()
+        self.w = []
+        self.n = 0
+        for k, v  in dd.items():
+            w = None
+            if isinstance(v, basestring):
+                w = QtWidgets.QLineEdit()
+                if v:
+                    w.setText(v)
+                else:
+                    w.setPlaceholderText(k)
+            elif isinstance(v, int):
+                w = QtWidgets.QSpinBox()
+                w.setValue(v)
+            elif isinstance(v, (list, tuple)) and len(v) == 2:
+                default, options = v
+                if isinstance(default, int):
+                    w = QtWidgets.QSpinBox()
+                    w.setValue(default)
+                    for kk, func in [('prefix',  w.setPrefix),
+                                     ('suffix' , w.setSuffix),
+                                     ('min',     w.setMinimum),
+                                     ('max',     w.setMaximum)]:
+                         if kk in options:
+                             func(options[kk])
+                elif isinstance(default, basestring):
+                    w = QtWidgets.QComboBox()
+                    for elem in options:
+                        w.addItem(elem)
+                    if default in options:
+                        ix = options.index(default)
+                        w.setCurrentIndex(ix)
+            if w:
+                txt = k.replace('_', ' ')
+                self.keyix[k] = len(self.w)
+                self.w.append(w)
+                self.layout.addWidget(QtWidgets.QLabel(txt), self.n, 0)
+                self.layout.addWidget(w, self.n, 1)
+                self.n += 1
+
+        if addButton:
+            self.key_field = QtWidgets.QLineEdit()
+            self.key_field.setPlaceholderText('property name')
+            self.addProperty = QtWidgets.QPushButton('Add property')
+            self.addProperty.clicked.connect(self.addPropertyAction)  
+            self.layout.addWidget(self.key_field,99,0)
+            self.layout.addWidget(self.addProperty,99,1)
+        
+        
+        self.pbOK = QtWidgets.QPushButton('OK')
+        self.pbCANCEL = QtWidgets.QPushButton('Cancel')
+        self.layout.addWidget(self.pbOK,100,0)
+        self.layout.addWidget(self.pbCANCEL,100,1)
+        self.pbOK.clicked.connect(self.accept)
+        self.pbCANCEL.clicked.connect(self.reject)
+        self.setLayout(self.layout)
+
+
+    def addPropertyAction(self):
+        key = self.key_field.text()
+        if key: # make sure no empty key
+            w = QtWidgets.QLineEdit('0')
+            self.layout.addWidget(QtWidgets.QLabel(key), self.n, 0)
+            self.keyix[key] = len(self.w)
+            self.w.append(w)
+            self.layout.addWidget(w, self.n, 1)
+            self.n += 1
+
+    def getRet(self):
+        if self.exec_():
+            dd = OrderedDict()
+            for k, ix in self.keyix.items():
+                if isinstance(self.w[ix], QtWidgets.QLineEdit):
+                    dd[k] = self.w[ix].text()
+                elif isinstance(self.w[ix], QtWidgets.QComboBox):
+                    dd[k] = self.w[ix].currentText()
+                elif isinstance(self.w[ix], QtWidgets.QSpinBox):
+                    dd[k] = self.w[ix].value()
+            return dd
+
+   
         
 class BlockName_Dialog(QtWidgets.QDialog):
     def __init__(self,parent=None):
@@ -962,10 +1064,10 @@ class createBlockDialog(QtWidgets.QDialog):
                 error('Name required')
                 return False
             if not re.match(r'[a-z_]\w*$', self.text_name.text(), re.I):
-                error('No valid variable name')
+                error(self.text_name.text() + ' is not valid variable name')
                 return False
             if not self.filename[0]:
-                error('empty icon, ignoring')
+                error('no icon set', warn=True)
                 ret['icon']= None 
             else:
                 ret['icon'] = QtCore.QFileInfo(self.filename[0]).baseName()
@@ -1117,30 +1219,23 @@ class convertSymDialog(QtWidgets.QDialog):
             if not re.match(r'[a-z_]\w*$', self.text_name.text(), re.I):
                 error('No valid variable name')
                 return False
-            if not self.filename[0]:
-                error('No icon selected')
-                return False            
+            if self.filename[0]:
+                ret['icon'] = QtCore.QFileInfo(self.filename[0]).baseName()
+            else:
+                ret['icon']= None 
+                error('No icon selected', warn=True)
             
             ret['name'] = self.text_name.text()
-#            parameters = []
-#            if self.parameter_inp.isChecked():
-#                parameters.append('input') 
-#            if self.parameter_outp.isChecked():
-#                parameters.append('output') 
-#            ret['parameters'] = parameters
             
             newProperties = dict()
             for key in self.values.keys():
-                newProperties[key] = eval(self.values[key].text())
+                newProperties[key] = self.values[key].text()
             ret['properties'] = newProperties            
-            
-            
-#            ret['properties'] = self.text_properties.toPlainText() if self.text_properties.toPlainText() else 'dict(name="' + ret['name'] + '")'
-            ret['icon'] = QtCore.QFileInfo(self.filename[0]).baseName()
-    
+               
             return ret         
         else:
             return False
+            
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
     pins = [('i', -10, 10, 'pin1'), 
