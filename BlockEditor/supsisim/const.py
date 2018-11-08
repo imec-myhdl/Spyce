@@ -1,6 +1,5 @@
-import os
+import os, sys
 from collections import OrderedDict
-from  Qt.QtCore import Qt
 
 
 GRID = 10
@@ -27,6 +26,8 @@ if 'PYSUPSICTRL' in os.environ:
 else:
     print('Environment variable PYSUPSICTRL is not set.')
     path = os.getcwd()
+    if path.endswith('supsisim'):
+        path = os.path.dirname(path)
     print('defaulting to {}'.format(path))
 #    sys.exit()
     
@@ -82,17 +83,21 @@ views = {views}
 # Qt.darkGray    4  Dark gray (#808080)
 # Qt.lightGray   6  Light gray (#c0c0c0)
 #==============================================================================
-colors = dict() #       (line,        fill)
-colors['port_input']  = (Qt.black,    Qt.black)
-colors['port_output'] = (Qt.black,    Qt.black)
-colors['port_inout']  = (Qt.black,    Qt.black)
-colors['port_ipin']   = (Qt.black,    Qt.darkRed)
-colors['port_opin']   = (Qt.black,    Qt.darkRed)
-colors['port_iopin']  = (Qt.black,    Qt.darkRed)
-colors['node']        = (Qt.darkBlue, Qt.darkBlue)
-colors['connection']  =  Qt.darkBlue  # no fill color
-colors['block']       = (Qt.black,    Qt.black)
-colors['comment']     =  Qt.darkGreen # no fill color
+colors = dict() 
+if 'Qt'in sys.modules: # needed to import without gui
+    from Qt.QtCore import Qt
+#                           (line,        fill)
+    colors['port_input']  = (Qt.black,    Qt.black)
+    colors['port_output'] = (Qt.black,    Qt.black)
+    colors['port_inout']  = (Qt.black,    Qt.black)
+    colors['port_ipin']   = (Qt.black,    Qt.darkRed)
+    colors['port_opin']   = (Qt.black,    Qt.darkRed)
+    colors['port_iopin']  = (Qt.black,    Qt.darkRed)
+    colors['node']        = (Qt.darkBlue, Qt.darkBlue)
+    colors['block']       =  Qt.darkGreen # no fill color
+    colors['connection']  =  Qt.darkBlue  # no fill color
+    colors['comment']     =  Qt.darkGray  # no fill color
+    colors['signalType']  =  Qt.darkGray  # no fill color
 
 
 #==============================================================================

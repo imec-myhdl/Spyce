@@ -35,7 +35,8 @@ from collections import OrderedDict
 
 import libraries
 from supsisim.port  import Port, isPort
-from supsisim.const import GRID, PW, LW, BWmin, BHmin, PD, respath, celltemplate
+from supsisim.const import GRID, PW, LW, BWmin, BHmin, PD, respath, \
+                            celltemplate, colors
 from supsisim.dialg import error
 from supsisim.text  import textItem
 from supsisim.src_import import import_module_from_source_file
@@ -103,7 +104,7 @@ def getBlock(libname, blockname, parent=None, scene=None, param=dict(), name=Non
             if isinstance(b, Block):
                 if name:
                     b.name = name
-                    b.label.setPlainText(name)
+                    b.label.setText(name)
                     b.flip = flip
                     b.setFlip()
                 return b
@@ -253,8 +254,8 @@ class Block(QtWidgets.QGraphicsPathItem):
         self.png = None
         self.pngmirr = None
         
-        self.line_color = QtCore.Qt.black
-        self.fill_color = QtCore.Qt.black
+        self.linecolor = colors['block']
+
         if self.scene:
             self.setup()
     
@@ -342,8 +343,7 @@ class Block(QtWidgets.QGraphicsPathItem):
 #        return value
 
     def paint(self, painter, option, widget):
-        pen = QtGui.QPen()
-        pen.setBrush(self.line_color)
+        pen = QtGui.QPen(self.linecolor)
         pen.setWidth = LW
         if self.isSelected():
             pen.setStyle(QtCore.Qt.DotLine)
@@ -464,15 +464,18 @@ class Block(QtWidgets.QGraphicsPathItem):
             pt = self.gridPos(pt)
             super(Block, self).setPos(pt)
             
+
     def setLabel(self, name=None):
         if name:
             self.name = name
         if self.scene:
             self.name = self.scene.setUniqueName(self) # make sure it is unique
-        if self.label:
-            self.label.setPlainText(self.name)
+
+        if self.label and self.name != self.label.text():
+            self.label.setText(self.name)
         else:
             self.label = textItem(self.name, anchor=8, parent=self)
+            self.label.setText(self.name)
         self.label.setPos(0, self.h/2)
         self.setFlip()
         

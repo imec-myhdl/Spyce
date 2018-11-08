@@ -389,48 +389,15 @@ class propertiesDialog(QtWidgets.QDialog):
             (int, dict(prefix='', suffix='', min=None, max=None))
             '''
 
-    def __init__(self, parent=None, dd=dict(), addButton=True):
+    def __init__(self, parent=None, dd=dict(), properties=None, title=None):
         super(propertiesDialog, self).__init__(parent)
         self.layout = QtWidgets.QGridLayout()
         self.keyix = OrderedDict()
+        self.propix = OrderedDict()
         self.w = []
         self.n = 0
-        for k, v  in dd.items():
-            w = None
-            if isinstance(v, basestring):
-                w = QtWidgets.QLineEdit()
-                if v:
-                    w.setText(v)
-                else:
-                    w.setPlaceholderText(k)
-            elif isinstance(v, int):
-                w = QtWidgets.QSpinBox()
-                w.setValue(v)
-            elif isinstance(v, (list, tuple)) and len(v) == 2:
-                default, options = v
-                if isinstance(default, int):
-                    w = QtWidgets.QSpinBox()
-                    w.setValue(default)
-                    for kk, func in [('prefix',  w.setPrefix),
-                                     ('suffix' , w.setSuffix),
-                                     ('min',     w.setMinimum),
-                                     ('max',     w.setMaximum)]:
-                         if kk in options:
-                             func(options[kk])
-                elif isinstance(default, basestring):
-                    w = QtWidgets.QComboBox()
-                    for elem in options:
-                        w.addItem(elem)
-                    if default in options:
-                        ix = options.index(default)
-                        w.setCurrentIndex(ix)
-            if w:
-                txt = k.replace('_', ' ')
-                self.keyix[k] = len(self.w)
-                self.w.append(w)
-                self.layout.addWidget(QtWidgets.QLabel(txt), self.n, 0)
-                self.layout.addWidget(w, self.n, 1)
-                self.n += 1
+        addButton = not properties is None
+        self.addrows(dd, properties)
 
         if addButton:
             self.key_field = QtWidgets.QLineEdit()
@@ -448,14 +415,57 @@ class propertiesDialog(QtWidgets.QDialog):
         self.pbOK.clicked.connect(self.accept)
         self.pbCANCEL.clicked.connect(self.reject)
         self.setLayout(self.layout)
+        if title:
+            self.setWindowTitle(title)
 
+    def addrows(self, dd, properties):
+        for ddd, propflag in [(dd, False), (properties, True)]:
+            for k, v  in ddd.items():
+                w = None
+                if isinstance(v, basestring):
+                    w = QtWidgets.QLineEdit()
+                    if v:
+                        w.setText(v)
+                    else:
+                        w.setPlaceholderText(k)
+                elif isinstance(v, int):
+                    w = QtWidgets.QSpinBox()
+                    w.setValue(v)
+                elif isinstance(v, (list, tuple)) and len(v) == 2:
+                    default, options = v
+                    if isinstance(default, int):
+                        w = QtWidgets.QSpinBox()
+                        w.setValue(default)
+                        for kk, func in [('prefix',  w.setPrefix),
+                                         ('suffix' , w.setSuffix),
+                                         ('min',     w.setMinimum),
+                                         ('max',     w.setMaximum)]:
+                             if kk in options:
+                                 func(options[kk])
+                    elif isinstance(default, basestring):
+                        w = QtWidgets.QComboBox()
+                        for elem in options:
+                            w.addItem(elem)
+                        if default in options:
+                            ix = options.index(default)
+                            w.setCurrentIndex(ix)
+                if w:
+                    txt = k.replace('_', ' ')
+                    if propflag:
+                        self.propix[k] = len(self.w)
+                    else:
+                        self.keyix[k] = len(self.w)
+                    self.w.append(w)
+                    self.layout.addWidget(QtWidgets.QLabel(txt), self.n, 0)
+                    self.layout.addWidget(w, self.n, 1)
+                    self.n += 1
 
     def addPropertyAction(self):
         key = self.key_field.text()
         if key: # make sure no empty key
             w = QtWidgets.QLineEdit('0')
             self.layout.addWidget(QtWidgets.QLabel(key), self.n, 0)
-            self.keyix[key] = len(self.w)
+            self.propix[key] = len(self.w)
             self.w.append(w)
             self.layout.addWidget(w, self.n, 1)
             self.n += 1
@@ -470,6 +480,17 @@ class propertiesDialog(QtWidgets.QDialog):
                     dd[k] = self.w[ix].currentText()
                 elif isinstance(self.w[ix], QtWidgets.QSpinBox):
                     dd[k] = self.w[ix].value()
+            properties = OrderedDict()
+            for k, ix in self.propix.items():
+                val = self.w[ix].text()
+                try:
+                    v = float(val)
+                    if int(v) == v:
+                        v = int(v)
+                except ValueError:
+                    v = val
+                properties[k] = v
+            dd['properties'] = properties 
             return dd
 
    
@@ -685,41 +706,42 @@ class textLineDialog(QtWidgets.QDialog):
 class viewConfigDialog(QtWidgets.QDialog):
     def __init__(self, title='View settings', size=(400, 300), parent=None): 
         super(viewConfigDialog, self).__init__(parent)
-        self.layout = QtWidgets.QVBoxLayout()
+        self.layout = self.layout = QtWidgets.QGridLayout()
         self.setLayout(self.layout)
         self.viewWidgets = []
+        self.n = 1
 
         import supsisim.const
         reload(supsisim.const)
-        from supsisim.const import viewEditors        
+        from supsisim.const import viewTypes     
         
-        views = list(viewEditors)
+            
+        self.layout.addWidget(QtWidgets.QLabel("viewtype:"),0,0)
+        self.layout.addWidget(QtWidgets.QLabel("editor command:"),0,1)
+        self.layout.addWidget(QtWidgets.QLabel("extension:"),0,2)
         # edit widget
-        for viewEditor in viewEditors:
-            view = QtWidgets.QWidget()
-            viewLayout = QtWidgets.QHBoxLayout()
-            view.setLayout(viewLayout)
+        for viewtype, (viewEditor, extension) in viewTypes.items():
             
-            viewLayout.addWidget(QtWidgets.QLabel(viewEditor['type'] + ":"))
+            view_w = QtWidgets.QLabel(viewtype )
+            self.layout.addWidget(view_w,self.n,0)
     
-            text_name = QtWidgets.QLineEdit(viewEditor['editor'])
+            editor_w = QtWidgets.QLineEdit(viewEditor)
             font = QtGui.QFont()
             font.setFamily('Lucida')
             font.setFixedPitch(True)
             font.setPointSize(12)
-            text_name.setFont(font)
-            viewLayout.addWidget(text_name)
+            editor_w.setFont(font)
+            self.layout.addWidget(editor_w,self.n,1)
             
-            text_extension = QtWidgets.QLineEdit(viewEditor['extension'])
+            extension_w = QtWidgets.QLineEdit(extension)
             font = QtGui.QFont()
             font.setFamily('Lucida')
             font.setFixedPitch(True)
             font.setPointSize(12)
-            text_extension.setFont(font)
-            viewLayout.addWidget(text_extension)
-            
-            self.layout.addWidget(view)
-            self.viewWidgets.append(dict(type=viewEditor['type'],editor=text_name,extension=text_extension))
+            extension_w.setFont(font)
+            self.layout.addWidget(extension_w,self.n,2)
+            self.n += 1
+            self.viewWidgets.append(dict(type=viewtype,editor=viewEditor,extension=extension))
         
         
         # Cancel and OK buttons
@@ -727,7 +749,7 @@ class viewConfigDialog(QtWidgets.QDialog):
         self.bbox = QtWidgets.QDialogButtonBox(buttons)
         self.bbox.accepted.connect(self.accept)
         self.bbox.rejected.connect(self.reject)
-        self.layout.addWidget(self.bbox)
+        self.layout.addWidget(self.bbox, self.n,2)
 
         # set window title and window size
         self.setWindowTitle(title)

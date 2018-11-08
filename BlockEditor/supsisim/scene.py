@@ -24,10 +24,11 @@ def d2s(d):
     '''dict to string'''
     items = []
     for k, v in d.items():
-        if isinstance(v, (dict, OrderedDict)):
-            items.append('{}={}'.format(k, d2s(v)))
-        else:
-            items.append('{}={}'.format(k, repr(v)))
+        if k != 'type': # suppress 'type' attributes
+            if isinstance(v, (dict, OrderedDict)):
+                items.append('{}={}'.format(k, d2s(v)))
+            else:
+                items.append('{}={}'.format(k, repr(v)))
     return 'dict({})'.format(', '.join(items))
 
 class GraphicsView(QtWidgets.QGraphicsView):
@@ -78,15 +79,15 @@ class Scene(QtWidgets.QGraphicsScene):
         #print(len(self.items()),self.undoLength)
         if len(self.items()) == self.undoLength:
             if self.lastPosition:
-                self.status.append(self.savePython())
+                self.status.append(self.diagramToData())
                 if len(self.status) > 100:
                     self.status.remove(self.status[0])
                 self.lastPosition = False
             else:
-                self.status[-1] = self.savePython()
+                self.status[-1] = self.diagramToData()
                 
         else:
-            self.status.append(self.savePython())
+            self.status.append(self.diagramToData())
             if len(self.status) > 100:
                 self.status.remove(self.status[0])
             self.undoLength = len(self.items())
@@ -175,26 +176,27 @@ class Scene(QtWidgets.QGraphicsScene):
         self.Tf='10.0'
         self.nameList = []
     
-    def savePython(self):
+    def diagramToData(self, selection=None):
         blocks = []
         connections = []
         nodes = []        
         comments = []
     
-        for item in self.items():
+        items = selection if selection else self.items()
+        for item in items:
             if isBlock(item):
+                item.setLabel() # make sure names are unique
                 blocks.append(d2s(item.toData()))
-            if isConnection(item):
+            elif isConnection(item):
                 connections.append(d2s(item.toData()))
-            if isPort(item, tp=['ipin', 'opin', 'iopin', 'node']):
+            elif isPort(item, tp=['ipin', 'opin', 'iopin', 'node']):
                 nodes.append(d2s(item.toData()))
-            if isComment(item):
+            elif isComment(item):
                 comments.append(d2s(item.toData()))
                     
-        
         return (blocks, connections, nodes, comments)
         
-    def loadPython(self,blocks,connections,nodes,comments,center=True, undo=False):
+    def dataToDiagram(self,blocks,connections,nodes,comments,center=True, undo=False):
         
         
         for data in blocks:
@@ -209,15 +211,19 @@ class Scene(QtWidgets.QGraphicsScene):
                 if 'label' in data:
                     b.label = textItem(' ')
                     b.label.fromData(data['label'])
-                    b.name = b.label.toPlainText()
+                    b.name = b.label.text()
 
                 b.properties = data['properties']
                 if 'flip' in data:
                     b.setFlip(data['flip'])
                     
         for item in nodes:
-            p = Port(None, self)
-            p.fromData(item)
+            pos = QtCore.QPointF(item['x'], item['y'])
+            if self.find_itemAt(pos):
+                print('discarding overlapping node at x={}, y={}'.format(item['x'], item['y']))
+            else:
+                p = Port(None, self)
+                p.fromData(item)
 
         for data in connections:        
             conn = Connection(None, self)

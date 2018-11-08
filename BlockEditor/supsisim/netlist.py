@@ -1,5 +1,16 @@
+
+from __future__ import (division, print_function, absolute_import,
+                        unicode_literals)
+
+import os, sys
+from collections import OrderedDict
+
+d = os.path.dirname(os.path.dirname(__file__))
+sys.path.append(d)
+
 import subprocess
-from supsisim.const import PD,PW,BWmin,copyrightText,copyrightPolicy,projectname
+from   supsisim.const import viewTypes,copyrightText,copyrightPolicy,projectname
+from   supsisim.src_import import import_module_from_source_file
 import libraries
 
 filenameTemplate = 'libraries.library_{}.{}'
@@ -54,50 +65,259 @@ if __name__ == "__main__":
     tb.run_sim()
 """
 
+#class NetNode(object):
+#    def __init__(self, node):
+#        self.netname = None
+#        self.type    = None
+#        self.conn    = set()
+#        self.node    = node
+#        if 'label' in node:
+#            netname = node['label']['text']
+#            if self.netname and self.netname != netname:
+#                raise Exception('stamping conflict: {}, {}\non {}'.format(self.netname, netname, node))
+#            self.netname = netname
+#        if 'type' in node:
+#            type = node['tyoe']
+#            if self.type and self.type != type:
+#                raise Exception('type conflict: {}, {}\non {}'.format(self.type, type, node))
+#            self.type = type
+#        
+#    def stamp(self, conn):
+#        self.conn.add(conn)
+#        promotions = 0
+#        if conn.netname:
+#            if self.netname and self.netname != conn.netname:
+#                raise Exception('stamping conflict: {}, {}\non {}'.format(self.netname, conn.netname, self.node))
+#            elif self.netname is None:
+#                self.netname = conn.netname
+#                promotions = 1
+#        if conn.type:
+#            if self.type and self.type != conn.type:
+#                raise Exception('Type conflict: {}, {}\non {}'.format(self.type, conn.type, self.node))
+#            elif self.type is None:
+#                self.type = conn.type
+#                promotions = 1
+#        return promotions
+           
+        
+class NetObj(object):
+    def __init__(self, d):
+        self.netname = d['label']['text'] if 'label' in d else None
+        self.type    = d['signalType']['text'] if 'signalType' in d else None
+        self.members = set()
+        self.d    = d
+        
+    def stamp(self, d):
+        self.members.add(d)
+        promotions = 0
+        if d.netname:
+            if self.netname and self.netname != d.netname:
+                raise Exception('stamping conflict: {}, {}\non {}'.format(\
+                                    self.netname, d.netname, self.d))
+            elif self.netname is None:
+                self.netname = d.netname
+                promotions = 1
+        if d.type:
+            if self.type and self.type != d.type:
+                raise Exception('Type conflict: {}, {}\non {}'.format(\
+                                    self.type, d.type, self.d))
+            elif self.type is None:
+                self.type = d.type
+                promotions = 1
 
-def netlistMyHdl(blockname,libname,properties):
+        return promotions
+            
+def propagateNets(conn, connections, resolved):
+    # conn is a (newly) named connection
+    # connections holds UNRESOLVED nets
+    # collects all connections that are tied to conn and puts them into resolved
+    for node in conn.members:
+        node.stamp(conn)
+        resolved[conn.netname].add(conn)
+        for c in node.members:
+            c.stamp(node)
+            if c in connections:
+                connections.discard(c)
+                propagateNets(c, connections, resolved)
+
+def netlist(filename, properties=dict(), lang='myhdl'):
+    d, module_name = os.path.split(filename)
+    ed, ext = viewTypes['diagram']
+    module_name = module_name.rstrip(ext)
+
+    blocks, internal_nets, external_nets = resolve_connectivity(filename, properties=dict())
+
+    if lang == 'myhdl':
+        return toMyhdl(module_name, blocks, internal_nets, external_nets)
+
+def toMyhdl(module_name, blocks, internal_nets, external_nets):
+    '''module_name       string with the name of the module
+       blocks            dict {inst_name:block definitions (from diagram) + resolved connectivity}
+       external_nets     dict {netname:signalType} containing all portnames 
+       internal_nets     dict {netname:signalType} containing all internal netnames 
+    '''
+
+    ret = ['#netlist of {}\n'.format(module_name)]
+    
+    # imports
+    imports = OrderedDict(myhdl=['block', 'Signal', 'intbv', 'fixbv', 'instances'])
+    for name, blk in blocks.items():
+        libname, blockname = blk['libname'], blk['blockname']
+        if not libname in imports:
+            imports[libname] = set()
+        imports[libname].add(blockname)
     
     
+    for lib in imports:
+        ret.append('from {} import {}'.format(lib, ', '.join(imports[lib])))
+    ret.append('')
     
+    # block definition
+    ret.append('@block\ndef {}({}):'.format(module_name, ', '.join(external_nets)))
+    ret.append('')
+
+    # internal_nets
+    ret.append('    # internal nets')
+    for netname in internal_nets:
+        tp = internal_nets[netname]['signalType']
+        if tp:
+            ret.append('    {} = Signal({})'.format(netname, tp))
+        else:
+            ret.append('    {} = Signal(0)'.format(netname))
+    ret.append('')
+
+    for name, blk in blocks.items():
+        blkname = blk['blockname']
+        iname = '    inst_{}'.format(name)
+        jj = ',\n'+' '*(len(iname)+len(blkname)+4)
+#        jj = ',\n'+' '*(len(iname)+8)
+        c = []
+        for pn,nn in blk['conn'].items():
+            c.append('{} = {}'.format(pn, nn))
+        c = jj.join(c)
+        ret.append('{} = {}({})\n'.format(iname, blkname, c))
+
+    ret.append('    return instances()')
+            
+    return  '\n'.join(ret)
+
+
+def resolve_connectivity(filename, properties=dict()):
     
+    #import file
+    dgm = import_module_from_source_file(filename)
     
+#==============================================================================
+#   read blocks
+#==============================================================================
+    blocks = dict()
+    for blk in dgm.blocks:
+        inst_name = blk['label']['text']
+        blocks[inst_name] = blk
+
+    block_modules = dict()
+    for name, blk in blocks.items():
+        blockname, libname = blk['blockname'],  blk['libname']
+        fname = libraries.blockpath(libname, blockname)
+        block_modules[blockname+'/'+libname] = import_module_from_source_file(fname)
+
+    portnames = set()            
+    nodes = dict()
+    for n in dgm.nodes:
+        xy  = n['x'], n['y']
+        nodes[xy] = NetObj(n)
+        if 'label' in n and n['porttype'] != 'node':
+            portnames.add(n['label']['text'])
+
+#    pins = dict()
+#    for k in nodes.keys():
+#        if nodes[k]['porttype'] != 'node':
+#            pins[k] = nodes.pop(k)
     
+
+
+    resolved   = dict()# resolved connections netname:[list of connections and nodes]
+    unresolved = set() # unresolved connections
+
+    for c in dgm.connections:
+        conn = NetObj(c)
+        for xy in [(c['x0'], c['y0']), (c['x1'], c['y1'])]:
+            if xy in nodes:
+                conn.stamp(nodes[xy])
+                nodes[xy].stamp(conn)
+        if conn.netname:
+            if conn.netname not in resolved:
+                resolved[conn.netname] = set()
+            resolved[conn.netname].add(conn)
+        else:
+            unresolved.add(conn)
     
+#==============================================================================
+# propagate names nets
+#==============================================================================
+    for netname in resolved.keys():
+        for conn in set(resolved[netname]):
+            propagateNets(conn, unresolved, resolved)
     
+#==============================================================================
+#  propagate anonymous nets
+#==============================================================================
+    n_nets = 0 # used to number anonymous nets
+    while unresolved:
+        conn = unresolved.pop()
+        n_nets += 1
+        netname = 'net{}'.format(n_nets)
+        conn.netname = netname
+        if conn.netname not in resolved:
+            resolved[conn.netname] = set()
+        resolved[conn.netname].add(conn)
+        propagateNets(conn, unresolved, resolved)
     
+#==============================================================================
+# resolve connection to blocks
+#==============================================================================
+    for blkname, blk in blocks.items():
+        blockname, libname = blk['blockname'],  blk['libname']
+        block_module = block_modules[blockname+'/'+libname]
+        
+        inp, outp = block_module.inp, block_module.outp
+        blk['conn'] = OrderedDict()        
+        for pname, px, py in inp + outp:
+            blk['conn'][pname] = None
+        
+    for netname, conns in resolved.items():
+        for conn in conns:
+            for p in ['p0', 'p1']:
+                if p in conn.d:
+                    blkname, pname = conn.d[p]
+                    blk = blocks[blkname]
+                    blk['conn'][pname] = conn.netname
+        
+
+    internal_nets = dict()
+    external_nets = dict()
+    for netname in resolved:
+        # signal_type
+        st = next(iter(resolved[netname])).type
+        prop = dict(signalType = st)
+        for c in resolved[netname]:
+            if 'properties' in c.d:
+                prop.update(c.d['properties'])
+        if netname in portnames:
+            external_nets[netname] = prop
+        else:
+            internal_nets[netname] = prop
     
+    return blocks, internal_nets, external_nets
+        
     
-    
-    
-    
-    
-    #import all items
-    fname = filenameTemplate.format(libname,blockname) + "_diagram"
-    
-    exec('import ' + fname)
-    reload(eval(fname))
-    
-    blocks = eval(fname + '.blocks')
-    connections = eval(fname + '.connections')
-    nodes = eval(fname + '.nodes')
-    
-    #import attributes
-    
-    
-    pins = getPins(libname,blockname)
-    
-    pinList = []    
-    for p in pins:
-       pinList.append(p[0]) 
-    
-    
-    propertieList = []
+    propertyList = []
         
     for p in properties.keys():
         if p != 'name':
-            propertieList.append('{k}="{value}"'.format(k=p,value=properties[p]))
+            propertyList.append('{k}="{value}"'.format(k=p,value=properties[p]))
     
-    params = ','.join(pinList + propertieList)
+    params = ','.join(pinList + propertyList)
     
     #variables
     user = subprocess.check_output("whoami").strip()
@@ -339,4 +559,5 @@ def getLabel(signal,connections,nodes,key):
         
     
 if __name__ == "__main__":
-    print(netlist('testSymbol'))
+    mynetlist = netlist(os.path.join(d, 'saves', 'sailpll1.py'))
+    print(mynetlist)

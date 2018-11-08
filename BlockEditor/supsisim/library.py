@@ -82,9 +82,14 @@ class CompViewer(QtWidgets.QGraphicsScene):
         self.parent.addViewAction(self.actComp)
 
     def addViewMenu(self):
-        views = getViews(self.actComp.libname, self.actComp.blockname)
+        views = self.actComp.getViews()
         for key in views.keys():
-            if key != 'diagram' and key != 'icon':
+            if key == 'icon':
+                pass
+            elif key == 'diagram':
+                action = self.viewMenu.addAction(key+" view")
+                action.triggered.connect(self.openDiagram)
+            else:
                 def getFunction(key):
                     def viewAction():
                         self.parent.openView(key, self.actComp)
@@ -92,6 +97,11 @@ class CompViewer(QtWidgets.QGraphicsScene):
                 viewAction = getFunction(key)
                 action = self.viewMenu.addAction(key+" view")
                 action.triggered.connect(viewAction)
+
+    def openDiagram(self):
+        diagram = self.actComp.getViews()['diagram']
+        fname = os.path.join(libraries.libroot, diagram)
+        self.parent.diagram_editor.openDiagram(fname)
 
     def changeIcon(self):
         self.parent.changeIcon(self.actComp)
@@ -450,7 +460,12 @@ class Library(QtWidgets.QMainWindow):
             blockname = self.cells.currentItem().text()
             views = getViews(libname, blockname)
             for key in views.keys():
-                if key != 'diagram' and key != 'icon':
+                if key == 'diagram':
+                    action = self.viewMenu.addAction(key+" view")
+                    action.triggered.connect(self.openDiagram)
+                elif key == 'icon':
+                    pass
+                else:
                     def getFunction(key):
                         def viewAction():
                             self.openView(key)

@@ -10,7 +10,7 @@ from collections import OrderedDict
 #    import sip
 #    sip.setapi('QString', 1)
 
-from supsisim.const import PW, NW, colors
+from supsisim.const import PW, PD, NW, colors
 from supsisim.dialg import error
 from supsisim.text  import textItem
 
@@ -34,6 +34,8 @@ class Port(QtWidgets.QGraphicsPathItem):
             self.label = textItem(label, parent=self)
         else:
             self.label = None
+        self.properties = dict()
+        self.signalType = None
         self.setType(porttype.lower())
         self.setup()
         self.setLabel()
@@ -114,7 +116,7 @@ class Port(QtWidgets.QGraphicsPathItem):
             else:
                 return
         elif label:
-            self.label.setPlainText(label)
+            self.label.setText(label)
             
         if label_side:
             self.label_side = label_side
@@ -133,6 +135,10 @@ class Port(QtWidgets.QGraphicsPathItem):
             self.label.setAnchor(8)
         
         self.label.setNormal()
+        # pin to block
+        self.label.setTextInteractionFlags(QtCore.Qt.NoTextInteraction) # disallow edits
+        self.label.setFlag(self.ItemIsMovable, False) # do not allow move
+        self.label.setFlag(self.ItemIsSelectable, False) # do not allow select
 
 
     def itemChange(self, change, value):
@@ -178,6 +184,22 @@ class Port(QtWidgets.QGraphicsPathItem):
             else:
                 self.label.setNormal()
                 
+    def pinToPort(self, inp, outp, inout):
+        left, right, top = -80, 80, 20
+        name = self.label.text()
+        if self.porttype == 'ipin':
+            x, y = left, len(inp)*PD
+            inp.append( (name, x, y))
+        elif self.porttype == 'opin':
+            x, y = right, len(outp)*PD
+            outp.append( (name, x, y))
+        elif self.porttype == 'iopin':
+            x, y = len(inout)*PD, top
+            inout.append( (name, x, y))
+            
+            
+            
+                
     def toData(self):
         data = OrderedDict(type='port')
         data['porttype'] = self.porttype
@@ -185,6 +207,8 @@ class Port(QtWidgets.QGraphicsPathItem):
         data['y'] = self.pos().y()
         if self.label:
             data['label'] = self.label.toData()
+        if self.signalType:
+            data['signalType'] = self.signalType.toData()
         if self.flip:
             data['flip'] = self.flip
         return data
@@ -198,6 +222,10 @@ class Port(QtWidgets.QGraphicsPathItem):
         if 'label' in data: # do not use setLabel as that would reset the label position
             self.label = textItem('', parent=self)
             self.label.fromData(data['label'])
+        if 'signalType' in data:
+            self.signalType = textItem('', parent=self)
+            self.signalType.fromData(data['signalType'])
+            self.signalType.setBrush(colors['signalType'])
         self.setup()
 
 
@@ -213,7 +241,11 @@ def isInoutPort(item):
 def isPort(item, tp=None):
     if tp == 'block':
         tp = ['input', 'output', 'inout']
-    if tp:
+    elif tp == 'pin':
+        tp = ['ipin', 'opin', 'iopin']
+    if isinstance(tp, basestring):
+        return isinstance(item, Port) and item.porttype == tp
+    elif tp:
         return isinstance(item, Port) and item.porttype in tp
     else:
         return isinstance(item, Port)

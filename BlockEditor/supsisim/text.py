@@ -12,7 +12,7 @@ from collections import OrderedDict
 from supsisim.const import colors
 
 class textItem(QtWidgets.QGraphicsTextItem):
-    '''convenience class, extension of QGraphicsTextItem, that realises aligned text
+    '''convenience class, extension of QGraphicsSimpleTextItem, that realises aligned text
     textItem.setFlipped() will mirror the text  (in place)
     textItem.setNormal() will put txt in normal (non-mirrored) state
     
@@ -38,23 +38,41 @@ class textItem(QtWidgets.QGraphicsTextItem):
         self.setFlag(self.ItemIsMovable)
         self.setFlag(self.ItemIsSelectable)
 #        self.setFlag(self.ItemIgnoresTransformations)
-        self.setTextInteractionFlags(QtCore.Qt.TextEditorInteraction)
+        self.setTextInteractionFlags(QtCore.Qt.TextEditorInteraction) # allow edits
         self.setAcceptDrops(False)
+
+    def setText(self, text):
+        self.setPlainText(text)
+
+    def text(self):
+        return self.toPlainText()
+        
+    def setBrush(self, color):
+        self.setDefaultTextColor(color)
 
     def toData(self):
         data = OrderedDict(type='label')
-        data['text']   = self.toPlainText()
+        data['text']   = self.text()
         data['x'] = self.pos().x()
         data['y'] = self.pos().y()
         data['anchor'] = self.anchor
+        data['font'] = self.font().toString()
         return data
 
-    def fromData(self, d):
-        self.setPlainText(d['text'])
-        self.setPos(d['x'], d['y'])
-        self.setAnchor(d['anchor'])
+    def fromData(self, data):
+        self.setText(data['text'])
+        self.setPos(data['x'], data['y'])
+        self.setAnchor(data['anchor'])
+        if 'font' in data:
+            font = QtGui.QFont()
+            font.fromString(data['font'])
+            self.setFont(font)
         self.setNormal()
-        
+    
+    def remove(self):
+        scene = self.scene()
+        scene.removeItem(self)
+    
     def setFlipped(self):
         '''mirror in place (use when parent is flipped'''
         self.setTransform(QtGui.QTransform().translate(self.dx, self.dy).scale(-self.scale,self.scale).translate(-self.boundingRect().width(),0))
@@ -87,7 +105,7 @@ class textItem(QtWidgets.QGraphicsTextItem):
 class Comment(textItem):
     def __init__(self, text, anchor=1, parent=None):
         super(Comment, self).__init__(text, anchor, parent)
-        self.setDefaultTextColor(colors['comment'])
+        self.setBrush(colors['comment'])
     
     def toData(self):
         data = super(Comment, self).toData()

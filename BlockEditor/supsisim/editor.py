@@ -15,12 +15,12 @@ from collections import OrderedDict
 
 from supsisim.port import Port, isInPort, isOutPort, isPort, isNode
 from supsisim.connection import Connection, isConnection
-from supsisim.block import isBlock, gridPos
-from supsisim.text  import textItem, isComment
+from supsisim.block import isBlock, gridPos, getBlock
+from supsisim.text  import textItem, isComment, isTextItem
 from supsisim.dialg import BlockName_Dialog, textLineDialog, overWriteNetlist, \
                            error, propertiesDialog
 import supsisim.RCPDlg as pDlg
-from supsisim.const import DB
+from supsisim.const import DB, colors
 import libraries
 
 class Editor(QtCore.QObject):
@@ -29,6 +29,7 @@ class Editor(QtCore.QObject):
         super(Editor, self).__init__(parent)
         self.conn = None
         self.scene = None
+        self.status = parent.status
         self.movBlk = False
         self.event = None
         self.connFromNode = False
@@ -41,8 +42,8 @@ class Editor(QtCore.QObject):
         nameBlkAction = self.menuIOBlk.addAction('Change Name')
         cloneBlkAction = self.menuIOBlk.addAction('Clone Block')
         deleteBlkAction = self.menuIOBlk.addAction('Delete Block')        
-        self.netlistMenu = QtWidgets.QMenu('Netlist')
-        self.menuIOBlk.addMenu(self.netlistMenu)
+#        self.netlistMenu = QtWidgets.QMenu('Netlist')
+#        self.menuIOBlk.addMenu(self.netlistMenu)
 #        netListAction = self.menuIOBlk.addAction('Netlist')
         
         #parBlkAction.triggered.connect(self.parBlock)
@@ -58,19 +59,20 @@ class Editor(QtCore.QObject):
         portEditAction = self.subMenuPort.addAction('Edit')
         portFlipAction = self.subMenuPort.addAction('Flip')
         portDelAction  = self.subMenuPort.addAction('Delete')
+        portTypeAction  = self.subMenuPort.addAction('Add/Edit signal type')
         portEditAction.triggered.connect(self.portEdit)
         portFlipAction.triggered.connect(self.flipBlock)
         portDelAction.triggered.connect(self.portDelete)
+        portTypeAction.triggered.connect(self.portAddType)
+        
         
         self.subMenuConn = QtWidgets.QMenu()
         connDelAction   = self.subMenuConn.addAction('Delete connection')
         connInsAction   = self.subMenuConn.addAction('Insert node')
         connLabelAction = self.subMenuConn.addAction('Add/Edit label')
-        connTypeAction  = self.subMenuConn.addAction('Add/Edit signal type')
         connDelAction.triggered.connect(self.deleteConn)
         connInsAction.triggered.connect(self.insConn)
         connLabelAction.triggered.connect(self.addConnLabel)
-        connTypeAction.triggered.connect(self.addConnType)
     
 
     
@@ -78,54 +80,44 @@ class Editor(QtCore.QObject):
     def addConnLabel(self):
         conn = self.scene.item
         if conn.label:
-            dialog = textLineDialog('Label: ',content=conn.label.toPlainText())
+            dialog = textLineDialog('Label: ',content=conn.label.text())
         else:
             dialog = textLineDialog('Label: ')
         ret = dialog.getLabel()
         if ret:
             if conn.label:
-                conn.label.setPlainText(ret)
+                conn.label.setText(ret)
             else:
                 conn.label = textItem(ret, anchor=3, parent=conn)
                 conn.label.setPos(conn.pos2.x(),conn.pos2.y())
 
-    def addConnType(self):
-        item = self.scene.item
-        if item.signalType:
-            dialog = textLineDialog('Signal type: ','Signal type',item.signalType.toPlainText())
-        else:
-            dialog = textLineDialog('Signal type: ','Signal type')
-        ret = dialog.getLabel()
-        if ret:
-            item.signalType = textItem(ret, anchor=3, parent=item)
-            item.signalType.setPos(item.pos2.x(),item.pos2.y())
     
     
-    def addView(self,blockname,libname,type):
-        error('fix me: addView in editor.py')
-        return
-        path = os.getcwd()
-        fname = '/libraries/library_{}/{}.py'.format(libname,blockname)
-        f = open(path + fname,'r')
-        lines = f.readlines()
-        f.close()
-        
-        for index,line in enumerate(lines):
-            if line.startswith('iconSource = '):
-                source = "{type}Source = 'libraries/library_{libname}/{blockname}_{extension}'\n"
-                from supsisim.const import viewEditors
-                for viewEditor in viewEditors:
-                    if type == viewEditor['type']:
-                        extension = viewEditor['extension']
-                source = source.format(type=type,libname=libname,blockname=blockname,extension = extension)
-                lines.insert(index+1,source)
-            if line.startswith('views = {'):
-                lines[index] = line.replace('views = {',"views = {{'{type}':{type}Source,".format(type=type))
-        
-        
-        f = open(path + fname,'w+')
-        f.write("".join(lines))
-        f.close()
+#    def addView(self,blockname,libname,type):
+#        error('fix me: addView in editor.py')
+#        return
+#        path = os.getcwd()
+#        fname = '/libraries/library_{}/{}.py'.format(libname,blockname)
+#        f = open(path + fname,'r')
+#        lines = f.readlines()
+#        f.close()
+#        
+#        for index,line in enumerate(lines):
+#            if line.startswith('iconSource = '):
+#                source = "{type}Source = 'libraries/library_{libname}/{blockname}_{extension}'\n"
+#                from supsisim.const import viewEditors
+#                for viewEditor in viewEditors:
+#                    if type == viewEditor['type']:
+#                        extension = viewEditor['extension']
+#                source = source.format(type=type,libname=libname,blockname=blockname,extension = extension)
+#                lines.insert(index+1,source)
+#            if line.startswith('views = {'):
+#                lines[index] = line.replace('views = {',"views = {{'{type}':{type}Source,".format(type=type))
+#        
+#        
+#        f = open(path + fname,'w+')
+#        f.write("".join(lines))
+#        f.close()
 
     def cloneBlock(self):
         item = self.scene.item
@@ -235,22 +227,43 @@ class Editor(QtCore.QObject):
     def parBlock(self):
         self.scene.mainw.parBlock()
     
+    def portAddType(self, event):
+        item = self.scene.item
+        if not isPort(item):
+            error('use on nodes/pins')
+            return
+        if item.signalType:
+            dialog = textLineDialog('Signal type: ','Signal type',item.signalType.text())
+        else:
+            dialog = textLineDialog('Signal type: ','Signal type')
+        ret = dialog.getLabel()
+        if ret:
+            item.signalType = textItem(ret, anchor=8, parent=item)
+            self.signalType.setBrush(colors['signalType'])
+            font = item.signalType.font()
+            font.setItalic(True)
+            item.signalType.setFont(font)
+
+#            item.signalType.setPos(item.pos2.x(),item.pos2.y())
         
     def portEdit(self):
         item = self.scene.item
         if not isPort(item):
-            error('not a port')
+            error('not a pin')
         dd = OrderedDict()
-        dd['Pin_label'] = item.label.toPlainText() if item.label else ''
+        dd['Pin_label'] = item.label.text() if item.label else ''
         
         options = 'ipin opin iopin node'.split()
         dd['Pin_type'] = (item.porttype, options)
-        
-        dialog = propertiesDialog(self.scene.mainw, dd)
+        properties = item.properties
+        title = 'Edit Node' if isNode(item) else 'Edit Pin'
+        dialog = propertiesDialog(self.scene.mainw, dd, properties, title=title)
         dd = dialog.getRet()
         if dd:
             item.setType( dd['Pin_type'])
             item.setLabel(dd['Pin_label'])
+            item.properties = dd['properties']
+            print (dd['properties'])
             item.setup()
 
     def blockProperties(self):
@@ -267,7 +280,7 @@ class Editor(QtCore.QObject):
         if ret:
             block = item.toData()
             item.remove()
-            b = libraries.getBlock(block['blockname'],block['libname'],scene=self.scene,param=ret,name=block['name'])
+            b = getBlock(block['blockname'],block['libname'],scene=self.scene,param=ret,name=block['name'])
             b.setPos(block['pos']['x'],block['pos']['y'])
             b.properties = block['properties']
 
@@ -332,15 +345,19 @@ class Editor(QtCore.QObject):
         pos = gridPos(event.scenePos())
         item = self.itemAt(pos, exclude=[isConnection])
         if isBlock(item):
-            if item.hasDiagram():
+            if 'diagram' in item.getViews():
                 self.scene.mainw.descend(item)
-        if isPort(item, tp='ipin opin iopin node'.split()):
+        elif isPort(item, tp='ipin opin iopin node'.split()):
             self.scene.item = item
             self.portEdit()
             if self.conn:
                 self.conn.remove()
                 self.conn = None
                 self.scene.mainw.view.setCursor(QtCore.Qt.ArrowCursor)
+        elif isTextItem(item):
+            font, ok = QtWidgets.QFontDialog.getFont(item.font())
+            if ok:
+                item.setFont(font)
             
     def mouseLeftButtonPressed(self, obj, event):
         pos = gridPos(event.scenePos())
@@ -435,11 +452,19 @@ class Editor(QtCore.QObject):
 
     def mouseRightButtonPressed(self, obj, event):
         if self.conn == None:
-            item = self.itemAt(event.scenePos())
+            b, p, c = [], [], []
+            for i in self.itemAt(event.scenePos(), single=False):
+                if isBlock(i):
+                    b.append(i)
+                elif isPort(i):
+                    p.append(i)
+                elif isConnection(i):
+                    c.append(i)
+            item = p.pop() if p else b.pop() if b else c.pop() if c else None
             if isBlock(item):
                 self.scene.item = item
-                self.netlistMenu.clear()
-                self.addNetlistMenu()
+#                self.netlistMenu.clear()
+#                self.addNetlistMenu()
                 self.menuIOBlk.exec_(event.screenPos())
             elif isPort(item, ['node', 'ipin', 'opin','iopin']):
                 self.scene.item = item
@@ -454,7 +479,8 @@ class Editor(QtCore.QObject):
     def eventFilter(self, obj, event):
         if event.type() ==  QtCore.QEvent.GraphicsSceneMouseMove:
              self.moveMouse(obj, event)
-
+             self.status.showMessage('{:.1f}, {:.1f}'.format(event.scenePos().x(), event.scenePos().y()))
+             
         elif event.type() ==  QtCore.QEvent.GraphicsSceneMousePress:
             if event.button() == QtCore.Qt.LeftButton:
                 self.mouseLeftButtonPressed(obj, event)

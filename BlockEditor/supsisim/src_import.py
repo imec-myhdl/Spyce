@@ -5,7 +5,6 @@ utility to streamline the (re) importing of files
 
 import os, sys
 
-from supsisim.dialg import error
 
 def import_module_from_source_file(filepath):
     fullpath       = os.path.abspath(filepath)
@@ -19,7 +18,7 @@ def import_module_from_source_file(filepath):
             mod = imp.load_source(modname, fullpath)
         except:
             mod = None
-            error('loading of {} caused error:\n{}'.format(fullpath, sys.exc_info()[0]))
+            raise Exception('loading of {} caused error:\n{}'.format(fullpath, sys.exc_info()[0]))
 
     elif sys.version_info >= (3,3) and sys.version_info < (3,5):
         # python 3.3 or 3.4
@@ -28,7 +27,7 @@ def import_module_from_source_file(filepath):
             mod = SourceFileLoader(modname, fullpath).load_module()
         except:
             mod = None
-            error('loading of {} caused error:\n{}'.format(fullpath, sys.exc_info()[0]))
+            raise Exception('loading of {} caused error:\n{}'.format(fullpath, sys.exc_info()[0]))
 
     elif sys.version_info >= (3,5):
         # python 3.5+
@@ -39,7 +38,7 @@ def import_module_from_source_file(filepath):
             spec.loader.exec_module(mod)    
         except:
             mod = None
-            error('loading of {} caused error:\n{}'.format(fullpath, sys.exc_info()[0]))
+            raise Exception('loading of {} caused error:\n{}'.format(fullpath, sys.exc_info()[0]))
     else:
         raise Exception ('This version of python is not supported\nUse latest 2.7, 3.3 or newer')
 

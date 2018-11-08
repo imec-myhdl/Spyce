@@ -33,7 +33,6 @@ class Connection(QtWidgets.QGraphicsPathItem):
         self.attach(1, p1)
        
         self.label = None
-        self.signalType = None
 
         self.lineColor = colors['connection']
 
@@ -67,10 +66,14 @@ class Connection(QtWidgets.QGraphicsPathItem):
         data['y0'] = self.pos[0].y()
         data['x1'] = self.pos[1].x()
         data['y1'] = self.pos[1].y()
+        for ix in [0,1]:
+            pp = ['p0', 'p1'][ix]
+            if self.port[ix] and isPort(self.port[ix], 'block'):
+                blkname = self.port[ix].parent.label.text()
+                pinname = self.port[ix].label.text()
+                data[pp] = (blkname, pinname)
         if self.label:
-            data['label'] = self.label.toPlainText()
-        if self.signalType:
-            data['signalType'] = self.signalType.toPlainText()
+            data['label'] = self.label.text()
         return data
     
     def setup(self):

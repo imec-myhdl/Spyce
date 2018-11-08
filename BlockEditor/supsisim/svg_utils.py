@@ -192,20 +192,20 @@ def updateSvg(block, svgfilename, makeports=True):
     g =  etree.Element('g')
     g.set('id', 'tmp_bbox')
 
-    # create bbox
-    r = etree.Element('rect')    
-    r.set('id', 'bbox')
-    r.set('fill', 'none')
-    r.set('stroke-width', '1')
-    r.set('stroke', 'darkGreen')
-    r.set('height', '{:.1f}'.format(h))
-    r.set('width', '{:.1f}'.format(w-PW))
-    r.set('x', '{:.1f}'.format(icon_pin_size+PW/2))
-    r.set('y', '{:.1f}'.format(icon_pin_size))
-    g.append(r)
 
 
     if makeports: # 
+        # create bbox
+        r = etree.Element('rect')    
+        r.set('id', 'bbox')
+        r.set('fill', 'none')
+        r.set('stroke-width', '1')
+        r.set('stroke', 'darkGreen')
+        r.set('height', '{:.1f}'.format(h))
+        r.set('width', '{:.1f}'.format(w-PW))
+        r.set('x', '{:.1f}'.format(icon_pin_size+PW/2))
+        r.set('y', '{:.1f}'.format(icon_pin_size))
+        g.append(r)
         ports = block.ports()
         for p_ix, p in enumerate(ports):
             tp = p.porttype
@@ -214,7 +214,7 @@ def updateSvg(block, svgfilename, makeports=True):
             y += icon_pin_size - top  + midy
     
             if p.label: # pin with label
-                name = p.label.toPlainText()
+                name = p.label.text()
                 dd = OrderedDict(id='{}-port_{}'.format(tp, name))
                 dd['font-size'] = '{}px'.format(icon_font_size)
       
