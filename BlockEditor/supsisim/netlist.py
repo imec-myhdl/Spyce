@@ -319,7 +319,14 @@ def resolve_connectivity(filename, properties=dict()):
     external_nets = dict()
     for netname in resolved:
         # signal_type
-        st = next(iter(resolved[netname])).type
+        st = None
+        for item in resolved[netname]:
+            if item.type:
+                if st is None:
+                    st = item.type
+                elif st != item.type:
+                    raise Exception('Type conflict: {}, {}\non {}'.format(\
+                                    st, item.type, item))
         prop = dict(signalType = st)
         for c in resolved[netname]:
             if 'properties' in c.d:
@@ -330,101 +337,101 @@ def resolve_connectivity(filename, properties=dict()):
             internal_nets[netname] = prop
     
     return blocks, internal_nets, external_nets
-        
-    
-    propertyList = []
-        
-    for p in properties.keys():
-        if p != 'name':
-            propertyList.append('{k}="{value}"'.format(k=p,value=properties[p]))
-    
-    params = ','.join(pinList + propertyList)
-    
-    #variables
-    user = subprocess.check_output("whoami").strip()
-    
-    impL = []
-    
-    for b in blocks:
-        string = "from " + "libraries import library_" + b['libname']
-        if not string in impL:
-            impL.append(string)
-    
-    imp = "\n".join(list(set(impL)))
-    
-    
-    signals = getSignals(connections,nodes)
-    
-    if signals == False:
-        return False
-    
-    signalL = []
-    for i in range(len(signals)):
-        if 'label' in signals[i]:
-            connName = signals[i]['label']
-            stop = False
-            for pin in pins:
-                if pin[0] == connName:
-                    stop = True
-            if stop:
-                continue
-        else:
-            connName = 'signal' + str(i + 1)
-        if 'type' in signals[i]:
-            type = signals[i]['type']
-        else:
-            type = '0'
-        string = connName + " = Signal({})".format(type)
-        signalL.append(string)
-       
-    signalsOutput = "\n    ".join(signalL)
-    
-    instanceL = []
-    signals
-    for b in blocks:
-        bname = b['blockname']
-        libname = b['libname']
-        instanceName = b['name']
-        
-        signalL = []
-        propertiesL = []
-        parameterList = []
-        
-        #print(getPins(b['libname'],b['blockname']),b['blockname'])
-        if 'parameters' in b:
-            pins = getPins(b['libname'],b['blockname'],b['parameters'])
-            for parameter in b['parameters'].keys():
-                parameterList.append('{} = "{}"'.format(parameter,b['parameters'][parameter]))
-        else:
-            pins = getPins(b['libname'],b['blockname'])
-        for pin in pins:
-            pos = dict(y=pin[2]+b['pos']['y'],x=pin[1]+b['pos']['x'])
-            for sindex,signal in enumerate(signals):
-                if pos in signal['posList']:
-                    if 'label' in signal:
-                        s = signal['label']
-                        break
-                    else:
-                        s = 'signal'+str(sindex + 1)
-                        break
-            else:
-                s = 'None'
-            signalL.append(pin[0] + '=' + s)
-            
-        for propertie in b['properties'].keys():
-            if propertie != 'name':
-                propertiesL.append('{} = "{}"'.format(propertie,b['properties'][propertie]))
-        
-        string = "{instanceName} = library_{libname}.{blockname}_myhdl({signals})"
-        
-        signalsOut = ",".join(signalL + propertiesL + parameterList)
-        instanceL.append(string.format(instanceName=instanceName,blockname=bname,libname=libname,signals=signalsOut))
-        
-    
-    instances = "\n    ".join(instanceL)
-#    instances = str(signals)
-    
-    tbText = "pass"
+#        
+#    
+#    propertyList = []
+#        
+#    for p in properties.keys():
+#        if p != 'name':
+#            propertyList.append('{k}="{value}"'.format(k=p,value=properties[p]))
+#    
+#    params = ','.join(pinList + propertyList)
+#    
+#    #variables
+#    user = subprocess.check_output("whoami").strip()
+#    
+#    impL = []
+#    
+#    for b in blocks:
+#        string = "from " + "libraries import library_" + b['libname']
+#        if not string in impL:
+#            impL.append(string)
+#    
+#    imp = "\n".join(list(set(impL)))
+#    
+#    
+#    signals = getSignals(connections,nodes)
+#    
+#    if signals == False:
+#        return False
+#    
+#    signalL = []
+#    for i in range(len(signals)):
+#        if 'label' in signals[i]:
+#            connName = signals[i]['label']
+#            stop = False
+#            for pin in pins:
+#                if pin[0] == connName:
+#                    stop = True
+#            if stop:
+#                continue
+#        else:
+#            connName = 'signal' + str(i + 1)
+#        if 'type' in signals[i]:
+#            type = signals[i]['type']
+#        else:
+#            type = '0'
+#        string = connName + " = Signal({})".format(type)
+#        signalL.append(string)
+#       
+#    signalsOutput = "\n    ".join(signalL)
+#    
+#    instanceL = []
+#    signals
+#    for b in blocks:
+#        bname = b['blockname']
+#        libname = b['libname']
+#        instanceName = b['name']
+#        
+#        signalL = []
+#        propertiesL = []
+#        parameterList = []
+#        
+#        #print(getPins(b['libname'],b['blockname']),b['blockname'])
+#        if 'parameters' in b:
+#            pins = getPins(b['libname'],b['blockname'],b['parameters'])
+#            for parameter in b['parameters'].keys():
+#                parameterList.append('{} = "{}"'.format(parameter,b['parameters'][parameter]))
+#        else:
+#            pins = getPins(b['libname'],b['blockname'])
+#        for pin in pins:
+#            pos = dict(y=pin[2]+b['pos']['y'],x=pin[1]+b['pos']['x'])
+#            for sindex,signal in enumerate(signals):
+#                if pos in signal['posList']:
+#                    if 'label' in signal:
+#                        s = signal['label']
+#                        break
+#                    else:
+#                        s = 'signal'+str(sindex + 1)
+#                        break
+#            else:
+#                s = 'None'
+#            signalL.append(pin[0] + '=' + s)
+#            
+#        for propertie in b['properties'].keys():
+#            if propertie != 'name':
+#                propertiesL.append('{} = "{}"'.format(propertie,b['properties'][propertie]))
+#        
+#        string = "{instanceName} = library_{libname}.{blockname}_myhdl({signals})"
+#        
+#        signalsOut = ",".join(signalL + propertiesL + parameterList)
+#        instanceL.append(string.format(instanceName=instanceName,blockname=bname,libname=libname,signals=signalsOut))
+#        
+#    
+#    instances = "\n    ".join(instanceL)
+##    instances = str(signals)
+#    
+#    tbText = "pass"
     
     return template.format(projectname=projectname,
                            user=user,
@@ -453,32 +460,6 @@ def getPins(libname,blockname,param=dict()):
         pins.append((name,xpos,ypos))
     print(block.pins(),pins)
     return pins
-#    fname = filenameTemplate.format(libname,blockname)
-#    exec('import ' + fname)
-#    reload(eval(fname))
-#    pins = []
-#    inp = eval(fname + '.inp')
-#    outp = eval(fname + '.outp')
-#    
-#    if isinstance(inp,int):
-#        for n in range(inp):
-#            ypos = -PD*(inp-1)/2 + n*PD
-#            xpos = -(BWmin+PW)/2
-#            name = None
-#            pins.append((name,xpos,ypos))
-#    else:
-#        pins += inp
-#        
-#    if isinstance(outp,int):  
-#        for n in range(outp):
-#            ypos = -PD*(outp-1)/2 + n*PD
-#            xpos = (BWmin+PW)/2
-#            name = None
-#            pins.append((name,xpos,ypos))
-#    else:
-#        pins += outp
-#    
-#    return pins
 
 def getSignals(connections,nodes):
     #signals = [signal1:[pos1,pos2],signal2:[pos1,pos2]]
@@ -580,5 +561,5 @@ def getLabel(signal,connections,nodes,key):
         
     
 if __name__ == "__main__":
-    mynetlist = netlist(os.path.join(d, 'saves', 'sailpll1.py'))
+    mynetlist = netlist(os.path.join(d, 'saves', 'sailpll.py'))
     print(mynetlist)
