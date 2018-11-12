@@ -743,17 +743,17 @@ class Library(QtWidgets.QMainWindow):
         for libname in libnames:
             
             lib = libs[libname]
-            diagram = CompViewer(self)
-            diagram.clear()
-            view = QtWidgets.QGraphicsView(diagram)
-            diagram.compLock = True
+            scene = CompViewer(self)
+            scene.clear()
+            view = QtWidgets.QGraphicsView(scene)
+            scene.compLock = True
             for i, blockname in enumerate(lib):
-                # add block to diagram
-                block = getBlock(libname, blockname, scene=diagram)
+                # add block to scene
+                block = getBlock(libname, blockname, scene=scene)
                 if block:
                     px = i % 2
                     py = i/2
-                    block.scene = diagram
+                    block.scene = scene
                     block.setPos(px*150,py*150)
 #                    block.setup()
                     w = block.boundingRect().width()
