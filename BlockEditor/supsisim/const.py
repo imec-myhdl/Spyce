@@ -4,7 +4,7 @@ from collections import OrderedDict
 
 GRID = 10
 PW   = 8   # pin width
-PD   = 40  # pin distance (spacing between pins in blocks)
+PD   = 20  # pin distance (spacing between pins in blocks)
 NW   = 4   # node width
 LW   = 1.5 # line width for conncetion
 
