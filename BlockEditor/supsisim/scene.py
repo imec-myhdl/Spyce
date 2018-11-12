@@ -60,7 +60,7 @@ class Scene(QtWidgets.QGraphicsScene):
     def __init__(self, main, parent=None):
         super(Scene,self).__init__(parent)
         self.mainw = main
-        self.nameList = []
+        self.nameList = dict() # count for block names
         self.selection = []
 
         self.template = 'sim.tmf'
@@ -94,26 +94,53 @@ class Scene(QtWidgets.QGraphicsScene):
             self.lastPosition = True
         
 
+    def addBlkName(self, block):
+        name = block.name
+        if name not in self.nameList:
+            self.nameList[name] = 0
+        
+        if self.nameList[name] > 0:
+            name = self.setUniqueName(block)
+            self.nameList[name] = 0
+            block.name = name
+            block.setLabel()
+        self.nameList[name] += 1
+        return name
 
-    def getIndex(self,name):
-        try:
-            index = self.nameList.index(name)
-        except:
-            index = -1
-        return index
-
+    def rmBlkName(self, block):
+        name = block.name
+        if name in self.nameList:
+            self.nameList[name] -= 1
+            if self.nameList[name] <= 0:
+                del self.nameList[name]
+    
     def setUniqueName(self, block):
-        cnt = 0
-        base = block.name
-        while base and base[-1] in '0123456789':
-            base = base[:-1]
-        nm = base
-        while self.getIndex(nm) != -1:
-            nm = base + str(cnt)
-            cnt += 1
-        self.nameList.append(nm)
-        self.nameList.sort()
-        return nm
+        name = block.name
+        if name in self.nameList:
+            cnt = 0
+            while name and name[-1] in '0123456789':
+                name = name[:-1]
+            base = name
+            while name in self.nameList and self.nameList[name] > 0:
+                name = base + str(cnt)
+                cnt += 1
+            return name
+        else:
+            return name
+        
+    def forceUniqueNames(self):
+        self.nameList = dict()
+        cc = [] # checkcheck: label != name
+        for child in self.items():
+            if isinstance(child, Block):
+                if child.label.text() != child.name:
+                    cc.append(child)
+                self.addBlkName(child)
+        for b in cc:
+            b.name = b.label.text()
+            b.name = self.setUniqueName(b)
+            b.label.setText(b.name)
+            self.addBlkName(b)
     
     def selectionChangedSlot(self):
         pass
@@ -181,11 +208,10 @@ class Scene(QtWidgets.QGraphicsScene):
         connections = []
         nodes = []        
         comments = []
-    
+        self.forceUniqueNames()
         items = selection if selection else self.items()
         for item in items:
             if isBlock(item):
-                item.setLabel() # make sure names are unique
                 blocks.append(d2s(item.toData()))
             elif isConnection(item):
                 connections.append(d2s(item.toData()))
@@ -207,15 +233,7 @@ class Scene(QtWidgets.QGraphicsScene):
             else:
                 b = getBlock(data['libname'], data['blockname'],scene=self)
             if b:
-                b.setPos(data['x'],data['y'])
-                if 'label' in data:
-                    b.label = textItem(' ')
-                    b.label.fromData(data['label'])
-                    b.name = b.label.text()
-
-                b.properties = data['properties']
-                if 'flip' in data:
-                    b.setFlip(data['flip'])
+                b.fromData(data)
                     
         for item in nodes:
             pos = QtCore.QPointF(item['x'], item['y'])

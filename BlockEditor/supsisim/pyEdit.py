@@ -679,7 +679,6 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
 #        self.setWindowTitle(self.filename)
         
     def openDiagram(self, filename=None):
-        print('open diagram', filename)
         if filename in [None, False]: 
             filename = QtWidgets.QFileDialog.getOpenFileName(self, 'Open', self.path+'/saves/', filter='*.py')
             if isinstance(filename, tuple):
@@ -695,13 +694,22 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
             
             dgm = import_module_from_source_file(os.path.abspath(filename))
             
+#            try:
+#                blocks      = dgm.blocks
+#                nodes       = dgm.nodes
+#                connections = dgm.connections
+#                comments    = dgm.comments
+#                self.scene.dataToDiagram(blocks,connections,nodes,comments)
+#
+#            except Exception as e:
+#                message = 'Error while processing {}\nMessage:{}'.format(os.path.abspath(filename), str(e))
+#                error(message)
             blocks      = dgm.blocks
             nodes       = dgm.nodes
             connections = dgm.connections
             comments    = dgm.comments
-        
             self.scene.dataToDiagram(blocks,connections,nodes,comments)
-    
+
     def saveDiagram(self, filename=None, selection=None):
         ''' saves to diagram. Ask filename if not given. 
         If selected is True only selected elements are written'''
@@ -822,19 +830,25 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
 ##            
 #            
 #        else:
-        if filename in [None, False]: 
-            filename = QtWidgets.QFileDialog.getSaveFileName(self, 'Save', self.path+'/saves/'+self.filename, filter='*.py')
-            filename = filename[0]
+        if filename in [None, False]:
+            fname = os.path.join(self.path, 'saves', self.filename + '.py')
+            filename = QtWidgets.QFileDialog.getSaveFileName(self, 'Save', fname, filter='*.py')
         if filename:
-            self.path, self.filename = os.path.split(os.path.abspath(filename))
+            filename = os.path.abspath(filename)
+            self.path, self.filename = os.path.split(filename)
+            self.filename, _ = os.path.splitext(self.filename) # strip '.py'
             self.centralWidget.setTabText(self.centralWidget.currentIndex(),self.filename)
             
             blocks, connections, nodes, comments = self.scene.diagramToData(selection)
-            with open(self.getFullFileName(),'w+') as f:
-                f.write("blocks = [" + ",\n          ".join(blocks) + "]\n\n" + \
-                    "connections = [" + ",\n               ".join(connections) + "]\n\n" + \
-                    "nodes = [" + ",\n         ".join(nodes) + "]\n\n" + \
-                    "comments = [" + ",\n         ".join(comments) + "]\n")                
+            with open(filename,'w+') as f:
+                f.write('# diagram {}\n'.format(self.filename))
+                for s, items in [('blocks',blocks), 
+                                 ('connections', connections), 
+                                 ('nodes', nodes), 
+                                 ('comments', comments)]:
+                    jj = ',\n' + ' ' * (len(s) + 4)
+                    f.write("\n{} = [{}]\n".format(s, jj.join(items)))
+            print('saved file', filename)
         else:
             return True
 

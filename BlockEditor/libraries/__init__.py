@@ -18,7 +18,7 @@ libs = dict()  # key = library name (minus the 'library_' prefix)
 libroot = os.path.dirname(__file__) # home of all libaries
 libprefix = 'library_'
 
-
+   
 def libpath(libname, root=libroot):
     '''return full path of libary libname'''
     if libname.startswith(libprefix):

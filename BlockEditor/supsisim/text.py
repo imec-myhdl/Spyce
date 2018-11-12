@@ -51,23 +51,30 @@ class textItem(QtWidgets.QGraphicsTextItem):
         self.setDefaultTextColor(color)
 
     def toData(self):
-        data = OrderedDict(type='label')
-        data['text']   = self.text()
-        data['x'] = self.pos().x()
-        data['y'] = self.pos().y()
-        data['anchor'] = self.anchor
-        data['font'] = self.font().toString()
-        return data
+        text = self.text()
+        if text.startswith('.'):
+            return text
+        else:
+            data = OrderedDict(type='label')
+            data['text']   = text
+            data['x'] = self.pos().x()
+            data['y'] = self.pos().y()
+            data['anchor'] = self.anchor
+            data['font'] = self.font().toString()
+            return data
 
     def fromData(self, data):
-        self.setText(data['text'])
-        self.setPos(data['x'], data['y'])
-        self.setAnchor(data['anchor'])
-        if 'font' in data:
-            font = QtGui.QFont()
-            font.fromString(data['font'])
-            self.setFont(font)
-        self.setNormal()
+        if isinstance(data, basestring):
+            self.setText(data)
+        else:
+            self.setText(data['text'])
+            self.setPos(data['x'], data['y'])
+            self.setAnchor(data['anchor'])
+            if 'font' in data:
+                font = QtGui.QFont()
+                font.fromString(data['font'])
+                self.setFont(font)
+            self.setNormal()
     
     def remove(self):
         scene = self.scene()

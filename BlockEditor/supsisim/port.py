@@ -139,6 +139,10 @@ class Port(QtWidgets.QGraphicsPathItem):
         self.label.setTextInteractionFlags(QtCore.Qt.NoTextInteraction) # disallow edits
         self.label.setFlag(self.ItemIsMovable, False) # do not allow move
         self.label.setFlag(self.ItemIsSelectable, False) # do not allow select
+        if self.label.text().startswith('.'):
+            self.label.hide()
+        else:
+            self.label.show()
 
 
     def itemChange(self, change, value):
@@ -205,12 +209,14 @@ class Port(QtWidgets.QGraphicsPathItem):
         data['porttype'] = self.porttype
         data['x'] = self.pos().x()
         data['y'] = self.pos().y()
+        if self.flip:
+            data['flip'] = self.flip
         if self.label:
             data['label'] = self.label.toData()
         if self.signalType:
             data['signalType'] = self.signalType.toData()
-        if self.flip:
-            data['flip'] = self.flip
+        if self.properties:
+            data['properties'] = self.properties
         return data
 
     def fromData(self, data):
@@ -218,7 +224,6 @@ class Port(QtWidgets.QGraphicsPathItem):
         self.setPos(data['x'], data['y'])
         if 'flip' in data:
             self.flip = data['flip']
-        
         if 'label' in data: # do not use setLabel as that would reset the label position
             self.label = textItem('', parent=self)
             self.label.fromData(data['label'])
@@ -226,6 +231,8 @@ class Port(QtWidgets.QGraphicsPathItem):
             self.signalType = textItem('', parent=self)
             self.signalType.fromData(data['signalType'])
             self.signalType.setBrush(colors['signalType'])
+        if 'properties' in data:
+            self.properties = data['properties']
         self.setup()
 
 

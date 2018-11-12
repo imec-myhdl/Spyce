@@ -58,6 +58,10 @@ def _addBlockModuleDefaults(libname, blockname):
         blk.views['icon'] = None
     if not 'bbox' in blk.__dict__:
         blk.bbox = None
+    if not 'properties' in blk.__dict__:
+        blk.properties = dict()
+    if not 'parameters' in blk.__dict__:
+        blk.parameters = dict()
     blk.views['textSource'] = blk.textSource
 
 def getBlockModule(libname, blockname):
@@ -97,13 +101,22 @@ def gridPos(pt):
 def getBlock(libname, blockname, parent=None, scene=None, param=dict(), name=None, flip=False):
     '''create a Block'''
     blk = getBlockModule(libname, blockname)
+    if blk.parameters and not param:
+        param = blk.parameters
     if param: # pcell
-        try:
+#        try:
             b = blk.getSymbol(param, parent, scene)
+            b.libname = libname
             
             if isinstance(b, Block):
                 if name:
-                    b.name = name
+                    if scene:
+                        scene.rmBlkName(b)
+                        b.name = name
+                        scene.addBlkName(b)
+                    else:
+                        b.name = name
+
                     b.label.setText(name)
                     b.flip = flip
                     b.setFlip()
@@ -111,9 +124,9 @@ def getBlock(libname, blockname, parent=None, scene=None, param=dict(), name=Non
             else:
                 error('getSymbol returned no block')
             return False
-        except Exception as e:
-            error('libary_{}/{}.py contains error:\n{}'.format(libname, blockname, str(e)))
-            return False
+#        except Exception as e:
+#            error('libary_{}/{}.py contains error:\n{}'.format(libname, blockname, str(e)))
+#            return False
 
     else: # std block
         parameters = blk.parameters
@@ -134,6 +147,11 @@ def getViews(libname, blockname):
     if viewType is specified, return the value if present'''
     return getBlockModule(libname, blockname).views
 
+def pathToLibnameBlockname(filename):
+    filename = filename.lstrip(libraries.libroot).lstrip(libraries.libprefix)
+    libname, blockname = os.path.split()
+    blockname, ext = os.path.splitext(blockname)
+    return libname, blockname
     
 #==============================================================================
 # helper function to easily remove a Block   
@@ -236,7 +254,12 @@ class Block(QtWidgets.QGraphicsPathItem):
         
         self.blockname = blockname
         self.libname = libname
+        
         self.name = attributes.pop('name')
+        try:
+            self.name = self.scene.addBlkName(self)
+        except AttributeError:
+            pass   
         self.inp = attributes.pop('input')
         self.outp = attributes.pop('output')
         self.icon = attributes.pop('icon') if 'icon' in attributes else None
@@ -273,47 +296,43 @@ class Block(QtWidgets.QGraphicsPathItem):
         return str(self.toData())
 
 
-    def add_inPort(self, n):
-        label = ''
+    def add_Port(self, n, tp='input', spacing=PD):
         if isinstance(n, int):
-            ypos = -PD*(self.inp-1)/2 + n*PD
-            xpos = -(self.w)/2
-            name = 'i_pin{}'.format(n)
+            if tp == 'input':
+                xpos = -(self.w)/2
+                ypos = -spacing*(self.inp-1)/2 + n*spacing
+                name = '.i_{}'.format(n) # . makes it hidden
+                if xpos > -BWmin/2:
+                    xpos = -BWmin/2
+            elif tp == 'output':
+                xpos = (self.w)/2
+                ypos = -spacing*(self.outp-1)/2 + n*spacing
+                name = '.o_{}'.format(n) # . makes it hidden
+                if xpos < BWmin/2 :
+                    xpos = BWmin/2 
+          
         else: # tuple (name, x, y)
             name = n[0]
             xpos = n[1]
             ypos = n[2]
-            label = name
-            if xpos > -BWmin/2:
-                xpos = -BWmin/2
-        port = Port(self, self.scene, label=label, porttype='input')
+            if tp == 'input':
+                if xpos > -BWmin/2:
+                    xpos = -BWmin/2
+            elif tp == 'output':
+                 if xpos < BWmin/2 :
+                    xpos = BWmin/2 
+                   
+        port = Port(self, self.scene, label=name, porttype=tp)
         port.block = self
         port.setPos(QtCore.QPoint(xpos, ypos) - self.center)
         return port
 
-    def add_outPort(self, n):
-        label = ''
-        if isinstance(n, int):
-            xpos = (self.w)/2
-            ypos = -PD*(self.outp-1)/2 + n*PD
-            name = 'o_pin{}'.format(n)
-        else: # tuple (name, x, y)
-            name = n[0]
-            xpos = n[1]
-            ypos = n[2]
-            label = name
-            if xpos < BWmin/2 :
-                xpos = BWmin/2 
-        port = Port(self, self.scene, label=label, porttype='output')
-        port.block = self
-        port.setPos(QtCore.QPoint(xpos, ypos) - self.center)
-        return port
 
     def calcBboxFromPins(self):
         return calcBboxFromPins(self.inp, self.outp)
         
     def clone(self, pt):
-        b = getBlock(self.libname, self.blockname,scene=self.scene, \
+        b = getBlock(self.libname, self.blockname, scene=self.scene, \
                      param=self.parameters, name=self.name)
         b.properties = self.properties
         b.setPos(self.scenePos().__add__(pt))
@@ -368,16 +387,22 @@ class Block(QtWidgets.QGraphicsPathItem):
 #                inouts.append(('io', x, y, name))
 #        return inputs, outputs, inouts
 
-    def ports(self):
-        ports = []
-        for item in self.childItems():
-            if isinstance(item, Port):
-                ports.append(item)
+    def ports(self, retDict=False):
+        if retDict:
+            ports = dict()
+            for item in self.childItems():
+                if isinstance(item, Port):
+                    ports[item.label.text()] = item
+        else:
+            ports = []
+            for item in self.childItems():
+                if isinstance(item, Port):
+                    ports.append(item)
         return ports
 
                      
     def remove(self):
-        self.scene.nameList.remove(self.name)
+        self.scene.rmBlkName(self)
         for thing in self.childItems():
             try:
                 thing.remove()
@@ -463,23 +488,20 @@ class Block(QtWidgets.QGraphicsPathItem):
             pt = QtCore.QPointF(args[0],args[1])
             pt = self.gridPos(pt)
             super(Block, self).setPos(pt)
-            
-
-    def setLabel(self, name=None):
-        if name:
-            self.name = name
-        if self.scene:
-            self.name = self.scene.setUniqueName(self) # make sure it is unique
-
-        if self.label and self.name != self.label.text():
-            self.label.setText(self.name)
-        else:
-            self.label = textItem(self.name, anchor=8, parent=self)
-            self.label.setText(self.name)
-        self.label.setPos(0, self.h/2)
-        self.setFlip()
+    
         
 
+    def setLabel(self):
+        name = self.name
+        if self.label:
+            self.label.setText(name)
+        else:
+            self.label = textItem(name, anchor=8, parent=self)
+            self.label.setText(name)
+        self.label.setPos(0, self.h/2)
+        self.setFlip()
+ 
+       
     def setup(self):
         self.setIcon()
         self.ports_in = []
@@ -493,18 +515,21 @@ class Block(QtWidgets.QGraphicsPathItem):
         self.setPath(p)
         
         if isinstance(self.inp, int):
+            spacing = 2*PD if self.inp <= 2 else PD
             for n in range(0,self.inp): # legacy: self.inp is integer number
-                self.add_inPort(n)
+                self.add_Port(n, 'input', spacing)
         else:
             for n in self.inp: # new: self.inp is list of tuples (name, x,y)
-                self.add_inPort(n)
+                self.add_Port(n, 'input')
 
         if isinstance(self.outp, int):
+            spacing = 2*PD if self.inp <= 2 else PD
             for n in range(0,self.outp):# legacy: self.out = integer number
-                self.add_outPort(n)
+                self.add_Port(n, 'output', spacing)
         else:
             for n in self.outp: # new: self.outp is list of tuples (name, x,y)
-                self.add_outPort(n)
+                self.add_Port(n, 'output')
+
         self.setFlag(self.ItemIsMovable)
         self.setFlag(self.ItemIsSelectable)
         self.setLabel()
@@ -519,25 +544,40 @@ class Block(QtWidgets.QGraphicsPathItem):
 
     def toData(self):
         data = OrderedDict(type='block')
-        data['properties'] = self.properties
+        
         data['blockname'] = self.blockname
         data['libname'] = self.libname
         data['x'] = self.x()
         data['y'] = self.y()
-        data['flip'] = self.flip
-
+        
+        # optional fields
+        if self.flip:
+            data['flip'] = self.flip
         if self.label:
             data['label'] = self.label.toData()
+        if self.properties:
+            data['properties'] = self.properties
 
+        # pcell
         if self.parameters:
-            data['parameters'] = self.parameters
+            data['parameters'] = self.parameters 
 
         return data
+
+    def fromData(self,data):
+#        self = getBlock(data['libname'], data['blockname'], scene=self,\
+#            param=data['parameters'])
+        self.setPos(data['x'],data['y'])
+        if 'label' in data:
+            self.label.fromData(data['label'])
+        if 'properties' in data:
+            self.properties = data['properties']
+        else:
+            self.properties = dict()
+        if 'flip' in data:
+            self.setFlip(data['flip'])
+
         
-#    def fromData(self, data):
-#        self.properties = data['properties']
-#        self.blockname  = data['blockname']
-#        self.
     
     def updateOnDisk(self, dd=dict(), writeback=True):
         '''replace assignments with new values for variable names in dd

@@ -65,40 +65,7 @@ if __name__ == "__main__":
     tb.run_sim()
 """
 
-#class NetNode(object):
-#    def __init__(self, node):
-#        self.netname = None
-#        self.type    = None
-#        self.conn    = set()
-#        self.node    = node
-#        if 'label' in node:
-#            netname = node['label']['text']
-#            if self.netname and self.netname != netname:
-#                raise Exception('stamping conflict: {}, {}\non {}'.format(self.netname, netname, node))
-#            self.netname = netname
-#        if 'type' in node:
-#            type = node['tyoe']
-#            if self.type and self.type != type:
-#                raise Exception('type conflict: {}, {}\non {}'.format(self.type, type, node))
-#            self.type = type
-#        
-#    def stamp(self, conn):
-#        self.conn.add(conn)
-#        promotions = 0
-#        if conn.netname:
-#            if self.netname and self.netname != conn.netname:
-#                raise Exception('stamping conflict: {}, {}\non {}'.format(self.netname, conn.netname, self.node))
-#            elif self.netname is None:
-#                self.netname = conn.netname
-#                promotions = 1
-#        if conn.type:
-#            if self.type and self.type != conn.type:
-#                raise Exception('Type conflict: {}, {}\non {}'.format(self.type, conn.type, self.node))
-#            elif self.type is None:
-#                self.type = conn.type
-#                promotions = 1
-#        return promotions
-           
+blkModuleCache = dict()           
         
 class NetObj(object):
     def __init__(self, d):
@@ -150,6 +117,46 @@ def netlist(filename, properties=dict(), lang='myhdl'):
     if lang == 'myhdl':
         return toMyhdl(module_name, blocks, internal_nets, external_nets)
 
+def blkToMyhdlInstance(blk):
+    
+    libname, blkname = blk['libname'], blk['blockname']
+    name =  blk['label']['text']
+    iname = '    u_{}'.format(name)
+
+    conns = []
+    args = blk['conn']
+    if 'properties' in blk:
+        args.update(blk['properties'])
+    for pinname,netname in blk['conn'].items():
+        conns.append('{} = {}'.format(pinname, netname))
+
+    if 'parameters' in blk: # pcell
+        parameters = blk['parameters']
+        
+        
+        # find module
+        k = libname+'/'+blkname
+
+        try:
+            blkMod = blkModuleCache[k]
+        except KeyError:
+            fname = libraries.blockpath(libname, blkname)
+            blkMod = import_module_from_source_file(fname)
+            blkModuleCache[k] = blkMod
+        
+        try:
+            return blkMod.toMyhdlInstance(name, blk['conn'], parameters)
+        except AttributeError:
+            message = 'error while netlisting parametrized block {}.{}\n'.format(libname, blkname) + \
+                      'function toMyhdlInstance is not present'
+            raise Exception(message)
+    else: # normal cell
+        jj = ',\n' + ' ' * 16
+        c = jj.join(conns)
+        return '{} = {}.{}({})\n'.format(iname, libname, blkname, c)
+    
+
+
 def toMyhdl(module_name, blocks, internal_nets, external_nets):
     '''module_name       string with the name of the module
        blocks            dict {inst_name:block definitions (from diagram) + resolved connectivity}
@@ -158,18 +165,16 @@ def toMyhdl(module_name, blocks, internal_nets, external_nets):
     '''
 
     ret = ['#netlist of {}\n'.format(module_name)]
+    ret.append('from myhdl import block, Signal, intbv, fixbv, instances\n')
     
     # imports
-    imports = OrderedDict(myhdl=['block', 'Signal', 'intbv', 'fixbv', 'instances'])
+    imports = set()
     for name, blk in blocks.items():
-        libname, blockname = blk['libname'], blk['blockname']
-        if not libname in imports:
-            imports[libname] = set()
-        imports[libname].add(blockname)
+        imports.add(blk['libname'])
     
     
     for lib in imports:
-        ret.append('from {} import {}'.format(lib, ', '.join(imports[lib])))
+        ret.append('import {}'.format(lib))
     ret.append('')
     
     # block definition
@@ -186,16 +191,11 @@ def toMyhdl(module_name, blocks, internal_nets, external_nets):
             ret.append('    {} = Signal(0)'.format(netname))
     ret.append('')
 
+
+    # blocks
+    ret.append('    # body')
     for name, blk in blocks.items():
-        blkname = blk['blockname']
-        iname = '    inst_{}'.format(name)
-        jj = ',\n'+' '*(len(iname)+len(blkname)+4)
-#        jj = ',\n'+' '*(len(iname)+8)
-        c = []
-        for pn,nn in blk['conn'].items():
-            c.append('{} = {}'.format(pn, nn))
-        c = jj.join(c)
-        ret.append('{} = {}({})\n'.format(iname, blkname, c))
+        ret.append(blkToMyhdlInstance(blk))
 
     ret.append('    return instances()')
             
@@ -281,9 +281,19 @@ def resolve_connectivity(filename, properties=dict()):
         block_module = block_modules[blockname+'/'+libname]
         
         inp, outp = block_module.inp, block_module.outp
-        blk['conn'] = OrderedDict()        
-        for pname, px, py in inp + outp:
-            blk['conn'][pname] = None
+        blk['conn'] = OrderedDict()
+        if isinstance(inp, int):
+            for ix in range(inp):
+                blk['conn']['.i_{}'.format(ix)] = None
+        else:
+            for pname, px, py in inp:
+                blk['conn'][pname] = None
+        if isinstance(outp, int):
+            for ix in range(outp):
+                blk['conn']['.o_{}'.format(ix)] = None
+        else:
+            for pname, px, py in inp:
+                blk['conn'][pname] = None
         
     for netname, conns in resolved.items():
         for conn in conns:
@@ -417,7 +427,7 @@ def resolve_connectivity(filename, properties=dict()):
                            copyrightPolicy=copyrightPolicy)
 
 def getPins(libname,blockname,param=dict()):
-    block = libraries.getBlock(blockname, libname, None, None, param)
+    block = libraries.getBlock(libname, blockname, None, None, param)
     block.setup(False)
     pins = []
     for inp in block.pins()[0]:

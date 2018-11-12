@@ -72,9 +72,28 @@ class Connection(QtWidgets.QGraphicsPathItem):
                 blkname = self.port[ix].parent.label.text()
                 pinname = self.port[ix].label.text()
                 data[pp] = (blkname, pinname)
-        if self.label:
-            data['label'] = self.label.text()
+#        if self.label:
+#            data['label'] = self.label.text()
         return data
+        
+    def fromData(self, data):
+        self.pos[0] = QtCore.QPointF(data['x0'], data['y0'])
+        self.pos[1] = QtCore.QPointF(data['x1'], data['y1'])
+        if 'p0' in data or 'p1' in data:
+            for item in self.scene().items():
+                if isPort(item, 'block'):
+                    pinname = item.label.text()
+                    blkname = item.parent.label.text()
+                    if 'p0' in data:
+                        if (blkname, pinname) == data['p0']:
+                            self.port[0] = item
+                    if 'p1' in data:
+                        if (blkname, pinname) == data['p1']:
+                            self.port[1] = item
+        self.update_pos_from_ports()
+        self.update_path()
+                    
+
     
     def setup(self):
         pen = QtGui.QPen(self.lineColor)
@@ -84,30 +103,6 @@ class Connection(QtWidgets.QGraphicsPathItem):
     def update_pos_from_ports(self):
         self.pos[0] = self.port[0].scenePos()
         self.pos[1] = self.port[1].scenePos()
-
-#    def update_ports_from_pos(self, undo=False):
-#        item = self.scene().find_itemAt(self.pos[0])
-##        print('1 ' + str(item))
-#        if isOutPort(item) or isNode(item):
-#            self.port[0] = item
-#        else:
-#            if not undo:
-#                error("Connection couldn't find pin")
-#            self.remove()
-#            return
-#        item = self.scene().find_itemAt(self.pos[1])
-##        print('2 ' + str(item))
-#        if isInPort(item)or isNode(item):
-#            self.port[1] = item
-#        else:
-#            if not undo:
-#                error("Connection couldn't find pin")
-#            self.remove()
-#            return
-#    
-#        self.port[0].connections.append(self)
-#        self.port[1].connections.append(self)
-#        self.update_path()
         
     def update_path(self, portOrPos=None):
         p = QtGui.QPainterPath()

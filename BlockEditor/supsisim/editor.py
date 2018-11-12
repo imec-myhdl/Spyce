@@ -239,7 +239,7 @@ class Editor(QtCore.QObject):
         ret = dialog.getLabel()
         if ret:
             item.signalType = textItem(ret, anchor=8, parent=item)
-            self.signalType.setBrush(colors['signalType'])
+            item.signalType.setBrush(colors['signalType'])
             font = item.signalType.font()
             font.setItalic(True)
             item.signalType.setFont(font)
@@ -260,15 +260,15 @@ class Editor(QtCore.QObject):
         dialog = propertiesDialog(self.scene.mainw, dd, properties, title=title)
         dd = dialog.getRet()
         if dd:
-            item.setType( dd['Pin_type'])
-            item.setLabel(dd['Pin_label'])
-            item.properties = dd['properties']
-            print (dd['properties'])
+            item.setType( dd.pop('Pin_type'))
+            item.setLabel(dd.pop('Pin_label'))
+            if dd:
+                item.properties = dd
             item.setup()
 
     def blockProperties(self):
         item = self.scene.item
-        dialog = propertiesDialog(self.scene.mainw, item.properties, addButton=True)
+        dialog = propertiesDialog(self.scene.mainw, item.properties)
         dd = dialog.getRet()
         if dd:
            item.properties = dd   
@@ -278,11 +278,39 @@ class Editor(QtCore.QObject):
         dialog = propertiesDialog(self.scene.mainw, item.parameters, addButton=False)
         ret = dialog.getRet()
         if ret:
-            block = item.toData()
-            item.remove()
-            b = getBlock(block['blockname'],block['libname'],scene=self.scene,param=ret,name=block['name'])
-            b.setPos(block['pos']['x'],block['pos']['y'])
-            b.properties = block['properties']
+            # store connections to ports
+            pp = dict()
+            for port in item.ports():
+                portname = port.label.text()
+                pp[portname] = []
+                for c in port.connections:
+                    if c.port[0] == port and c.port[1] != port:
+                        pp[portname].append((0, c.port[1]))
+                    elif c.port[0] != port and c.port[1] == port:
+                        pp[portname].append((1, c.port[0]))
+                        
+            item.parameters = ret # apply new parameters (no effect)
+            data = item.toData() # store blk
+            item.remove() # also removes connections
+            
+            # recreate with new parameters
+            b = getBlock(data['libname'], data['blockname'], scene=self.scene,param=ret,name=data['blockname'])
+            b.fromData(data)
+            b.setLabel()
+            
+            # restore connections to block
+            for port in b.ports():
+                portname = port.label.text()
+                if portname in pp:
+                    for (ix, p) in pp[portname]:
+                        if ix == 0:
+                            c = Connection(None, self.scene, port)
+                            c.attach(1, p)
+                        else:
+                            c = Connection(None, self.scene, p)
+                            c.attach(1, port)
+                        c.update_path()
+                       
 
 
 

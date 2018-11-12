@@ -389,14 +389,14 @@ class propertiesDialog(QtWidgets.QDialog):
             (int, dict(prefix='', suffix='', min=None, max=None))
             '''
 
-    def __init__(self, parent=None, dd=dict(), properties=None, title=None):
+    def __init__(self, parent=None, dd=dict(), properties=None, title=None, addButton=True):
         super(propertiesDialog, self).__init__(parent)
         self.layout = QtWidgets.QGridLayout()
         self.keyix = OrderedDict()
         self.propix = OrderedDict()
         self.w = []
         self.n = 0
-        addButton = not properties is None
+#        addButton = not properties is None
         self.addrows(dd, properties)
 
         if addButton:
@@ -420,6 +420,8 @@ class propertiesDialog(QtWidgets.QDialog):
 
     def addrows(self, dd, properties):
         for ddd, propflag in [(dd, False), (properties, True)]:
+            if ddd is None:
+                return
             for k, v  in ddd.items():
                 w = None
                 if isinstance(v, basestring):
@@ -490,7 +492,8 @@ class propertiesDialog(QtWidgets.QDialog):
                 except ValueError:
                     v = val
                 properties[k] = v
-            dd['properties'] = properties 
+#            dd['properties'] = properties 
+            dd.update(properties)
             return dd
 
    

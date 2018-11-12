@@ -160,9 +160,9 @@ class CompViewer(QtWidgets.QGraphicsScene):
     def removeBlock(self):
         self.parent.removeBlock(self.actComp)
     
-    def setUniqueName(self, block):
-        '''should returns a unique name, but this is the only occurence (in the library viewer)'''
-        return block.name 
+#    def setUniqueName(self, block):
+#        '''should returns a unique name, but this is the only occurence (in the library viewer)'''
+#        return block.name 
         
 class Library(QtWidgets.QMainWindow):
     '''
@@ -225,7 +225,7 @@ class Library(QtWidgets.QMainWindow):
         else:
             libname = self.libraries.currentItem().text()
             blockname = self.cells.currentItem().text()
-            blk = getBlockModule(blockname,libname)
+            blk = getBlockModule(libname,blockname)
             bbox = blk.bbox if 'bbox' in blk.__dict__ else None
             if bbox is None:
                 bbox = calcBboxFromPins(blk.inp, blk.outp)
