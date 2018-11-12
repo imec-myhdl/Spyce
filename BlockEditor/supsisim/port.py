@@ -128,17 +128,18 @@ class Port(QtWidgets.QGraphicsPathItem):
             self.label.setPos(-10,0)
             self.label.setAnchor(6)
         elif self.label_side == 'top':
-            self.label.setPos(0,-10)
+            self.label.setPos(0,-1)
             self.label.setAnchor(2)
         elif self.label_side == 'bottom':
-            self.label.setPos(0,10)
+            self.label.setPos(0,1)
             self.label.setAnchor(8)
         
         self.label.setNormal()
         # pin to block
-        self.label.setTextInteractionFlags(QtCore.Qt.NoTextInteraction) # disallow edits
-        self.label.setFlag(self.ItemIsMovable, False) # do not allow move
-        self.label.setFlag(self.ItemIsSelectable, False) # do not allow select
+        if self.porttype in ['input', 'output', 'inout']:
+            self.label.setTextInteractionFlags(QtCore.Qt.NoTextInteraction) # disallow edits
+            self.label.setFlag(self.ItemIsMovable, False) # do not allow move
+            self.label.setFlag(self.ItemIsSelectable, False) # do not allow select
         if self.label.text().startswith('.'):
             self.label.hide()
         else:
