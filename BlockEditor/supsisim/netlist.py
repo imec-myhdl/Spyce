@@ -117,44 +117,55 @@ def netlist(filename, properties=dict(), lang='myhdl'):
     if lang == 'myhdl':
         return toMyhdl(module_name, blocks, internal_nets, external_nets)
 
+def defaultMyHdlInstance(name, libname, blockname, connectDict):
+    conns = []
+    for pinname,netname in connectDict.items():
+        conns.append('{} = {}'.format(pinname, netname))
+    jj = ',\n' + ' ' * 16
+    c = jj.join(conns)
+    return 'u_{} = {}.{}({})\n'.format(name, libname, blockname, c)
+
 def blkToMyhdlInstance(blk):
     
     libname, blkname = blk['libname'], blk['blockname']
-    name =  blk['label']['text']
-    iname = '    u_{}'.format(name)
+    name = blk['label']['text'] # instance name in diagram
 
-    conns = []
     args = blk['conn']
+    # store properties
     if 'properties' in blk:
         args.update(blk['properties'])
-    for pinname,netname in blk['conn'].items():
-        conns.append('{} = {}'.format(pinname, netname))
 
-    if 'parameters' in blk: # pcell
-        parameters = blk['parameters']
-        
-        
-        # find module
-        k = libname+'/'+blkname
-
-        try:
-            blkMod = blkModuleCache[k]
-        except KeyError:
-            fname = libraries.blockpath(libname, blkname)
-            blkMod = import_module_from_source_file(fname)
-            blkModuleCache[k] = blkMod
-        
-        try:
-            return blkMod.toMyhdlInstance(name, blk['conn'], parameters)
-        except AttributeError:
-            message = 'error while netlisting parametrized block {}.{}\n'.format(libname, blkname) + \
-                      'function toMyhdlInstance is not present'
-            raise Exception(message)
-    else: # normal cell
-        jj = ',\n' + ' ' * 16
-        c = jj.join(conns)
-        return '{} = {}.{}({})\n'.format(iname, libname, blkname, c)
     
+    parameters = blk['parameters'] if 'parameters' in blk else dict() # pcell
+        
+    
+    instance_netlist = ''
+
+    # find blk module
+    k = libname+'/'+blkname
+    try: 
+        blkMod = blkModuleCache[k]
+    except KeyError:
+        fname = libraries.blockpath(libname, blkname)
+        blkMod = import_module_from_source_file(fname)
+        blkModuleCache[k] = blkMod
+    
+    # try module.toMyhdlInstance()
+    try:
+        instance_netlist = blkMod.toMyhdlInstance(name, args, parameters)
+        return instance_netlist
+
+    except AttributeError:
+        if parameters: # parametrized cell should have netlist function
+            message = 'error while netlisting parametrized block {}.{}\n'.format(libname, blkname) + \
+                      'function toMyhdlInstance is not present. \n' +\
+                      'When the parameters do not change ports, you can return None to indicate normal netlist'
+            raise Exception(message)
+
+    if not instance_netlist: # normal cell netlist
+        instance_netlist = defaultMyHdlInstance(name, libname, blkname, args)
+
+    return instance_netlist
 
 
 def toMyhdl(module_name, blocks, internal_nets, external_nets):

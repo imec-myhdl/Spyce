@@ -51,23 +51,22 @@ def getSymbol(param,parent=None,scene=None,):
             
     return b
     
-def toMyhdlInstance(name, connectdict, param):
+def toMyhdlInstance(instname, connectdict, param):
     # properties end up in the connectdict
     gains = param['A'] if 'A' in param else '++' 
     inputs = []
     outp = connectdict['.o_0']
     for ix, s in enumerate(gains):
         net = connectdict['.i_{}'.format(ix)]
-        gain = gains[ix]
         if s == '-':
             inputs.append('- {}'.format(net))
         else:
             inputs.append('+ {}'.format(net))
-            inputs.append('+ {} * {}'.format(gain, net))
+
     addition = '{}.next = {}'.format(outp, ' '.join(inputs).lstrip('+ '))
     fmt = '    @always_comb\n' + \
           '    def u_{}():\n' + \
           '        {}\n'
-    return fmt.format(name, addition)
+    return fmt.format(instname, addition)
 
 views = {}
