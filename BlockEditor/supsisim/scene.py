@@ -41,18 +41,19 @@ class GraphicsView(QtWidgets.QGraphicsView):
         self.setRenderHint(QtGui.QPainter.TextAntialiasing)
         self.setAcceptDrops(True)
         self.returnSymbol = False
+        self.currentscale = 1.0
         
     def wheelEvent(self, event):
         if Qt.__binding__ in ['PyQt5', 'PySide2']:
-            factor = 1.41 ** (-event.angleDelta().y()/ 240.0)
+            factor = 1.41 ** (event.angleDelta().y()/ 240.0)
         else:
-            factor = 1.41 ** (-event.delta() / 240.0)
-        
+            factor = 1.41 ** (event.delta() / 240.0)
+        self.currentscale *= factor
         # zoom around mouse position, not the anchor
         self.setTransformationAnchor(QtWidgets.QGraphicsView.NoAnchor)
         self.setResizeAnchor(QtWidgets.QGraphicsView.NoAnchor)
         pos = self.mapToScene(event.pos())
-        self.scale(1/factor, 1/factor)
+        self.scale(factor, factor)
         delta =  self.mapToScene(event.pos()) - pos
         self.translate(delta.x(), delta.y())
         

@@ -12,7 +12,7 @@ BWmin = 80 # block minimum width
 BHmin = 60 # block minimum height
 
 
-DB = 2   # selection radius 
+DB = 2   # selection radius (dynamically scaling whith zoom)
 
 
 # defaults for icon creation

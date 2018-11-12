@@ -125,12 +125,6 @@ class Editor(QtCore.QObject):
 #        b.name = self.scene.setUniqueName(b)
         b.setup()
 
-    def ConnectionAt(self, pos):
-        items = self.scene.items(QtCore.QRectF(pos-QtCore.QPointF(4*DB,4*DB), QtCore.QSizeF(8*DB,8*DB)))
-        for item in items:
-            if isConnection(item):
-                return item
-        return None
 
     def deleteBlock(self):
         item = self.scene.item
@@ -158,7 +152,9 @@ class Editor(QtCore.QObject):
 
     def itemAt(self, pos, exclude=[], single=True):
         items = []
-        for item in self.scene.items(QtCore.QRectF(pos-QtCore.QPointF(DB,DB), QtCore.QSizeF(2*DB,2*DB))):
+        radius = 4 * DB / self.parent().view.currentscale
+        allitems = self.scene.items(QtCore.QRectF(pos-QtCore.QPointF(radius,radius), QtCore.QSizeF(2*radius,2*radius)))
+        for item in allitems:
             if isinstance(item, QtWidgets.QGraphicsItem):
                 items.append(item)            
                 for testfunc in exclude:
@@ -168,6 +164,9 @@ class Editor(QtCore.QObject):
             if single and items:
                 return items[0]
         return items
+
+    def ConnectionAt(self, pos):
+        return self.itemAt(pos, exclude=[isNode, isPort, isBlock], single=True)
 
     def nameBlock(self):
         item = self.scene.item
@@ -389,7 +388,7 @@ class Editor(QtCore.QObject):
             
     def mouseLeftButtonPressed(self, obj, event):
         pos = gridPos(event.scenePos())
-        items = self.itemAt(pos, single=False, )
+        items = self.itemAt(pos, single=False)
         if self.conn: # connection mode
             while True: # continue until either empty, or Port/Node found
                 if len(items) == 0:
