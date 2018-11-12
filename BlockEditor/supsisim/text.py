@@ -49,6 +49,12 @@ class textItem(QtWidgets.QGraphicsTextItem):
         
     def setBrush(self, color):
         self.setDefaultTextColor(color)
+        
+    def setPos(self, x, y=None):
+        if isinstance(x, (QtCore.QPoint, QtCore.QPointF)): # called with 
+            x, y = x.x(), x.y()
+        x, y = round(x*10)/10, round(y*10)/10
+        super(textItem, self).setPos(x, y)
 
     def toData(self):
         text = self.text()
@@ -57,8 +63,9 @@ class textItem(QtWidgets.QGraphicsTextItem):
         else:
             data = OrderedDict(type='label')
             data['text']   = text
-            data['x'] = self.pos().x()
-            data['y'] = self.pos().y()
+            x, y = self.pos().x(), self.pos().y()
+            data['x'] = round(x*10)/10
+            data['y'] = round(y*10)/10
             data['anchor'] = self.anchor
             data['font'] = self.font().toString()
             return data
