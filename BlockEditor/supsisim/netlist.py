@@ -2,18 +2,22 @@
 from __future__ import (division, print_function, absolute_import,
                         unicode_literals)
 
-import os, sys
+import os, sys, string
 from collections import OrderedDict
 
 d = os.path.dirname(os.path.dirname(__file__))
 sys.path.append(d)
 
 import subprocess
-from   supsisim.const import viewTypes,copyrightText,copyrightPolicy,projectname
+from   supsisim import const 
 from   supsisim.src_import import import_module_from_source_file
 import libraries
 
 filenameTemplate = 'libraries.library_{}.{}'
+
+def strip_ext(fname, ext):
+    return fname[:-len(ext)] if fname.endswith(ext) else fname
+
 
 template = """
 #---------------------------------------------------------------------------------------------------
@@ -66,6 +70,13 @@ if __name__ == "__main__":
 """
 
 blkModuleCache = dict()           
+force_renetlist = True
+
+def dest_newer_than_source(dest, source):
+    if force_renetlist:
+        return False
+    return os.path.isfile(dest) and (os.stat(dest).st_mtime > os.stat(source).st_mtime)
+
         
 class NetObj(object):
     def __init__(self, d):
@@ -93,7 +104,9 @@ class NetObj(object):
                 promotions = 1
 
         return promotions
-            
+
+
+           
 def propagateNets(conn, connections, resolved):
     # conn is a (newly) named connection
     # connections holds UNRESOLVED nets
@@ -107,23 +120,95 @@ def propagateNets(conn, connections, resolved):
                 connections.discard(c)
                 propagateNets(c, connections, resolved)
 
-def netlist(filename, properties=dict(), lang='myhdl'):
-    d, module_name = os.path.split(filename)
-    ed, ext = viewTypes['diagram']
-    module_name = module_name.rstrip(ext)
 
-    blocks, internal_nets, external_nets = resolve_connectivity(filename, properties=dict())
+def netlist(filename, properties=dict(), lang='myhdl', netlist_dir=const.netlist_dir):
+    d, module_name  = os.path.split(filename)
+    ed, ext_diagram = const.viewTypes['diagram']
+    ed, ext_lang    = const.viewTypes[lang]
+    
+    if filename.endswith(ext_lang): # other view (myhdl verilog etc.)
+        # copy file to netlist location (if newer than existing netlist)
+    
+        libname, blockname = libraries.pathToLibnameBlockname(strip_ext(filename, ext_lang))
+        ext = '.py' # .mhdl.py -> .py etc.
+        
+        libdir = libraries.libprefix + libname  if libname else libname
+            
+        outfile = os.path.join(netlist_dir, libdir, blockname + ext)
+        if dest_newer_than_source(dest=outfile, source=filename):
+            # print('{} module already present in {}'.format(lang, outfile))
+            return # do nothing if outfile newer than infile
 
-    if lang == 'myhdl':
-        return toMyhdl(module_name, blocks, internal_nets, external_nets)
+        if not os.path.isdir(os.path.join(netlist_dir, libdir)):
+            os.makedirs(os.path.join(netlist_dir, libdir))
+        with open(filename, 'rb') as fi:
+            t = fi.read()
+            
+        with open(outfile, 'wb') as fo:
+            fo.write(t)
+        print('{} module written to {}'.format(lang, outfile))
+
+        
+    else: # diagram
+        if filename.endswith(ext_diagram):
+            module_name = strip_ext(os.path.basename(filename), ext_diagram)
+        else:
+            module_name = strip_ext(module_name, '.py') # toplevel can have arbitrary_name.py
+
+        libname, _ = libraries.pathToLibnameBlockname(strip_ext(filename, ext_lang))
+        libdir = libraries.libprefix + libname  if libname else libname
+
+        # resolve connections
+        blocks, internal_nets, external_nets = resolve_connectivity(filename, properties=dict())
+
+        if lang == 'myhdl':
+            txt = toMyhdl(module_name, blocks, internal_nets, external_nets)
+
+            if not os.path.isdir(netlist_dir):
+                os.makedirs(netlist_dir)
+
+            fname = os.path.join(netlist_dir, libdir, module_name + '.py')
+            if not dest_newer_than_source(dest=fname, source=filename):
+                with open(fname, 'wb') as fo:
+                    fo.write('# myhdl netlist generated from {}\n\n'.format(filename))
+                    fo.write(txt)
+                print('diagram netlist written to', fname)
+            
+            for name, block in blocks.items():
+                libname, blockname = block['libname'], block['blockname']
+                k = libname + '/' + blockname
+                libpath = libraries.libpath(libname)
+                fname = os.path.join(libpath, blockname)
+                netlist_subdir = os.path.join(netlist_dir, libraries.libprefix+libname)
+                
+                # blk contains toMyhdlInstance code 
+                if k in blkModuleCache and hasattr(blkModuleCache[k], 'toMyhdlInstance'):
+                    pass
+
+                # blk has a netlist view
+                elif os.path.exists(fname + ext_lang):
+                    netlist(fname + ext_lang, properties, lang, netlist_dir)
+
+                # blk has diagram (that can be netlisted)
+                elif os.path.exists(fname + ext_diagram):
+                    netlist(fname + ext_diagram, properties, lang, netlist_dir)
+
+                else:
+                    print('Warning: {}.{} is missing a {} view'.format(libname, blockname, lang))
+    
+
+        else:
+            raise Exception('todo: language support for '+lang)
+
+    
 
 def defaultMyHdlInstance(name, libname, blockname, connectDict):
     conns = []
     for pinname,netname in connectDict.items():
         conns.append('{} = {}'.format(pinname, netname))
-    jj = ',\n' + ' ' * 16
+    jj = ',\n' + ' ' * 12
     c = jj.join(conns)
-    return 'u_{} = {}.{}({})\n'.format(name, libname, blockname, c)
+    return '    u_{} = {}{}.{}({})\n'.format(name, libraries.libprefix, libname, blockname, c)
 
 def blkToMyhdlInstance(blk):
     
@@ -175,15 +260,14 @@ def toMyhdl(module_name, blocks, internal_nets, external_nets):
        internal_nets     dict {netname:signalType} containing all internal netnames 
     '''
 
-    ret = ['#netlist of {}\n'.format(module_name)]
-    ret.append('from myhdl import block, Signal, intbv, fixbv, instances\n')
+    ret = ['from myhdl import block, Signal, intbv, fixbv, instances\n']
     
     # imports
     imports = set()
     for name, blk in blocks.items():
-        imports.add(blk['libname'])
+        imports.add(libraries.libprefix + blk['libname'])
     
-    
+    ret.append('# import block libraries')
     for lib in imports:
         ret.append('import {}'.format(lib))
     ret.append('')
@@ -193,14 +277,16 @@ def toMyhdl(module_name, blocks, internal_nets, external_nets):
     ret.append('')
 
     # internal_nets
-    ret.append('    # internal nets')
-    for netname in internal_nets:
-        tp = internal_nets[netname]['signalType']
-        if tp:
-            ret.append('    {} = Signal({})'.format(netname, tp))
-        else:
-            ret.append('    {} = Signal(0)'.format(netname))
-    ret.append('')
+    if internal_nets:
+        ret.append('    # internal nets')
+        for netname in internal_nets:
+            tp = internal_nets[netname]['signalType']
+            if netname[0] in '_' + string.lowercase + string.uppercase:
+                if tp:
+                    ret.append('    {} = Signal({})'.format(netname, tp))
+                else:
+                    ret.append('    {} = Signal(0)'.format(netname))
+        ret.append('')
 
 
     # blocks
@@ -226,11 +312,11 @@ def resolve_connectivity(filename, properties=dict()):
         inst_name = blk['label']['text']
         blocks[inst_name] = blk
 
-    block_modules = dict()
-    for name, blk in blocks.items():
         blockname, libname = blk['blockname'],  blk['libname']
         fname = libraries.blockpath(libname, blockname)
-        block_modules[blockname+'/'+libname] = import_module_from_source_file(fname)
+        k = blockname+'/'+libname
+        if not k in blkModuleCache:
+            blkModuleCache[k] = import_module_from_source_file(fname)
 
     portnames = set()            
     nodes = dict()
@@ -239,12 +325,6 @@ def resolve_connectivity(filename, properties=dict()):
         nodes[xy] = NetObj(n)
         if 'label' in n and n['porttype'] != 'node':
             portnames.add(n['label']['text'])
-
-#    pins = dict()
-#    for k in nodes.keys():
-#        if nodes[k]['porttype'] != 'node':
-#            pins[k] = nodes.pop(k)
-    
 
 
     resolved   = dict()# resolved connections netname:[list of connections and nodes]
@@ -273,11 +353,47 @@ def resolve_connectivity(filename, properties=dict()):
 #==============================================================================
 #  propagate anonymous nets
 #==============================================================================
+    # build a set of driven nets    
+    driven_connections = set()
+    for conn in unresolved:
+        if 'p0' in conn.d:
+            driven_connections.add(conn)
+
     n_nets = 0 # used to number anonymous nets
     while unresolved:
-        conn = unresolved.pop()
-        n_nets += 1
-        netname = 'net{}'.format(n_nets)
+        
+        # check if there are driven conncetions
+        if driven_connections: # name after driving instance
+            conn = driven_connections.pop()
+            unresolved.discard(conn)
+            instname, portname =  conn.d['p0']
+            
+            # check how many outputs in block
+            blk = blocks[instname]
+            libname   = blk['libname']
+            blockname = blk['blockname']
+            k = blockname+'/'+libname
+            
+            print ('debug', libname, blockname, instname, portname)
+            blkMod = blkModuleCache[k]
+            if hasattr(blkMod, 'ports'):
+                param = blk['parameters'] if 'parameters' in blk else None
+                _, outp, _ = blkMod.ports(param)
+                noutp = len(outp)
+            else:
+                if isinstance(blkMod.outp, int):
+                    noutp = blkMod.outp
+                else:
+                    noutp = len(blkMod.outp)
+            netname = 'w_{}'.format(instname.lower()) #instance_name
+            if noutp > 1: # when more than 1 output
+                netname += '_{}'.format(portname.lstrip('.').lower()) # + port_name
+            
+        else: # choose arbitrary name
+            conn = unresolved.pop()
+            n_nets += 1
+            netname = 'net{}'.format(n_nets)
+            
         conn.netname = netname
         if conn.netname not in resolved:
             resolved[conn.netname] = set()
@@ -289,9 +405,10 @@ def resolve_connectivity(filename, properties=dict()):
 #==============================================================================
     for blkname, blk in blocks.items():
         blockname, libname = blk['blockname'],  blk['libname']
-        block_module = block_modules[blockname+'/'+libname]
+        k = blockname+'/'+libname
+        blkMod = blkModuleCache[k]
         
-        inp, outp = block_module.inp, block_module.outp
+        inp, outp = blkMod.inp, blkMod.outp
         blk['conn'] = OrderedDict()
         if isinstance(inp, int):
             for ix in range(inp):
@@ -561,5 +678,9 @@ def getLabel(signal,connections,nodes,key):
         
     
 if __name__ == "__main__":
-    mynetlist = netlist(os.path.join(d, 'saves', 'sailpll.py'))
-    print(mynetlist)
+    lang = 'myhdl'
+#    fname = os.path.join(d, 'saves', 'untitled.py')
+    fname = os.path.join(d, 'saves', 'sailpll.py')
+    nldir = os.path.join(const.netlist_dir + '_' + lang, strip_ext(os.path.basename(fname), '.py'))
+    netlist(fname, netlist_dir=nldir)
+    print('done')

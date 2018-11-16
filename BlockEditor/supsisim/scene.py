@@ -17,7 +17,7 @@ from supsisim.text  import textItem, Comment, isComment
 from supsisim.port  import Port, isInPort, isOutPort, isNode, isPort
 from supsisim.connection import Connection, isConnection
 from supsisim.dialg import RTgenDlg
-from supsisim.const import pyrun, TEMP, DB
+from supsisim.const import pyrun, netlist_dir, DB
 import libraries
 
 def d2s(d):
@@ -227,12 +227,14 @@ class Scene(QtWidgets.QGraphicsScene):
         
         
         for data in blocks:
+            prop = data['properties'] if 'properties' in data else dict()
             if 'parameters' in data:
                 #getBlock(libname, blockname, parent=None, scene=None, param=dict(), name=None, flip=False)
                 b = getBlock(data['libname'], data['blockname'], scene=self,\
-                    param=data['parameters'])
+                    param=data['parameters'], properties=prop)
             else:
-                b = getBlock(data['libname'], data['blockname'],scene=self)
+                b = getBlock(data['libname'], data['blockname'], properties=prop, scene=self)
+                
             if b:
                 b.fromData(data)
                     
@@ -251,9 +253,10 @@ class Scene(QtWidgets.QGraphicsScene):
             
             for ix in [0,1]:
                 port = self.find_itemAt(pos[ix], exclude=(Block, Connection, textItem))
-                if port:
+                if isPort(port):
                     conn.attach(ix, port)
                 else:
+                    conn.pos[ix] = pos[ix]
                     print('no port at ', pos[ix])
             conn.update_path()
                     
@@ -526,7 +529,7 @@ class Scene(QtWidgets.QGraphicsScene):
         cmd += '    pass\n'
         
         try:
-            os.mkdir(TEMP + '/' + self.mainw.filename + '_gen')
+            os.mkdir(netlist_dir + '/' + self.mainw.filename + '_gen')
         except:
             pass
         f = open('tmp.py','a')

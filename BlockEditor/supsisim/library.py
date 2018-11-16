@@ -226,11 +226,11 @@ class Library(QtWidgets.QMainWindow):
             libname = self.libraries.currentItem().text()
             blockname = self.cells.currentItem().text()
             blk = getBlockModule(libname,blockname)
-            bbox = blk.bbox if 'bbox' in blk.__dict__ else None
+            bbox = getattr(blk, 'bbox', None)
             if bbox is None:
                 bbox = calcBboxFromPins(blk.inp, blk.outp)
         
-        if 'getSymbol' in blk.__dict__:
+        if hasattr(blk, 'getSymbol'):
             error("you have to change the getSymbol function to change this block's bbox")
             return
              
@@ -665,15 +665,16 @@ class Library(QtWidgets.QMainWindow):
 
     def editPins(self,actComp=None):
         libname, blockname, fname, blk = self.getnames(actComp)
-        if 'getSymbol' in blk.__dict__:
-            error('cannot edit parametrized cell, the pins should be set in getSymbol')
-        if 'diagram' in getViews(libname, blockname):
-            error('Cannot edit pins of block that has a diagram')
+        param = getattr(blk, 'parameters', None)
+        if param:
+            error('cannot edit pins of parametrized cell, the pins should be set in getSymbol')
+        if hasattr(blk, 'getSymbol'):
+            error('Cannot edit pins block containing getSymbol() function')
             return
         
-        inp = blk.inp
-        outp = blk.outp
-        
+        inp = actComp.inp
+        outp = actComp.outp
+
         dialog = editPinsDialog(inp,outp)
         ret = dialog.getRet()
         if ret:
@@ -682,7 +683,7 @@ class Library(QtWidgets.QMainWindow):
             dd['outp'] = ret[1]
             
             
-            libraries.updateSource(libname, blockname, dd)
+            actComp.updateOnDisk(dd)
             
             if self.type == 'symbolView':
                 i = self.tabs.currentIndex()
@@ -747,7 +748,7 @@ class Library(QtWidgets.QMainWindow):
             scene.clear()
             view = QtWidgets.QGraphicsView(scene)
             scene.compLock = True
-            for i, blockname in enumerate(lib):
+            for i, blockname in enumerate(sorted(lib)):
                 # add block to scene
                 block = getBlock(libname, blockname, scene=scene)
                 if block:
@@ -764,6 +765,7 @@ class Library(QtWidgets.QMainWindow):
                         set_orient(block, scale=scale)
                         block.label.scale = 1.0/scale
                         block.label.setNormal() # normal orientation, but will also set scale
+                    block.label.show()
             tab = QtWidgets.QWidget()
 #            if libname == 'symbols':
 #                self.symbolTab = tab

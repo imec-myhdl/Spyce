@@ -29,6 +29,9 @@ from supsisim.const import icon_font_size, icon_pin_size, PW, icon_cache_dir, re
 #from supsisim.port import isInPort, isOutPort, isInoutPort
 #from supsisim.block import calcBboxFromPins
 
+def strip_ext(fname, ext):
+    return fname[:-len(ext)] if fname.endswith(ext) else fname
+
 def svg2png(svgfilename):
     svgfilename = os.path.abspath(svgfilename)
     if svgfilename.startswith(libroot):
@@ -37,13 +40,13 @@ def svg2png(svgfilename):
         pngfilename = svgfilename[len(respath)+1:]
     else:
         pngfilename = svgfilename
-    pngfilename = os.path.join(icon_cache_dir, pngfilename.rstrip('.svg') + '.png')
+    pngfilename = os.path.join(icon_cache_dir, strip_ext(pngfilename, '.svg') + '.png')
     dirname, fname = os.path.split(pngfilename)
 #    print ('    svg:',svgfilename)
 #    print ('    png:',pngfilename)
     if not os.path.exists(svgfilename): # no svg
         return False
-    pngmirrorfile = pngfilename.rstrip('.png') + 'flip.png'
+    pngmirrorfile = pngfilename.rpartition('.')[0] + 'flip.png'
     timestamp0 = os.stat(svgfilename).st_mtime
     
     if  os.path.isfile(pngfilename)  and os.stat(pngfilename).st_mtime > timestamp0:

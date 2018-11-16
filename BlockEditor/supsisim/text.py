@@ -35,14 +35,22 @@ class textItem(QtWidgets.QGraphicsTextItem):
         # compute dx, dy absed on anchor
         self.setAnchor()
         self.setNormal()
-        self.setFlag(self.ItemIsMovable)
-        self.setFlag(self.ItemIsSelectable)
-#        self.setFlag(self.ItemIgnoresTransformations)
-        self.setTextInteractionFlags(QtCore.Qt.TextEditorInteraction) # allow edits
+        self.setMutable()
+#        self.setFlag(self.ItemIsSelectable)
+##        self.setFlag(self.ItemIgnoresTransformations)
+#        self.setTextInteractionFlags(QtCore.Qt.TextEditorInteraction) # allow edits
         self.setAcceptDrops(False)
 
     def setText(self, text):
         self.setPlainText(text)
+
+    def setMutable(self, mutable=True):
+        self.setFlag(self.ItemIsMovable, mutable)
+        self.setFlag(self.ItemIsSelectable, mutable)
+        if mutable:
+            self.setTextInteractionFlags(QtCore.Qt.TextEditorInteraction) # allow edits
+        else:
+            self.setTextInteractionFlags(QtCore.Qt.NoTextInteraction) # disallow edits
 
     def text(self):
         return self.toPlainText()

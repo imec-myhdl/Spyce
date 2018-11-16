@@ -17,13 +17,17 @@ from supsisim.text import isComment
 from supsisim.editor import Editor
 from supsisim.scene import Scene, GraphicsView
 from supsisim.dialg import IO_Dialog, convertSymDialog, viewConfigDialog,error
-from supsisim.const import respath, pycmd, PD,PW,BWmin, celltemplate, viewTypes
+from supsisim.const import respath, pycmd, PD,PW,BWmin, celltemplate, viewTypes, pythonEditor
 from supsisim.port import isInPort, isOutPort, isNode, isPort
 from supsisim.connection import isConnection
 from supsisim.src_import import import_module_from_source_file
 import libraries
 
 DEBUG = False
+
+def strip_ext(fname, ext):
+    return fname[:-len(ext)] if fname.endswith(ext) else fname
+
 
 class SupsiSimMainWindow(QtWidgets.QMainWindow):
     def __init__(self, library, fname, mypath, runflag, parent=None):
@@ -299,7 +303,7 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
     
     def editSettingsAction(self):
         from supsisim.const import viewTypes
-        editor, extension = viewTypes['python']
+        editor, extension = pythonEditor
         os.system(editor + ' supsisim/const.py')
     
     def viewConfigAct(self):
@@ -553,14 +557,14 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
                                    views = views)
 
                 # save block
-                fname = libraries.blockpath(libname, name)        
+                fname = libraries.blockpath(libname, name)
                 with open(fname,'w+') as f:
                     f.write(str(data))
 
                 # save diagram
                 ed, ext = viewTypes['diagram']
-                fname = fname.rstrip('.py') + ext
-                self.saveDiagram(fname.rstrip('.py'), selection)
+                fname = strip_ext(fname, '.py') + ext
+                self.saveDiagram(fname, selection)
 
                 for item in self.scene.selectedItems():    
                     try:

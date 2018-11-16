@@ -114,9 +114,9 @@ class editPinsDialog(QtWidgets.QDialog):
     def addInputFunc(self,name=None,x=None,y=None,hide=False):
         if not name:
             name = 'i_pin' + str(self.inputCounter)
-        if not x:
+        if x is None:
             x = '-40'
-        if not y:
+        if y is None:
             y = self.inputCounter*20
         inputInstance = QtWidgets.QWidget()
         inputInstance_layout = QtWidgets.QHBoxLayout()
@@ -383,7 +383,7 @@ class propertiesDialog(QtWidgets.QDialog):
     takes dict dd: keys are the fieldnames (underscore replaced with space), 
     values:
         stringtype                  -> line_edit
-        (default, [list of options] -> combo box
+        (default, [list of options])-> combo box
         int                         -> spinbox
             alternatively use tuple:
             (int, dict(prefix='', suffix='', min=None, max=None))
@@ -397,6 +397,7 @@ class propertiesDialog(QtWidgets.QDialog):
         self.w = []
         self.n = 0
 #        addButton = not properties is None
+        self.dd = dd
         self.addrows(dd, properties)
 
         if addButton:
@@ -474,15 +475,19 @@ class propertiesDialog(QtWidgets.QDialog):
 
     def getRet(self):
         if self.exec_():
-            dd = OrderedDict()
+            dd = dict()
             for k, ix in self.keyix.items():
                 if isinstance(self.w[ix], QtWidgets.QLineEdit):
                     dd[k] = self.w[ix].text()
                 elif isinstance(self.w[ix], QtWidgets.QComboBox):
-                    dd[k] = self.w[ix].currentText()
+                    v = self.w[ix].currentText()
+                    if isinstance(self.dd[k], (list, tuple)) and len(self.dd[k]) == 2:
+                        dd[k] = (v, self.dd[k][1])
+                    else:
+                        dd[k] = v
                 elif isinstance(self.w[ix], QtWidgets.QSpinBox):
                     dd[k] = self.w[ix].value()
-            properties = OrderedDict()
+            properties = dict()
             for k, ix in self.propix.items():
                 val = self.w[ix].text()
                 try:
@@ -491,7 +496,10 @@ class propertiesDialog(QtWidgets.QDialog):
                         v = int(v)
                 except ValueError:
                     v = val
-                properties[k] = v
+                if isinstance(self.dd[k], (list, tuple)) and len(self.dd[k]) == 2:
+                    properties[k] = (v, self.dd[k][1])
+                else:
+                    properties[k] = v
 #            dd['properties'] = properties 
             dd.update(properties)
             return dd
@@ -1244,8 +1252,8 @@ class convertSymDialog(QtWidgets.QDialog):
             if not re.match(r'[a-z_]\w*$', self.text_name.text(), re.I):
                 error('No valid variable name')
                 return False
-            if self.filename[0]:
-                ret['icon'] = QtCore.QFileInfo(self.filename[0]).baseName()
+            if self.filename:
+                ret['icon'] = QtCore.QFileInfo(self.filename).baseName()
             else:
                 ret['icon']= None 
                 error('No icon selected', warn=True)

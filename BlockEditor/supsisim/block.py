@@ -36,7 +36,7 @@ from collections import OrderedDict
 import libraries
 from supsisim.port  import Port, isPort
 from supsisim.const import GRID, PW, LW, BWmin, BHmin, PD, respath, \
-                            celltemplate, colors
+                            celltemplate, colors, viewTypes
 from supsisim.dialg import error
 from supsisim.text  import textItem
 from supsisim.src_import import import_module_from_source_file
@@ -54,15 +54,22 @@ def _addBlockModuleDefaults(libname, blockname):
     blk.name    = blockname
     blk.libname = libname
     blk.textSource = libraries.blockpath(libname, blockname)
-    if not 'icon' in blk.views:
-        blk.views['icon'] = None
-    if not 'bbox' in blk.__dict__:
-        blk.bbox = None
-    if not 'properties' in blk.__dict__:
-        blk.properties = dict()
-    if not 'parameters' in blk.__dict__:
-        blk.parameters = dict()
-    blk.views['textSource'] = blk.textSource
+    try:
+        if not 'icon' in blk.views:
+            blk.views['icon'] = None
+        if not hasattr(blk, 'bbox'):
+            blk.bbox = None
+        for pp in ['properties', 'parameters']:
+            if not hasattr(blk, pp):
+                setattr(blk, pp, dict())
+    except Exception as e:
+        raise Exception('Block {}.{} raised error {}'.format(libname,blockname, str(e)) )
+#    blk.views['textSource'] = blk.textSource
+    p = libraries.libpath(libname)
+    for viewname, (ed, ext) in viewTypes.items():
+        fn = os.path.join(p, blockname + ext)
+        if os.path.isfile(fn):
+            blk.views[viewname] = fn
 
 def getBlockModule(libname, blockname):
     '''read python module of block from disk'''
@@ -98,60 +105,63 @@ def gridPos(pt):
 #==============================================================================
 # helper function to easily create a Block object        
 #==============================================================================
-def getBlock(libname, blockname, parent=None, scene=None, param=dict(), name=None, flip=False):
+def getBlock(libname, blockname, parent=None, scene=None, param=dict(), properties=dict(), name=None, flip=False):
     '''create a Block'''
     blk = getBlockModule(libname, blockname)
     if blk.parameters and not param:
         param = blk.parameters
-    if param: # pcell
-#        try:
-            b = blk.getSymbol(param, parent, scene)
-            b.libname = libname
-            
-            if isinstance(b, Block):
-                if name:
-                    if scene:
-                        scene.rmBlkName(b)
-                        b.name = name
-                        scene.addBlkName(b)
-                    else:
-                        b.name = name
+    if blk.properties and not properties:
+        properties = blk.properties
 
-                    b.label.setText(name)
-                    b.flip = flip
-                    b.setFlip()
-                return b
-            else:
-                error('getSymbol returned no block')
-            return False
+    try:
+         b = blk.getSymbol(param, properties, parent, scene)
+    except AttributeError:
+         b = None
+    if b: # pcell
+        b.libname = libname
+        
+        if isinstance(b, Block):
+            if name:
+                if scene:
+                    scene.rmBlkName(b)
+                    b.name = name
+                    scene.addBlkName(b)
+                else:
+                    b.name = name
+
+                b.label.setText(name)
+                b.flip = flip
+                b.setFlip()
+            return b
+        else:
+            error('getSymbol returned no block')
+        return False
 #        except Exception as e:
 #            error('libary_{}/{}.py contains error:\n{}'.format(libname, blockname, str(e)))
 #            return False
 
     else: # std block
-        parameters = blk.parameters
-        properties = blk.properties
-        attributes = dict()
-        attributes['name']    = name if name else blockname
-        attributes['libname'] = libname
-        attributes['input']   = blk.inp
-        attributes['output']  = blk.outp
-        attributes['icon']    = blk.views['icon']
-        attributes['bbox']    = blk.bbox
-        attributes['flip']    = flip
-        b =  Block(attributes,parameters,properties,blockname,libname,parent,scene)
-        return b
+        if param:
+            error('pcell {}.{}.getSymbol did not return block'.format(libname, blockname))
+        else:
+            parameters = blk.parameters
+            properties = blk.properties
+            attributes = dict()
+            attributes['name']    = name if name else blockname
+            attributes['libname'] = libname
+            attributes['input']   = blk.inp
+            attributes['output']  = blk.outp
+            attributes['icon']    = blk.views['icon']
+            attributes['bbox']    = blk.bbox
+            attributes['flip']    = flip
+            b =  Block(attributes,parameters,properties,blockname,libname,parent,scene)
+            return b
 
 def getViews(libname, blockname):
     '''return the views that are defined for this block
     if viewType is specified, return the value if present'''
     return getBlockModule(libname, blockname).views
 
-def pathToLibnameBlockname(filename):
-    filename = filename.lstrip(libraries.libroot).lstrip(libraries.libprefix)
-    libname, blockname = os.path.split()
-    blockname, ext = os.path.splitext(blockname)
-    return libname, blockname
     
 #==============================================================================
 # helper function to easily remove a Block   
@@ -282,18 +292,18 @@ class Block(QtWidgets.QGraphicsPathItem):
         if self.scene:
             self.setup()
     
-    def __str__(self):
-        txt  = 'Name         :' + self.name.__str__() +'\n'
-        txt += 'Input ports  :' + self.inp.__str__() + '\n'
-        txt += 'Output ports :' + self.outp.__str__() + '\n'
-        txt += 'Icon         :' + self.icon.__str__() + '\n'
-        txt += 'Properties       :' + self.properties.__str__() + '\n'
-        for thing in self.childItems():
-            print(thing)
-        return txt
+#    def __str__(self):
+#        txt  = 'Name         :' + self.name.__str__() +'\n'
+#        txt += 'Input ports  :' + self.inp.__str__() + '\n'
+#        txt += 'Output ports :' + self.outp.__str__() + '\n'
+#        txt += 'Icon         :' + self.icon.__str__() + '\n'
+#        txt += 'Properties       :' + self.properties.__str__() + '\n'
+#        for thing in self.childItems():
+#            print(thing)
+#        return txt
         
-    def __repr__(self):
-        return str(self.toData())
+#    def __repr__(self):
+#        return str(self.toData())
 
 
     def add_Port(self, n, tp='input', spacing=PD):
@@ -443,7 +453,7 @@ class Block(QtWidgets.QGraphicsPathItem):
             svgfilepath = self.icon
             # make relative to the directory of the block
             if not os.path.isabs(svgfilepath):
-                svgfilepath = os.path.join(libraries.libpath(self.libname, '.'), svgfilepath)
+                svgfilepath = os.path.join(libraries.libpath(self.libname), svgfilepath)
         else: # old style
             svgfilepath = os.path.join(respath, 'blocks' , self.icon + '.svg')
 
@@ -460,34 +470,21 @@ class Block(QtWidgets.QGraphicsPathItem):
         elif self.png and os.path.isfile(self.png):
             self.img.load(self.png)
         
-#        pngfilepath = svgfilepath.rstrip('.svg') + '.png'
-#        pngflippath = svgfilepath.rstrip('.svg') + 'flip.png'
-#        if not os.path.isfile(pngfilepath):
-#            subprocess.call('inkscape -z {} -e {}'.format(svgfilepath, pngfilepath).split())
-#            
-#        if not os.path.isfile(pngflippath):
-#            svgflippath = svgfilepath.rstrip('.svg') + 'flip.svg'
-#            with open(svgflippath, 'wb') as f:
-#                f.write(createSvgMirrorTxt(svgfilepath))
-#            subprocess.call('inkscape -z {} -e {}'.format(svgflippath, pngflippath).split())
-##            os.remove(svgflippath)
-#
-#        if os.path.isfile(self.icon):
-#            if self.flip:
-##                self.img.loadFromData(createSvgMirrorTxt(svgfilepath))
-#                self.img.load(pngflippath)
-#            else:
-#                self.img.load(pngfilepath)
             self.update()
 
     def setPos(self, *args):
+        delta = QtCore.QPointF(0,0)
+        if self.bbox:
+            left, top, w, h = self.bbox
+            mid = QtCore.QPointF(w/2, h/2)
+            delta = mid - self.gridPos(mid)
         if len(args) == 1:
             pt = self.gridPos(args[0])
-            super(Block, self).setPos(pt)
+            super(Block, self).setPos(pt-delta)
         else:
             pt = QtCore.QPointF(args[0],args[1])
             pt = self.gridPos(pt)
-            super(Block, self).setPos(pt)
+            super(Block, self).setPos(pt-delta)
     
         
 

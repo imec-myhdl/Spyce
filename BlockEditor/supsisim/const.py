@@ -15,11 +15,6 @@ BHmin = 60 # block minimum height
 DB = 2   # selection radius (dynamically scaling whith zoom)
 
 
-# defaults for icon creation
-# icons use QFont("Helvetica", 14, QFont.Normal) 
-icon_font_size = 10  # height
-icon_pin_size  = 10 # length of line segment (starting at pin-position)
-icon_cache_dir = '.iconcache'
 
 if 'PYSUPSICTRL' in os.environ:
     path = os.environ['PYSUPSICTRL']
@@ -31,6 +26,12 @@ else:
     print('defaulting to {}'.format(path))
 #    sys.exit()
     
+# defaults for icon creation
+# icons use QFont("Helvetica", 14, QFont.Normal) 
+icon_font_size = 10  # height
+icon_pin_size  = 10 # length of line segment (starting at pin-position)
+icon_cache_dir = '.iconcache'
+netlist_dir    = 'netlist' #path for netlists
     
 # path to resources
 respath = os.path.join(path, 'resources')
@@ -39,7 +40,6 @@ if not os.path.isdir(respath):
 
 pycmd = 'ipython3 qtconsole &'
 pyrun = 'python'
-TEMP = '.' # tempdir
 
 # used in netlist
 projectname     = 'placeholder'
@@ -107,11 +107,11 @@ codeEditor        = 'kate'
 officeEditor      = 'libreoffice --writer'
 pythonEditor      = 'spyder3'
 
-#               (viewtype         editor          extension   )
 viewTypes    = OrderedDict()
-viewTypes['diagram']       = (pythonEditor,  '_diagram.py')
-viewTypes['myhdl']         = (pythonEditor,  '_myhdl.py'  )
-viewTypes['python']        = (pythonEditor,  '.py'        )
+#               (viewtype         editor          extension   )
+viewTypes['diagram']       = (pythonEditor,  '.diagram.py')
+viewTypes['myhdl']         = (pythonEditor,  '.myhdl.py'  )
+viewTypes['blk_source']    = (pythonEditor,  '.py'        )
 viewTypes['text']          = (textEditor,    '.txt'       )
 viewTypes['vhdl']          = (codeEditor,    '.vhd'       )
 viewTypes['systemverilog'] = (codeEditor,    '.sv'        )

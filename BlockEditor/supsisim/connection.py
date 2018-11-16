@@ -62,10 +62,12 @@ class Connection(QtWidgets.QGraphicsPathItem):
     
     def toData(self):
         data = OrderedDict(type='connection')
-        data['x0'] = self.pos[0].x()
-        data['y0'] = self.pos[0].y()
-        data['x1'] = self.pos[1].x()
-        data['y1'] = self.pos[1].y()
+        if self.pos[0]:
+            data['x0'] = self.pos[0].x()
+            data['y0'] = self.pos[0].y()
+        if self.pos[1]:
+            data['x1'] = self.pos[1].x()
+            data['y1'] = self.pos[1].y()
         for ix in [0,1]:
             pp = ['p0', 'p1'][ix]
             if self.port[ix] and isPort(self.port[ix], 'block'):

@@ -74,6 +74,9 @@ class Editor(QtCore.QObject):
         connInsAction.triggered.connect(self.insConn)
         connLabelAction.triggered.connect(self.addConnLabel)
     
+        self.subMenuNothing = QtWidgets.QMenu() # right mouse menu when nothing on pos
+        nodeInsAction   = self.subMenuNothing.addAction('Insert node')
+        nodeInsAction.triggered.connect(self.createNode)
 
     
     
@@ -164,6 +167,22 @@ class Editor(QtCore.QObject):
             if single and items:
                 return items[0]
         return items
+        
+    def sortedItemsAt(self, pos):
+        blocks, ports, nodes, connections, labels = [], [], [], [], []
+        radius = 4 * DB / self.parent().view.currentscale
+        allitems = self.scene.items(QtCore.QRectF(pos-QtCore.QPointF(radius,radius), QtCore.QSizeF(2*radius,2*radius)))
+        for item in allitems:
+            for cat, test in [(blocks, isBlock), 
+                                (nodes, isNode), 
+                                (connections, isConnection), 
+                                (labels, isTextItem)]:
+                if test(item):
+                    cat.append(item)
+                elif isPort(item): # all ports except nodes
+                    ports.append(item)
+        return blocks, ports, nodes, connections, labels
+        
 
     def ConnectionAt(self, pos):
         return self.itemAt(pos, exclude=[isNode, isPort, isBlock], single=True)
@@ -259,7 +278,7 @@ class Editor(QtCore.QObject):
         dialog = propertiesDialog(self.scene.mainw, dd, properties, title=title)
         dd = dialog.getRet()
         if dd:
-            item.setType( dd.pop('Pin_type'))
+            item.setType( dd.pop('Pin_type')[0])
             item.setLabel(dd.pop('Pin_label'))
             if dd:
                 item.properties = dd
@@ -267,10 +286,47 @@ class Editor(QtCore.QObject):
 
     def blockProperties(self):
         item = self.scene.item
-        dialog = propertiesDialog(self.scene.mainw, item.properties)
+        dialog = propertiesDialog(self.scene.mainw, item.properties, addButton=False)
         dd = dialog.getRet()
         if dd:
-           item.properties = dd   
+            item.properties = dd
+            self.recreateBlock(item)
+    
+    def recreateBlock(self, item):
+        pp = dict()
+        for port in item.ports():
+            portname = port.label.text()
+            pp[portname] = []
+            for c in port.connections:
+                if c.port[0] == port and c.port[1] != port:
+                    pp[portname].append((0, c.port[1]))
+                elif c.port[0] != port and c.port[1] == port:
+                    pp[portname].append((1, c.port[0]))
+
+                    
+        data = item.toData() # store blk
+        item.remove() # also removes connections
+        
+        # recreate with new parameters
+        par  = item.parameters
+        prop = item.properties
+        b = getBlock(data['libname'], data['blockname'], scene=self.scene, 
+                     param=par, properties=prop, name=data['blockname'])
+        b.fromData(data)
+        b.setLabel()
+        
+        # restore connections to block
+        for port in b.ports():
+            portname = port.label.text()
+            if portname in pp:
+                for (ix, p) in pp[portname]:
+                    if ix == 0:
+                        c = Connection(None, self.scene, port)
+                        c.attach(1, p)
+                    else:
+                        c = Connection(None, self.scene, p)
+                        c.attach(1, port)
+                    c.update_path()
             
     def blockParams(self):
         item = self.scene.item
@@ -278,38 +334,8 @@ class Editor(QtCore.QObject):
         ret = dialog.getRet()
         if ret:
             # store connections to ports
-            pp = dict()
-            for port in item.ports():
-                portname = port.label.text()
-                pp[portname] = []
-                for c in port.connections:
-                    if c.port[0] == port and c.port[1] != port:
-                        pp[portname].append((0, c.port[1]))
-                    elif c.port[0] != port and c.port[1] == port:
-                        pp[portname].append((1, c.port[0]))
-                        
             item.parameters = ret # apply new parameters (no effect)
-            data = item.toData() # store blk
-            item.remove() # also removes connections
-            
-            # recreate with new parameters
-            b = getBlock(data['libname'], data['blockname'], scene=self.scene,param=ret,name=data['blockname'])
-            b.fromData(data)
-            b.setLabel()
-            
-            # restore connections to block
-            for port in b.ports():
-                portname = port.label.text()
-                if portname in pp:
-                    for (ix, p) in pp[portname]:
-                        if ix == 0:
-                            c = Connection(None, self.scene, port)
-                            c.attach(1, p)
-                        else:
-                            c = Connection(None, self.scene, p)
-                            c.attach(1, port)
-                        c.update_path()
-                       
+            self.recreateBlock(item)
 
 
 
@@ -321,14 +347,19 @@ class Editor(QtCore.QObject):
         if item and isConnection(item):
             self.connectionInsertNode(item, pos)
 
+    def createNode(self, pos=None):
+        if not isinstance(pos, (QtCore.QPoint, QtCore.QPointF)):
+            pos = gridPos(self.event.scenePos())
+        newnode = Port(None, self.scene, porttype='node')
+        newnode.setPos(pos)
+        return newnode
 
 
     def connectionStart(self, p):
         self.conn = Connection(None, self.scene, p)
             
     def connectionNext(self, pos):
-        newnode = Port(None, self.scene, porttype='node')
-        newnode.setPos(pos)
+        newnode = self.createNode(pos)
         self.conn.update_path(newnode) # last point
         self.conn = Connection(None, self.scene, newnode) #new Connection
         
@@ -339,12 +370,15 @@ class Editor(QtCore.QObject):
         self.scene.update()
 
     def connectionInsertNode(self, conn, pos):
-        newnode = Port(None, self.scene, porttype='node')
-        newnode.setPos(pos)
+        newnode = self.createNode(pos)
         p = conn.port[1]
-        conn.update_path(newnode) # last point
-        newconn = Connection(None, self.scene, newnode)
-        newconn.update_path(p)
+        conn.attach(1, newnode)
+        conn.update_path()
+        newconn = Connection(None, self.scene)
+        newconn.attach(0, newnode)
+        newconn.attach(1, p)
+        newconn.update_path()
+        return newconn
         
     def addNetlistMenu(self):
         blockname = self.scene.item.blockname
@@ -388,39 +422,42 @@ class Editor(QtCore.QObject):
             
     def mouseLeftButtonPressed(self, obj, event):
         pos = gridPos(event.scenePos())
-        items = self.itemAt(pos, single=False)
+        blocks, ports, nodes, connections, labels = self.sortedItemsAt(pos)
         if self.conn: # connection mode
-            while True: # continue until either empty, or Port/Node found
-                if len(items) == 0:
-                    self.connectionNext(pos)
+            while ports: # try to find in-port
+                port = ports.pop()
+                if isInPort(port):
+                    self.connectionFinish(port)
                     return
-                item = items.pop()
-                if isNode(item): # connect to node
-                    self.connectionFinish(item)
-                    break
-                elif isInPort(item):
-                    if len(item.connections) == 0: # connect to free port
-                        self.connectionFinish(item)
-                        break
+            while nodes: # else try to find node
+                node = nodes.pop()
+                self.connectionFinish(node)
+                return
+#            while connections:
+#                conn = connections.pop()
+#                if conn != self.conn:
+#                    node = self.connectionInsertNode(conn, pos)
+#                    self.connectionFinish(node)
+#                    return
+            self.connectionNext(pos)
                 
-        elif items: # not in connection mode
-            while len(items) > 0:
-                item = items.pop(0)
-                if isOutPort(item):
+        else: # not in connection mode
+            while ports:
+                port = ports.pop()
+                if isOutPort(port):
                     # Try to create new connection starting at selected output port
-                    if len(item.connections) == 0:
-                        self.connectionStart(item)
-                elif isNode(item):
-                    # Try to create new connection starting at selected node
-                    if item in self.scene.selectedItems():
-                        #selected the node to move it
-                        for item in self.scene.selectedItems():
-                            if isNode(item):
-                                item.setFlag(item.ItemIsMovable)
-                    else:
-                        #starting the connection
-                        self.connectionStart(item)
-                        self.connFromNode = True
+                    self.connectionStart(port)
+                    return
+
+            while nodes:
+                node = nodes.pop()
+
+                if node in self.scene.selectedItems():
+                    node.setFlag(node.ItemIsMovable)
+                else:
+                    #starting the connection
+                    self.connectionStart(node)
+                    self.connFromNode = True
 
     def moveMouse(self, obj, event):
         if self.connFromNode:
@@ -501,7 +538,8 @@ class Editor(QtCore.QObject):
                 self.event = event
                 self.subMenuConn.exec_(event.screenPos())
             else:
-                pass
+                self.event = event
+                self.subMenuNothing.exec_(event.screenPos())
 
     def eventFilter(self, obj, event):
         if event.type() ==  QtCore.QEvent.GraphicsSceneMouseMove:
