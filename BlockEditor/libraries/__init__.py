@@ -33,6 +33,20 @@ def blockpath(libname, blockname):
 def moduleName(libname, blockname):
     return '{}.{}.{}'.format(os.path.basename(libroot), libprefix+libname, blockname)
 
+def pathToLibnameBlockname(filename):
+    libname, blockname = os.path.split(filename)
+
+    if libname.startswith(libroot): # make relative if in library path
+        libname = libname[len(libroot):].lstrip(os.path.sep)
+    
+    if libname.startswith(libprefix): # strip if has library_ prefix
+        libname = libname[len(libprefix):].lstrip(os.path.sep)
+    else:
+        libname = '' # not a library element, probably toplevel diagram
+        
+    blockname, ext = os.path.splitext(blockname)
+    return libname, blockname
+
 def readLibraries():
     dirs = next(os.walk(libroot))[1]
     for dirname in dirs:
@@ -50,7 +64,7 @@ def readLibrary(libname):
             continue
         for  viewtype, (editor, extension) in viewTypes.items():
             if blockname.endswith(extension):
-                if viewtype == 'python':
+                if viewtype == 'blk_source':
                     blockname = blockname[:-len(extension)]
                     blocks.add(blockname)
                 else: # other python type (e.g. diagram/myhdl)

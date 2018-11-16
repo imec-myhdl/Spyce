@@ -14,7 +14,7 @@ iconSource = 'CSS'
 
 import supsisim.block 
 
-def getSymbol(param,parent=None,scene=None,):
+def getSymbol(param, properties,parent=None,scene=None,):
     attributes = dict()
     attributes['name'] = name
     attributes['libname'] = libname
