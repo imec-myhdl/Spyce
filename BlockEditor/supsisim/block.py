@@ -64,32 +64,18 @@ def _addBlockModuleDefaults(libname, blockname):
                 setattr(blk, pp, dict())
     except Exception as e:
         raise Exception('Block {}.{} raised error {}'.format(libname,blockname, str(e)) )
-#    blk.views['textSource'] = blk.textSource
+
     p = libraries.libpath(libname)
     for viewname, (ed, ext) in viewTypes.items():
         fn = os.path.join(p, blockname + ext)
         if os.path.isfile(fn):
-            blk.views[viewname] = fn
+            blk.views[viewname] = fn        
 
 def getBlockModule(libname, blockname):
     '''read python module of block from disk'''
     fpath = libraries.blockpath(libname, blockname)
     blk = import_module_from_source_file(fpath)
     block_modules[libname+'/'+blockname] = blk
-    
-#    blkkey        = libname+'/'+blockname
-#    source     = libraries.moduleName(libname, blockname)
-#    if blkkey in block_modules: # already loaded
-#        blk = block_modules[blkkey]
-#        reload(blk) # reload
-#    else:
-#        try:
-#            exec('import {} as blk'.format(source))
-#        except Exception as e:
-#            raise e
-#            error('error in {}.py, message is '.format(source, str(e)))
-#            return False
-#        block_modules[libname+'/'+blockname] = blk 
     _addBlockModuleDefaults(libname, blockname)
     return blk
 
@@ -205,7 +191,7 @@ def saveBlock(libname, blockname, pins, icon=None, bbox=None, properties=dict(),
                             parameters=parameters,
                             views=views)
     if libname:
-        fname = os.path.join(libraries.libroot, 'libary_'+libname, blockname+'.py')
+        fname = os.path.join(libraries.libroot, libraries.libprefix+libname, blockname+'.py')
         with open(fname, 'wb') as f:
             f.write(src)
         libraries.libs[libname].add(blockname)
@@ -347,6 +333,17 @@ class Block(QtWidgets.QGraphicsPathItem):
         b.properties = self.properties
         b.setPos(self.scenePos().__add__(pt))
         return b
+        
+    def addView(self, viewtype, fname):
+        if viewtype not in viewTypes:
+            error('viewtype {} is not defined in const.py'.format(viewtype))
+            return
+        views = self.getViews()
+        if viewtype in views:
+            error('viewtype {} is already present'.format(viewtype))
+            return
+        views[viewtype] = fname
+        self.updateOnDisk(views)
 
     def getViews(self):
         '''return the views that are defined for this block
@@ -359,17 +356,6 @@ class Block(QtWidgets.QGraphicsPathItem):
          y = gr * ((pt.y() + gr /2) // gr)
          return QtCore.QPointF(x,y)
 
-#    def hasDiagram(self):
-#        fname = 'libraries.library_' + self.libname + '.' + self.blockname
-#        exec('import ' + fname)
-#        reload(eval(fname))
-#        if 'diagram' in eval(fname + '.views'):
-#            return True
-#        else:
-#            return False
-
-#    def itemChange(self, change, value):
-#        return value
 
     def paint(self, painter, option, widget):
         pen = QtGui.QPen(self.linecolor)

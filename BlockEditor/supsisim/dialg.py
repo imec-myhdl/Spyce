@@ -15,21 +15,16 @@ from supsisim.const import path,respath
 import libraries
 
 class editPinsDialog(QtWidgets.QDialog):
-    def __init__(self,inps,outps, title='Edit pins', size=(400, 300), parent=None): 
+    def __init__(self,inps, outps, title='Edit pins', size=(600, 300), parent=None): 
         super(editPinsDialog, self).__init__(parent)
         self.layout = QtWidgets.QVBoxLayout()
         self.setLayout(self.layout)
 
-           
-        
-        
-        
         self.layout.addWidget(QtWidgets.QLabel('Inputs'))
         self.text_input = QtWidgets.QWidget()
         self.input_layout = QtWidgets.QVBoxLayout()
         self.text_input.setLayout(self.input_layout)
         
-
         inputLabels = QtWidgets.QWidget()
         inputLabels_layout = QtWidgets.QHBoxLayout()        
         inputLabels_layout.addWidget(QtWidgets.QLabel('Name'))
@@ -260,7 +255,7 @@ class editPinsDialog(QtWidgets.QDialog):
                     outputList.append((name,x,y))
                 
                 
-            return (inputList,outputList)         
+            return (inputList,outputList, [])         
         else:
             return False
 
@@ -786,7 +781,7 @@ class addViewDialog(QtWidgets.QDialog):
         
         self.grid = QtWidgets.QGridLayout()
 
-        self.string = 'libraries/library_' + libname + '/' + blockname + '_{}'    
+        self.string = os.path.join(os.path.basename(libraries.libroot), libraries.libprefix+libname, blockname)
     
         self.textSource = QtWidgets.QLineEdit(self.string)
         
@@ -796,11 +791,10 @@ class addViewDialog(QtWidgets.QDialog):
 
         import supsisim.const
         reload(supsisim.const)
-        from supsisim.const import viewEditors         
+        from supsisim.const import viewTypes         
         
-        for viewEditor in viewEditors:
-            if not viewEditor['type'] in libraries.getViews(blockname,libname):
-                self.selectView.addItem(viewEditor['type'])
+        for viewtype, (ed, ext) in viewTypes.items():
+            self.selectView.addItem(viewtype)
     
         self.grid.addWidget(self.selectView,0,0)
         self.grid.addWidget(self.textSource,0,1)
@@ -814,12 +808,10 @@ class addViewDialog(QtWidgets.QDialog):
         self.setLayout(self.grid)
         
     def selectViewChanged(self,i):
-        from supsisim.const import viewEditors     
+        from supsisim.const import viewTypes     
         viewType = self.selectView.currentText()
-        for viewEditor in viewEditors:
-            if viewType == viewEditor['type']:
-                extension = viewEditor['extension']
-        self.textSource.setText(self.string.format(extension))
+        ed, extension = viewTypes[viewType]
+        self.textSource.setText(self.string + extension)
 
     def getRet(self):
         if self.exec_():
@@ -1127,7 +1119,8 @@ class createBlockDialog(QtWidgets.QDialog):
                 else:
                     ret['output'].append((name,x,y))
                 
-                
+            ret['inout'] = []
+            
             newProperties = dict()
             for key in self.values.keys():
                 newProperties[key] = eval(self.values[key].text())

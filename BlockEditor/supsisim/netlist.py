@@ -69,21 +69,25 @@ if __name__ == "__main__":
     tb.run_sim()
 """
 
-blkModuleCache = dict()           
+blkModuleCache = dict()         
 force_renetlist = True
+netlists = set()
 
 def dest_newer_than_source(dest, source):
+    '''return true if dest is up to date'''
     if force_renetlist:
         return False
     return os.path.isfile(dest) and (os.stat(dest).st_mtime > os.stat(source).st_mtime)
 
         
 class NetObj(object):
+    '''either connection (members are nodes/ports), or a node/port (members are connections)'''
     def __init__(self, d):
         self.netname = d['label']['text'] if 'label' in d else None
         self.type    = d['signalType']['text'] if 'signalType' in d else None
         self.members = set()
         self.d    = d
+        
         
     def stamp(self, d):
         self.members.add(d)
@@ -120,8 +124,13 @@ def propagateNets(conn, connections, resolved):
                 connections.discard(c)
                 propagateNets(c, connections, resolved)
 
-
+#==============================================================================
+# main netlist routine
+#==============================================================================
 def netlist(filename, properties=dict(), lang='myhdl', netlist_dir=const.netlist_dir):
+    if filename in netlists:
+        return
+    netlists.add(filename)
     d, module_name  = os.path.split(filename)
     ed, ext_diagram = const.viewTypes['diagram']
     ed, ext_lang    = const.viewTypes[lang]
@@ -135,7 +144,7 @@ def netlist(filename, properties=dict(), lang='myhdl', netlist_dir=const.netlist
         libdir = libraries.libprefix + libname  if libname else libname
             
         outfile = os.path.join(netlist_dir, libdir, blockname + ext)
-        if dest_newer_than_source(dest=outfile, source=filename):
+        if outfile in netlists or dest_newer_than_source(dest=outfile, source=filename):
             # print('{} module already present in {}'.format(lang, outfile))
             return # do nothing if outfile newer than infile
 
@@ -202,16 +211,7 @@ def netlist(filename, properties=dict(), lang='myhdl', netlist_dir=const.netlist
 
     
 
-def defaultMyHdlInstance(name, libname, blockname, connectDict):
-    conns = []
-    for pinname,netname in connectDict.items():
-        conns.append('{} = {}'.format(pinname, netname))
-    jj = ',\n' + ' ' * 12
-    c = jj.join(conns)
-    return '    u_{} = {}{}.{}({})\n'.format(name, libraries.libprefix, libname, blockname, c)
-
 def blkToMyhdlInstance(blk):
-    
     libname, blkname = blk['libname'], blk['blockname']
     name = blk['label']['text'] # instance name in diagram
 
@@ -243,14 +243,30 @@ def blkToMyhdlInstance(blk):
     except AttributeError:
         if parameters: # parametrized cell should have netlist function
             message = 'error while netlisting parametrized block {}.{}\n'.format(libname, blkname) + \
-                      'function toMyhdlInstance is not present. \n' +\
-                      'When the parameters do not change ports, you can return None to indicate normal netlist'
+                      'function toMyhdlInstance is not present.'
             raise Exception(message)
 
     if not instance_netlist: # normal cell netlist
-        instance_netlist = defaultMyHdlInstance(name, libname, blkname, args)
+        #instance_netlist = defaultMyHdlInstance(name, libname, blkname, args)
+        conns = []
+        for pinname,netname in args.items():
+            conns.append('{} = {}'.format(pinname, netname))
+        jj = ',\n' + ' ' * 12
+        c = jj.join(conns)
+        return '    u_{} = {}{}.{}({})\n'.format(name, libraries.libprefix, libname, blkname, c)
 
-    return instance_netlist
+#    return instance_netlist
+#
+## this function is called to instantiate a block that does not contain its 
+## own netlisting function toMyhdlInstance()
+#def defaultMyHdlInstance(name, libname, blockname, connectDict):
+#    conns = []
+#    for pinname,netname in connectDict.items():
+#        conns.append('{} = {}'.format(pinname, netname))
+#    jj = ',\n' + ' ' * 12
+#    c = jj.join(conns)
+#    return '    u_{} = {}{}.{}({})\n'.format(name, libraries.libprefix, libname, blockname, c)
+
 
 
 def toMyhdl(module_name, blocks, internal_nets, external_nets):
@@ -308,26 +324,66 @@ def resolve_connectivity(filename, properties=dict()):
 #   read blocks
 #==============================================================================
     blocks = dict()
-    for blk in dgm.blocks:
-        inst_name = blk['label']['text']
-        blocks[inst_name] = blk
+    for inst in dgm.blocks:
+        inst_name = inst['label']['text']
+        blocks[inst_name] = inst
 
-        blockname, libname = blk['blockname'],  blk['libname']
+        blockname, libname = inst['blockname'],  inst['libname']
         fname = libraries.blockpath(libname, blockname)
         k = blockname+'/'+libname
         if not k in blkModuleCache:
             blkModuleCache[k] = import_module_from_source_file(fname)
+        blkMod = blkModuleCache[k]
 
-    portnames = set()            
+        if 'parameters' in inst:
+            param = inst['parameters']
+            if hasattr(blkMod, 'ports'):
+                inp, outp, inout = blkMod.ports(param)
+            else:
+                inp = param['inp'] if 'inp' in param else []
+                outp = param['outp'] if 'outp' in param else []
+                inout = param['inout'] if 'inout' in param else []
+        else:
+            inp, outp, inout = blkMod.inp, blkMod.outp, []
+
+        inst['conn'] = OrderedDict()
+        if isinstance(inp, int):
+            for ix in range(inp):
+                inst['conn']['.i_{}'.format(ix)] = None
+        else:
+            for pname, px, py in inp:
+                inst['conn'][pname] = None
+
+        inst['outp'] = set() # used to set unnamed nets that are connected to an output
+        if isinstance(outp, int):
+            for ix in range(outp):
+                pname = '.o_{}'.format(ix)
+                inst['conn'][pname] = None
+                inst['outp'].add(pname)
+        else:
+            for pname, px, py in outp:
+                inst['conn'][pname] = None
+                inst['outp'].add(pname)
+
+        if isinstance(inout, int):
+            for ix in range(inout):
+                inst['conn']['.io_{}'.format(ix)] = None
+        else:
+            for pname, px, py in inout:
+                inst['conn'][pname] = None
+                
+
+    # find pins because they are external nets
+    pinnames = set()            
     nodes = dict()
     for n in dgm.nodes:
         xy  = n['x'], n['y']
         nodes[xy] = NetObj(n)
         if 'label' in n and n['porttype'] != 'node':
-            portnames.add(n['label']['text'])
+            pinnames.add(n['label']['text'])
 
 
-    resolved   = dict()# resolved connections netname:[list of connections and nodes]
+    resolved   = dict()# resolved connections resolved[netname] == set(connections and nodes)
     unresolved = set() # unresolved connections
 
     for c in dgm.connections:
@@ -367,28 +423,16 @@ def resolve_connectivity(filename, properties=dict()):
             conn = driven_connections.pop()
             unresolved.discard(conn)
             instname, portname =  conn.d['p0']
+            inst = blocks[instname]
             
-            # check how many outputs in block
-            blk = blocks[instname]
-            libname   = blk['libname']
-            blockname = blk['blockname']
-            k = blockname+'/'+libname
-            
-            print ('debug', libname, blockname, instname, portname)
-            blkMod = blkModuleCache[k]
-            if hasattr(blkMod, 'ports'):
-                param = blk['parameters'] if 'parameters' in blk else None
-                _, outp, _ = blkMod.ports(param)
-                noutp = len(outp)
-            else:
-                if isinstance(blkMod.outp, int):
-                    noutp = blkMod.outp
-                else:
-                    noutp = len(blkMod.outp)
             netname = 'w_{}'.format(instname.lower()) #instance_name
-            if noutp > 1: # when more than 1 output
-                netname += '_{}'.format(portname.lstrip('.').lower()) # + port_name
-            
+            if portname in inst['outp']:
+               netname = 'w_{}'.format(instname.lower()) #instance_name
+               if len(inst['outp']) > 1: # not the only output
+                   netname += '_{}'.format(portname.lstrip('.').lower()) # + port_name
+            else:
+                raise Exception('{}: connection to {} pin {} is not an output of {}.{}'.format(filename, instname, portname, inst['libname'], inst['blockname']))
+                        
         else: # choose arbitrary name
             conn = unresolved.pop()
             n_nets += 1
@@ -403,25 +447,10 @@ def resolve_connectivity(filename, properties=dict()):
 #==============================================================================
 # resolve connection to blocks
 #==============================================================================
-    for blkname, blk in blocks.items():
-        blockname, libname = blk['blockname'],  blk['libname']
-        k = blockname+'/'+libname
-        blkMod = blkModuleCache[k]
-        
-        inp, outp = blkMod.inp, blkMod.outp
-        blk['conn'] = OrderedDict()
-        if isinstance(inp, int):
-            for ix in range(inp):
-                blk['conn']['.i_{}'.format(ix)] = None
-        else:
-            for pname, px, py in inp:
-                blk['conn'][pname] = None
-        if isinstance(outp, int):
-            for ix in range(outp):
-                blk['conn']['.o_{}'.format(ix)] = None
-        else:
-            for pname, px, py in inp:
-                blk['conn'][pname] = None
+#    for blkname, blk in blocks.items():
+#        blockname, libname = blk['blockname'],  blk['libname']
+#        k = blockname+'/'+libname
+#        blkMod = blkModuleCache[k]
         
     for netname, conns in resolved.items():
         for conn in conns:
@@ -431,6 +460,11 @@ def resolve_connectivity(filename, properties=dict()):
                     blk = blocks[blkname]
                     blk['conn'][pname] = conn.netname
         
+    # check that all block ports are connected
+    for instname, inst in blocks.items():
+        for pin, net in inst['conn'].items():
+            if net is None:
+                raise Exception('file {}: instance {}, pin {} is not Connected'.format(filename, instname, pin))
 
     internal_nets = dict()
     external_nets = dict()
@@ -448,233 +482,14 @@ def resolve_connectivity(filename, properties=dict()):
         for c in resolved[netname]:
             if 'properties' in c.d:
                 prop.update(c.d['properties'])
-        if netname in portnames:
+
+        if netname in pinnames:
             external_nets[netname] = prop
         else:
             internal_nets[netname] = prop
     
     return blocks, internal_nets, external_nets
-#        
-#    
-#    propertyList = []
-#        
-#    for p in properties.keys():
-#        if p != 'name':
-#            propertyList.append('{k}="{value}"'.format(k=p,value=properties[p]))
-#    
-#    params = ','.join(pinList + propertyList)
-#    
-#    #variables
-#    user = subprocess.check_output("whoami").strip()
-#    
-#    impL = []
-#    
-#    for b in blocks:
-#        string = "from " + "libraries import library_" + b['libname']
-#        if not string in impL:
-#            impL.append(string)
-#    
-#    imp = "\n".join(list(set(impL)))
-#    
-#    
-#    signals = getSignals(connections,nodes)
-#    
-#    if signals == False:
-#        return False
-#    
-#    signalL = []
-#    for i in range(len(signals)):
-#        if 'label' in signals[i]:
-#            connName = signals[i]['label']
-#            stop = False
-#            for pin in pins:
-#                if pin[0] == connName:
-#                    stop = True
-#            if stop:
-#                continue
-#        else:
-#            connName = 'signal' + str(i + 1)
-#        if 'type' in signals[i]:
-#            type = signals[i]['type']
-#        else:
-#            type = '0'
-#        string = connName + " = Signal({})".format(type)
-#        signalL.append(string)
-#       
-#    signalsOutput = "\n    ".join(signalL)
-#    
-#    instanceL = []
-#    signals
-#    for b in blocks:
-#        bname = b['blockname']
-#        libname = b['libname']
-#        instanceName = b['name']
-#        
-#        signalL = []
-#        propertiesL = []
-#        parameterList = []
-#        
-#        #print(getPins(b['libname'],b['blockname']),b['blockname'])
-#        if 'parameters' in b:
-#            pins = getPins(b['libname'],b['blockname'],b['parameters'])
-#            for parameter in b['parameters'].keys():
-#                parameterList.append('{} = "{}"'.format(parameter,b['parameters'][parameter]))
-#        else:
-#            pins = getPins(b['libname'],b['blockname'])
-#        for pin in pins:
-#            pos = dict(y=pin[2]+b['pos']['y'],x=pin[1]+b['pos']['x'])
-#            for sindex,signal in enumerate(signals):
-#                if pos in signal['posList']:
-#                    if 'label' in signal:
-#                        s = signal['label']
-#                        break
-#                    else:
-#                        s = 'signal'+str(sindex + 1)
-#                        break
-#            else:
-#                s = 'None'
-#            signalL.append(pin[0] + '=' + s)
-#            
-#        for propertie in b['properties'].keys():
-#            if propertie != 'name':
-#                propertiesL.append('{} = "{}"'.format(propertie,b['properties'][propertie]))
-#        
-#        string = "{instanceName} = library_{libname}.{blockname}_myhdl({signals})"
-#        
-#        signalsOut = ",".join(signalL + propertiesL + parameterList)
-#        instanceL.append(string.format(instanceName=instanceName,blockname=bname,libname=libname,signals=signalsOut))
-#        
-#    
-#    instances = "\n    ".join(instanceL)
-##    instances = str(signals)
-#    
-#    tbText = "pass"
-    
-    return template.format(projectname=projectname,
-                           user=user,
-                           blockname=blockname,
-                           imp=imp,
-                           params=params,
-                           signals=signalsOutput,
-                           instances=instances,
-                           tbText=tbText,
-                           copyrightText=copyrightText,
-                           copyrightPolicy=copyrightPolicy)
-
-def getPins(libname,blockname,param=dict()):
-    block = libraries.getBlock(libname, blockname, None, None, param)
-    block.setup(False)
-    pins = []
-    for inp in block.pins()[0]:
-        name = inp[3]
-        xpos = inp[1]
-        ypos = inp[2]
-        pins.append((name,xpos,ypos))
-    for output in block.pins()[1]:
-        name = output[3]
-        xpos = output[1]
-        ypos = output[2]
-        pins.append((name,xpos,ypos))
-    print(block.pins(),pins)
-    return pins
-
-def getSignals(connections,nodes):
-    #signals = [signal1:[pos1,pos2],signal2:[pos1,pos2]]
-    signals = []
-    for conn in connections:
-        for sindex,s in enumerate(signals):
-            #check if signal exist and extends it
-            for pindex,pos in enumerate(s):
-                if pos['pos'] == conn['pos1']:
-                    signals[sindex][pindex]['stay'] = False #make connection internal
-                    signals[sindex].append(dict(pos=conn['pos2'],stay=True)) #expand connection
-                    break
-                if pos['pos'] == conn['pos2']:
-                    signals[sindex][pindex]['stay'] = False #make connection internal
-                    signals[sindex].append(dict(pos=conn['pos1'],stay=True)) #expand connection
-                    break
-            else:
-                continue
-            break
-        else:
-            #create new signal
-            signals.append([dict(pos=conn['pos1'],stay=True),dict(pos=conn['pos2'],stay=True)])
-    
-    #merge 2 signals if they should be connected
-    
-    counter = 0
-    while(counter < len(signals)):
-        for pindex,pos in enumerate(signals[counter]):
-            for sindex2,s2 in enumerate(signals):
-                for pos2 in s2:
-                    if (pos['pos'] == pos2['pos'] or getNodeLabel(pos['pos'],nodes) and getNodeLabel(pos['pos'],nodes) == getNodeLabel(pos2['pos'],nodes)) and counter != sindex2:
-                        signals.remove(s2)
-                        s2.remove(pos2)
-#                        if sindex2 < counter:
-#                            counter += 1
-                        signals[counter][pindex]['stay'] = False
-                        signals[counter] += s2
-                        counter = 0
-                        break
-                else:
-                    continue
-                break
-            else:
-                continue
-            break
-        counter += 1
-                        
-   
-    
-    
-    #remove all internal connections        
-    outputSignals = []
-    for sindex,s in enumerate(signals):
-        posList = []
-        for pos in s:
-            if pos['stay']:
-                posList.append(pos['pos'])
-        if posList:
-            signal = dict(posList=posList)
-            label = getLabel(s,connections,nodes,'label')
-            signaltype = getLabel(s,connections,nodes,'signalType')
-            if label == False:
-                return False
-            elif label:
-                signal['label'] = label
-            if signaltype:
-                signal['type'] = signaltype
-            outputSignals.append(signal)
-            
-    
-                    
-        
-    return outputSignals
-    
-def getNodeLabel(pos,nodes):
-    for n in nodes:
-        if n['pos'] == pos and 'label' in n:
-            return n['label']
-    return False            
-    
-def getLabel(signal,connections,nodes,key):
-    labels = []
-    for s in signal:
-        for node in nodes:
-            if s['pos'] == node['pos']:
-                if key in node:
-                    labels.append(node[key].replace(' ','_'))
-        for conn in connections:
-            if s['pos'] == conn['pos1'] or s['pos'] == conn['pos2']:
-                if key in conn:
-                    labels.append(conn[key].replace(' ','_'))
-    if len(labels) == 1:
-        return labels[0]
-    elif len(labels) == 0:
-        return None
-    else:
-        return False
-    
+  
         
     
 if __name__ == "__main__":

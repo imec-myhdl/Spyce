@@ -251,7 +251,7 @@ class Library(QtWidgets.QMainWindow):
             libname, blockname, fname, blk = self.getnames(actComp)
             dd = dict()
             dd['bbox'] = bbox
-            src = libraries.updateSource(libname, blockname, dd)
+            src = actComp.updateOnDisk(dd)
             if 'bbox' not in src:
                 lines = src.splitlines()
                 for ix, line in enumerate(lines):
@@ -512,7 +512,7 @@ class Library(QtWidgets.QMainWindow):
                 error('File source not correct')
                 return
                 
-            self.actComp.addView(ret[0],ret[1])
+            actComp.addView(ret[0],ret[1])
             
             self.openView(ret[0], actComp)
             
@@ -582,12 +582,11 @@ class Library(QtWidgets.QMainWindow):
                 return
         
         dialog = createBlockDialog()
-        
         ret = dialog.getRet()
         
         if ret:
             blockname = ret['name']
-            pins = [ret['input'], ret['output'], ret['io']]
+            pins = [ret['input'], ret['output'], ret['inout']]
             icon = ret['icon']
             
             properties = ret['properties']
