@@ -1,6 +1,7 @@
 # cell definition
 # name = 'Prod'
 # libname = 'math'
+from  supsisim import const
 
 inp = 2
 outp = 1
@@ -10,6 +11,17 @@ properties = {} #voor netlisten
 #view variables:
 #iconSource = 'PROD'
 
+def ports(param):
+   muls = param['A'] if 'A' in param else '**'
+   inp, outp, inout = [], [], []
+   spacing = 2*const.PD if len(muls) <= 2 else const.PD
+   w2 = 40
+   for ix in range(len(muls)):
+       inp.append(('.a{}'.format(ix), -w2, ix*spacing))
+   yy = int(spacing*(len(muls)-1)/2/const.GRID)*const.GRID
+   outp.append(('.z', w2, yy))
+   return inp, outp, inout
+
 def getSymbol(param, properties,parent=None,scene=None,):
     import supsisim.block 
     from  Qt import QtGui, QtWidgets, QtCore # see https://github.com/mottosso/Qt.py
@@ -17,8 +29,9 @@ def getSymbol(param, properties,parent=None,scene=None,):
     attributes = dict()
     attributes['name'] = name
     attributes['libname'] = libname
-    attributes['input'] = len(muls) if 'A' in param else inp
-    attributes['output'] = 1
+    inp, outp, inout = ports(param)
+    attributes['input'] = inp
+    attributes['output'] = outp
     b = supsisim.block.Block(attributes,param,properties, name, libname, parent, scene)
     
     # create a new pathitem with a plus and citcle
@@ -53,9 +66,9 @@ def toMyhdlInstance(instname, connectdict, param):
     # properties end up in the connectdict
     muls = param['A'] if 'A' in param else '**' 
     inputs = []
-    outp = connectdict['.o_0']
+    outp = connectdict['.z']
     for ix, s in enumerate(muls):
-        net = connectdict['.i_{}'.format(ix)]
+        net = connectdict['.a{}'.format(ix)]
         if s == '/':
             inputs.append('/ {}'.format(net))
         else:

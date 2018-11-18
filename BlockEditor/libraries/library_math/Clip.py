@@ -39,7 +39,6 @@ def getSymbol(param, properties,parent=None,scene=None,):
     attributes['input'] = inp
     attributes['output'] = outp
     b = block.Block(attributes,param,properties, name, libname, parent, scene)
-    
     # display equation
     tt = '[{}, {}]'.format(min, max)
     ll = text.textItem(tt, anchor=5, parent=b)
@@ -54,6 +53,7 @@ def toMyhdlInstance(instname, connectdict, param):
     carry = param['carry'] if 'carry' in param else 0
     min = eval(connectdict['min']) if 'min' in connectdict else None
     max = eval(connectdict['max']) if 'max' in connectdict else None
+#    print(connectdict)
     a, z = connectdict['.a'], connectdict['.z']
     c = connectdict['carry'] if carry else None
 
