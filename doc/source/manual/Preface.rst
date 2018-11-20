@@ -6,7 +6,7 @@ The goal of the spyce project is to empower hardware designers with
 a tool that simplifies the communication between developers, and to
 take away the tedious work of manually connecting modules and block. 
 
-Spyce (simple python circuit editor) is a free, open-source package 
+Spyce (**S**\ imple **py**\ thon **c**\ ircuit **e**\ ditor) is a free, open-source package 
 using Python and Qt to create a schematic, hierarchical view of a 
 hardware design. Spyce also provides a simple, extensible  netlist
 generation to be able to simulate your design. For now the project is 
@@ -22,3 +22,41 @@ ports) that constitutes a design. This diagram is in fact a schematic
 drawing. A 'Port' is anything that can be connected to. These can be 
 pins on a block, pins to upper hierarchical levels, or nodes; that connect
 wires.
+
+*************
+prerequisites
+*************
+
+Spyce requires:
+- python 2.7 or 3.5+
+- Qt: wrapper around PySide, PySide2, PyQt4 and PyQt5, see https://github.com/mottosso/Qt.py
+- any of PySide, PySide2, PyQt4 and PyQt5
+- myhdl + fixbv extension, see https://github.com/imec-myhdl/myhdl
+- inkscape to edit icons, and convert to png
+- openoffice is optional, but default configured as editor for documentation
+- spyder3 is optional, but default configured as python editor.
+- spinx and latex if you want to build the documentation
+
+Spyce is developed on python 2.7 and PyQt4
+
+**********
+Installing
+**********
+
+Install source code::
+
+    git clone https://github.com/imec-myhdl/pycontrol-gui.git
+    
+Build documentation::
+
+    cd pycontrol-gui/doc
+    make latexpdf # or html
+    
+Start Spyce::
+
+    cd pycontrol-gui/BlockEditor
+    python spyce.py
+    
+
+
+

@@ -50,7 +50,23 @@ Creating Blocks from code
 Blocks are simple python files that are inside a 'library'. The blocks should *not* import 
 Qt as the netlister must be able to import them, without a gui. If Qt is needed or modules that import Qt
 the easiest solution is to import them in the function that needs them (but never in the main, or netlist
-routines)
+routines). An Example::
+    # cell definition
+    # name = 'myblock'
+    # libname = 'mylibrary'
+    
+    tooltip = 'This is an empty block with inputs a and b and output z'
+
+    inp  = [('a', -40, -20), ('b', -40, 20)]
+    outp = [('z', 40, 0)]
+    io   = []
+    bbox = None
+
+    parameters = {} # pcell if not empty
+    properties = {} # netlist properties
+
+    #view variables:
+    views = {'icon':'myblock.svg'}
 
 .. py:data:: inp
 .. py:data:: outp
@@ -65,6 +81,9 @@ for outputs, or '.io_0', '.io_1' etc. for inouts. Note: inouts are optional and 
 .. py:data:: views
 *views* is a dictionary that contains all (other) views. If *views['icon']* is defined it looks for
 an svg file in either the *resources/blocks* directory (when no extension is specified) or in the same directory (library) as the block code otherwise.
+
+.. py:data:: bbox
+*bbox* is either *None*, or a 4-tuple: *(left, top, width, height)*
 
 .. py:function:: ports(param)
 This (optional, but highly recommended) function must return a tuple (inp, outp, inout), 

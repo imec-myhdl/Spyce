@@ -12,6 +12,8 @@ Welcome to spyce's documentation!
 
    Preface
    Blocks
+   Drawing
+   Todo
 
 
 Indices and tables
