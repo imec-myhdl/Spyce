@@ -75,7 +75,7 @@ class Scene(QtWidgets.QGraphicsScene):
         self.status = []
         self.undoLength = -1
         self.lastPosition = True
-    
+        
     def saveUndo(self):
         #print(len(self.items()),self.undoLength)
         if len(self.items()) == self.undoLength:

@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
-doc = """
-Interface like funtionality: like in SystemVerilog. 
+
+tooltip = \
+"""Interface like funtionality: like in SystemVerilog. 
 Suited for central registers etc.
 
-reg_names specifies which names should be extracted 
-"""
+reg_names specifies which names should be extracted"""
 
 # cell definition
 # name = 'Interface'

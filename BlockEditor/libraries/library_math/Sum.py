@@ -23,7 +23,7 @@ def ports(param):
 
 
 
-def getSymbol(param, properties,parent=None,scene=None,):
+def getSymbol(param, properties,parent=None,scene=None):
     import supsisim.block
     from  Qt import QtGui, QtWidgets, QtCore # see https://github.com/mottosso/Qt.py
     gains = param['A'] if 'A' in param else '++'

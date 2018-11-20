@@ -33,6 +33,7 @@ class Editor(QtCore.QObject):
         self.movBlk = False
         self.event = None
         self.connFromNode = False
+        
 
         self.menuIOBlk = QtWidgets.QMenu()
         #parBlkAction = self.menuIOBlk.addAction('Block I/Os')

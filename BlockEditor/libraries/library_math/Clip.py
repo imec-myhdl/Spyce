@@ -1,6 +1,15 @@
 # cell definition
 # name = 'Clip'
 # libname = 'math'
+tooltip = \
+"""clip between min and max
+optional carry:
+   -1 underflow 
+    0 normal
+   +1 overflow"""
+
+
+
 from  supsisim import const
 
 inp = 1

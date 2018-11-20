@@ -51,8 +51,8 @@ def getSymbol(param, properties,parent=None,scene=None,):
     # add + or - signs to ports
     for port in b.ports():
         portname = port.label.text()
-        if portname.startswith('.i_'):
-            sign = muls[int(portname[3:])]
+        if portname.startswith('.a'):
+            sign = muls[int(portname[2:])]
             port.p.moveTo(10, 5)
             port.p.lineTo(20,-5)
             if sign == '*':

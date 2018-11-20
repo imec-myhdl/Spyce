@@ -118,6 +118,8 @@ def getBlock(libname, blockname, parent=None, scene=None, param=dict(), properti
                 b.label.setText(name)
                 b.flip = flip
                 b.setFlip()
+            if hasattr(blk,'tooltip'):
+                b.setToolTip(blk.tooltip)
             return b
         else:
             error('getSymbol returned no block')
@@ -141,6 +143,8 @@ def getBlock(libname, blockname, parent=None, scene=None, param=dict(), properti
             attributes['bbox']    = blk.bbox
             attributes['flip']    = flip
             b =  Block(attributes,parameters,properties,blockname,libname,parent,scene)
+            if hasattr(blk,'tooltip'):
+                b.setToolTip(blk.tooltip)
             return b
 
 def getViews(libname, blockname):

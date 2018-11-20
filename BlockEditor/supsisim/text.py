@@ -9,7 +9,7 @@ from  Qt import QtGui, QtWidgets, QtCore # see https://github.com/mottosso/Qt.py
 from collections import OrderedDict
 
 #from supsisim.const import iconFont
-from supsisim.const import colors
+from supsisim.const import colors, stdfont
 
 class textItem(QtWidgets.QGraphicsTextItem):
     '''convenience class, extension of QGraphicsSimpleTextItem, that realises aligned text
@@ -40,6 +40,9 @@ class textItem(QtWidgets.QGraphicsTextItem):
 ##        self.setFlag(self.ItemIgnoresTransformations)
 #        self.setTextInteractionFlags(QtCore.Qt.TextEditorInteraction) # allow edits
         self.setAcceptDrops(False)
+        font = self.font()
+        font.fromString(stdfont)
+        self.setFont(font)
 
     def setText(self, text):
         self.setPlainText(text)

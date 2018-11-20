@@ -14,7 +14,7 @@ BHmin = 60 # block minimum height
 
 DB = 2   # selection radius (dynamically scaling whith zoom)
 
-
+stdfont = 'Sans Serif,12' # used for (pin)labels/comments
 
 if 'PYSUPSICTRL' in os.environ:
     path = os.environ['PYSUPSICTRL']

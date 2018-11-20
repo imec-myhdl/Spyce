@@ -2,20 +2,30 @@
 """
 scalable vector graphics utilities
 
+#==============================================================================
+# png image creation 
+#==============================================================================
+ svg2png(svgfilename)  
+    '''convert an svg drawing to png (using inkscape).
+       also returns a png image with text mirrored, to be used in flipped blocks (so the text remains readble :)'''
 
-createSvgIcon
-    create a (new) icon file
-    returns svgwriter object (file is already created)
+ createSvgMirrorTxt(svgfilename)
+    '''utility function to create an svg file that has text-labels flipped'''
+    
+#==============================================================================
+# Update an existing Icon:    
+#==============================================================================
+ updateSvg(block, svgfilename, makeports=True)
+    ''' step 1: update the bbox (and add pins + labels when makeports=True) 
+        step 2: edit the icon using inkscape
+        step 3: remove the pins+labels (because they should be drawn in Qt)'''
 
-createSvgMirrorTxt
-    read an svg and reverse all text labels (flip horizontal)
-    returns string
-    
-scrubSvgLabels
-    read an remove all pin-labels from an svg file (in place)
-    returns None
-    
-    
+#==============================================================================
+# Initial Icon creation    
+#==============================================================================
+ checkAndCreateSvgIcon(block, svgfilename)
+     '''generate svg file (if not yet existing)'''
+
 """
 
 import os, tempfile, subprocess
@@ -33,6 +43,8 @@ def strip_ext(fname, ext):
     return fname[:-len(ext)] if fname.endswith(ext) else fname
 
 def svg2png(svgfilename):
+    '''convert an svg drawing to png (using inkscape).
+       also returns a png image with text mirrored, to be used in flipped blocks (so the text remains readble :)'''
     svgfilename = os.path.abspath(svgfilename)
     if svgfilename.startswith(libroot):
         pngfilename = svgfilename[len(libroot)+1:]
@@ -70,7 +82,7 @@ def svg2png(svgfilename):
     return pngfilename, pngmirrorfile
 
 def createSvgMirrorTxt(svgfilename):
-    '''generate an svg flie that has text-labels flipped'''
+    '''generate an svg file that has text-labels flipped'''
     dirpath, fname = os.path.split(svgfilename)
     parser = etree.XMLParser(remove_blank_text=True)
     tree = etree.parse(svgfilename, parser)
@@ -316,6 +328,5 @@ def checkAndCreateSvgIcon(block, svgfilename):
                                    fill='none', stroke='darkGreen', stroke_width=1))
     dwg.add(group)
     dwg.save(pretty=True)
-    print(dwg.elements)
     
 

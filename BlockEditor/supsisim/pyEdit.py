@@ -70,6 +70,7 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
         self.newTab()
         self.editor.install(self.scene)
         self.status.showMessage('Ready')
+        self.setStyleSheet('''QTextEdit { font-size: 10pt}''')    
 
 
     def addactions(self):
