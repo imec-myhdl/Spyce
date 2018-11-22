@@ -10,6 +10,9 @@ The following packages should be installed on your PC
 * Qt (see https://github.com/mottosso/Qt.py)
 * PySide, PySide2, PyQt4 or PyQt5
 * MyHDL (best with fixbv extension, see https://github.com/imec-myhdl/myhdl)
+* LateX if you want to build the pdf documentation
+
+* our setup is based on anaconda python 2.7 and PyQt4 
 
 
 Installing as normal user:
@@ -33,11 +36,15 @@ cd ~/pycontrol-gui/BlockEditor
 python spyce.py
 ```
 Documentation (standalone)
--------------------
+--------------------------
 ```
 cd ~/pycontrol-gui/doc
 make latexpdf # or make html whatever you prefer and is supported by sphinx
-manual will be in build/latex/spyce.pdf
 ```
+manual will be in build/latex/spyce.pdf
+
+Warning:
+--------
+Dangerous software, do not run as superuser, and be aware that there are bugs that could cause lost work (save as wrong filename for example). UNDO function is not implemented.
 
 22.11.2018 imec-nl
