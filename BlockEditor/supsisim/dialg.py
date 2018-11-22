@@ -169,9 +169,9 @@ class editPinsDialog(QtWidgets.QDialog):
     def addOutputFunc(self,name=None,x=None,y=None,hide=False):
         if not name:
             name = 'o_pin' + str(self.outputCounter)
-        if not x:
+        if x is None:
             x = '40'
-        if not y:
+        if y is None:
             y = self.outputCounter*20
             
         outputInstance = QtWidgets.QWidget()
@@ -420,15 +420,21 @@ class propertiesDialog(QtWidgets.QDialog):
                 return
             for k, v  in ddd.items():
                 w = None
-                if isinstance(v, basestring):
+                if isinstance(v, basestring) or v is None:
                     w = QtWidgets.QLineEdit()
-                    if v:
+                    if v is None:
+                        w.setText('None')
+                    elif v:
                         w.setText(v)
                     else:
                         w.setPlaceholderText(k)
                 elif isinstance(v, int):
                     w = QtWidgets.QSpinBox()
                     w.setValue(v)
+                elif isinstance(v, float):
+                    w = QtWidgets.QDoubleSpinBox()
+                    w.setValue(v)
+
                 elif isinstance(v, (list, tuple)) and len(v) == 2:
                     default, options = v
                     if isinstance(default, int):
@@ -473,7 +479,11 @@ class propertiesDialog(QtWidgets.QDialog):
             dd = dict()
             for k, ix in self.keyix.items():
                 if isinstance(self.w[ix], QtWidgets.QLineEdit):
-                    dd[k] = self.w[ix].text()
+                    v = self.w[ix].text()
+                    if v == 'None':
+                        dd[k] = None
+                    else:
+                        dd[k] = v                    
                 elif isinstance(self.w[ix], QtWidgets.QComboBox):
                     v = self.w[ix].currentText()
                     if isinstance(self.dd[k], (list, tuple)) and len(self.dd[k]) == 2:
@@ -481,6 +491,8 @@ class propertiesDialog(QtWidgets.QDialog):
                     else:
                         dd[k] = v
                 elif isinstance(self.w[ix], QtWidgets.QSpinBox):
+                    dd[k] = self.w[ix].value()
+                elif isinstance(self.w[ix], QtWidgets.QDoubleSpinBox):
                     dd[k] = self.w[ix].value()
             properties = dict()
             for k, ix in self.propix.items():

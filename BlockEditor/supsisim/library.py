@@ -15,6 +15,7 @@ import subprocess
 import shutil
 
 import libraries
+import myhdl_to_blk
 from supsisim.svg_utils import updateSvg
 
 from supsisim.const import DB, respath, viewTypes
@@ -207,12 +208,43 @@ class Library(QtWidgets.QMainWindow):
                                                 '&Add Library', self,
                                                 triggered = self.addLibrary)   
         
+        self.importMyhdlLAction = QtWidgets.QAction(QtGui.QIcon(mypath+'import.png'),
+                                                '&Import MyHDL', self,
+                                                triggered = self.importMyhdl)   
+
         self.toolbar = self.addToolBar('File')
         self.toolbar.addAction(self.listViewAction)
         self.toolbar.addAction(self.symbolViewAction)  
         self.toolbar.addAction(self.addLibraryAction)  
+        self.toolbar.addAction(self.importMyhdlLAction)  
         
-    
+    def importMyhdl(self):
+        path = os.getcwd()
+        filename = QtWidgets.QFileDialog.getOpenFileName(self, 'Open', path, filter='*.py')
+        if filename:
+            if self.type == 'symbolView':
+                ix = self.tabs.currentIndex()
+                libname = self.tabs.tabText(ix)
+            else:
+                item = self.libraries.currentItem()
+                libname =item.text() if item else None
+            if libname:
+                myhdl_to_blk.toBlk(filename, libname)
+                self.refresh()
+                
+    def refresh(self):
+        if self.type == 'symbolView':
+            i = self.tabs.currentIndex()
+            self.symbolView()
+            self.tabs.setCurrentIndex(i)
+        else:
+            l = self.libraries.currentRow()
+            c = self.cells.currentRow()
+            self.listView()
+            self.libraries.setCurrentRow(l)
+            self.cells.setCurrentRow(c)
+
+        
     def editBbox(self,actComp=None):
         
         if actComp:
@@ -263,16 +295,7 @@ class Library(QtWidgets.QMainWindow):
                     f.write(src)
                 reload('libraries.library_{}.{}'.format(libname, blockname))
             
-            if self.type == 'symbolView':
-                i = self.tabs.currentIndex()
-                self.symbolView()
-                self.tabs.setCurrentIndex(i)
-            else:
-                l = self.libraries.currentRow()
-                c = self.cells.currentRow()
-                self.listView()
-                self.libraries.setCurrentRow(l)
-                self.cells.setCurrentRow(c)
+            self.refresh()
     
     def addLibrary(self):
         dialog = textLineDialog('Name: ','Add library')
@@ -283,22 +306,13 @@ class Library(QtWidgets.QMainWindow):
                 fp = libraries.libpath(ret)
                 os.mkdir(fp)
                 # create __init__.py
-                f = open(os.path.join(fp, '__init__.py', 'w+'))
+                f = open(os.path.join(fp, '__init__.py'), 'wb')
                 f.close()
                 
-                if self.type == 'symbolView':
-                    i = self.tabs.currentIndex()
-                    self.symbolView()
-                    self.tabs.setCurrentIndex(i)
-                else:
-                    l = self.libraries.currentRow()
-                    c = self.cells.currentRow()
-                    self.listView()
-                    self.libraries.setCurrentRow(l)
-                    self.cells.setCurrentRow(c)
+                self.refresh()
                 
-            except:
-                error('Library already exists')
+            except Exception as e:
+                error('Library error' + str(e))
     
     
     def switchToListView(self):
@@ -336,16 +350,7 @@ class Library(QtWidgets.QMainWindow):
             return
             
         #reset library
-        if self.type == 'symbolView':
-            i = self.tabs.currentIndex()
-            self.symbolView()
-            self.tabs.setCurrentIndex(i)
-        else:
-            l = self.libraries.currentRow()
-            c = self.cells.currentRow()
-            self.listView()
-            self.libraries.setCurrentRow(l)
-            self.cells.setCurrentRow(c)
+        self.refresh()
                
     def listView(self):
         '''switch to listView'''
@@ -400,16 +405,7 @@ class Library(QtWidgets.QMainWindow):
         
         rmBlock(libname, blockname)
         
-        if self.type == 'symbolView':
-            i = self.tabs.currentIndex()
-            self.symbolView()
-            self.tabs.setCurrentIndex(i)
-        else:
-            l = self.libraries.currentRow()
-            c = self.cells.currentRow()
-            self.listView()
-            self.libraries.setCurrentRow(l)  
-            self.cells.setCurrentRow(c)
+        self.refresh()
     
     def onContextLib(self,point):
         self.menuLibrary = QtWidgets.QMenu()
@@ -561,16 +557,7 @@ class Library(QtWidgets.QMainWindow):
                 f.close()    
                     
                 
-                if self.type == 'symbolView':
-                    i = self.tabs.currentIndex()
-                    self.symbolView()
-                    self.tabs.setCurrentIndex(i)
-                else:
-                    l = self.libraries.currentRow()
-                    c = self.cells.currentRow()
-                    self.listView()
-                    self.libraries.setCurrentRow(l)  
-                    self.cells.setCurrentRow(c)
+                self.refresh()
 
     def createBlock(self):
         if self.type == 'symbolView':
@@ -595,17 +582,7 @@ class Library(QtWidgets.QMainWindow):
             saveBlock(libname, blockname, pins, icon, bbox=None, properties=properties, parameters=parameters)
             
             # update libary viewer
-            if self.type == 'symbolView':
-                i = self.tabs.currentIndex()
-                self.symbolView()
-                self.tabs.setCurrentIndex(i)
-            else:
-                l = self.libraries.currentRow()
-                c = self.cells.currentRow()
-                self.listView()
-                self.libraries.setCurrentRow(l)  
-                self.cells.setCurrentRow(c)
-
+            self.refresh()
 
 
 
@@ -684,16 +661,7 @@ class Library(QtWidgets.QMainWindow):
             
             actComp.updateOnDisk(dd)
             
-            if self.type == 'symbolView':
-                i = self.tabs.currentIndex()
-                self.symbolView()
-                self.tabs.setCurrentIndex(i)
-            else:
-                l = self.libraries.currentRow()
-                c = self.cells.currentRow()
-                self.listView()
-                self.libraries.setCurrentRow(l)  
-                self.cells.setCurrentRow(c)
+            self.refresh()
 
     def cutBlock(self,actComp=None):
         if self.type == 'symbolView':
@@ -716,16 +684,7 @@ class Library(QtWidgets.QMainWindow):
 
             actComp.setView('icon', filename)
             
-            if self.type == 'symbolView':
-                i = self.tabs.currentIndex()
-                self.symbolView()
-                self.tabs.setCurrentIndex(i)
-            else:
-                l = self.libraries.currentRow()
-                c = self.cells.currentRow()
-                self.listView()
-                self.libraries.setCurrentRow(l) 
-                self.cells.setCurrentRow(c) 
+            self.refresh() 
     
     def symbolView(self):
         self.copiedBlock = None

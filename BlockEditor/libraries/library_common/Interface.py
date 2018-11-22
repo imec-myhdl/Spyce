@@ -50,9 +50,9 @@ def toMyhdlInstance(instname, connectdict, param):
     inp, outp, _ = ports(param)
     
     r  = []
-    section = connectdict[inp[0][0]]
+    section, tp = connectdict[inp[0][0]]
     for pname, x, y in outp:
-        netname = connectdict[pname]
+        netname, tp = connectdict[pname]
         r.append('{nn}.next = {s}.{pn}'.format(nn = netname, pn = pname, s = section))
         
     assigns = '\n        '.join(r)

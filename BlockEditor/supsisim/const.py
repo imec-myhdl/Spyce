@@ -53,7 +53,8 @@ celltemplate = """# cell definition
 
 inp  = {inp}
 outp = {outp}
-io   = {io}
+# io   = {io}
+
 bbox = {bbox}
 
 parameters = {parameters} # pcell if not empty
@@ -108,9 +109,9 @@ officeEditor      = 'libreoffice --writer'
 pythonEditor      = 'spyder3'
 
 viewTypes    = OrderedDict()
-#               (viewtype         editor          extension   )
-viewTypes['diagram']       = (pythonEditor,  '.diagram.py')
-viewTypes['myhdl']         = (pythonEditor,  '.myhdl.py'  )
+#          viewtype          (editor          extension   )
+viewTypes['diagram']       = (codeEditor,    '.diagram'   )
+viewTypes['myhdl']         = (codeEditor,    '.myhdl'     )
 viewTypes['blk_source']    = (pythonEditor,  '.py'        )
 viewTypes['text']          = (textEditor,    '.txt'       )
 viewTypes['vhdl']          = (codeEditor,    '.vhd'       )

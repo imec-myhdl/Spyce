@@ -190,15 +190,15 @@ def netlist(filename, properties=dict(), lang='myhdl', netlist_dir=const.netlist
                 fname = os.path.join(libpath, blockname)
                 netlist_subdir = os.path.join(netlist_dir, libraries.libprefix+libname)
                 
-                # blk contains toMyhdlInstance code 
+                # inst contains toMyhdlInstance code 
                 if k in blkModuleCache and hasattr(blkModuleCache[k], 'toMyhdlInstance'):
                     pass
 
-                # blk has a netlist view
+                # inst has a netlist view
                 elif os.path.exists(fname + ext_lang):
                     netlist(fname + ext_lang, properties, lang, netlist_dir)
 
-                # blk has diagram (that can be netlisted)
+                # inst has diagram (that can be netlisted)
                 elif os.path.exists(fname + ext_diagram):
                     netlist(fname + ext_diagram, properties, lang, netlist_dir)
 
@@ -211,22 +211,22 @@ def netlist(filename, properties=dict(), lang='myhdl', netlist_dir=const.netlist
 
     
 
-def blkToMyhdlInstance(blk):
-    libname, blkname = blk['libname'], blk['blockname']
-    name = blk['label']['text'] # instance name in diagram
+def instToMyhdl(inst):
+    libname, blkname = inst['libname'], inst['blockname']
+    name = inst['label']['text'] # instance name in diagram
 
-    args = blk['conn']
+    args = inst['conn']
     # store properties
-    if 'properties' in blk:
-        args.update(blk['properties'])
+    if 'properties' in inst:
+        args.update(inst['properties'])
 
     
-    parameters = blk['parameters'] if 'parameters' in blk else dict() # pcell
+    parameters = inst['parameters'] if 'parameters' in inst else dict() # pcell
         
     
     instance_netlist = ''
 
-    # find blk module
+    # find inst module
     k = libname+'/'+blkname
     try: 
         blkMod = blkModuleCache[k]
@@ -250,38 +250,29 @@ def blkToMyhdlInstance(blk):
         #instance_netlist = defaultMyHdlInstance(name, libname, blkname, args)
         conns = []
         for pinname,netname in args.items():
+            if isinstance(netname, (list, tuple)):
+                netname = netname[0]
             conns.append('{} = {}'.format(pinname, netname))
         jj = ',\n' + ' ' * 12
         c = jj.join(conns)
         return '    u_{} = {}{}.{}({})\n'.format(name, libraries.libprefix, libname, blkname, c)
 
-#    return instance_netlist
-#
-## this function is called to instantiate a block that does not contain its 
-## own netlisting function toMyhdlInstance()
-#def defaultMyHdlInstance(name, libname, blockname, connectDict):
-#    conns = []
-#    for pinname,netname in connectDict.items():
-#        conns.append('{} = {}'.format(pinname, netname))
-#    jj = ',\n' + ' ' * 12
-#    c = jj.join(conns)
-#    return '    u_{} = {}{}.{}({})\n'.format(name, libraries.libprefix, libname, blockname, c)
 
 
 
 def toMyhdl(module_name, blocks, internal_nets, external_nets):
     '''module_name       string with the name of the module
        blocks            dict {inst_name:block definitions (from diagram) + resolved connectivity}
-       external_nets     dict {netname:signalType} containing all portnames 
-       internal_nets     dict {netname:signalType} containing all internal netnames 
+       external_nets     dict external_nets[netname] = signalType containing all portnames 
+       internal_nets     dict internal_nets[netname] = signalType containing all internal netnames 
     '''
 
     ret = ['from myhdl import block, Signal, intbv, fixbv, instances\n']
-    
+
     # imports
     imports = set()
-    for name, blk in blocks.items():
-        imports.add(libraries.libprefix + blk['libname'])
+    for name, inst in blocks.items():
+        imports.add(libraries.libprefix + inst['libname'])
     
     ret.append('# import block libraries')
     for lib in imports:
@@ -307,8 +298,8 @@ def toMyhdl(module_name, blocks, internal_nets, external_nets):
 
     # blocks
     ret.append('    # body')
-    for name, blk in blocks.items():
-        ret.append(blkToMyhdlInstance(blk))
+    for name, inst in blocks.items():
+        ret.append(instToMyhdl(inst))
 
     ret.append('    return instances()')
             
@@ -346,7 +337,9 @@ def resolve_connectivity(filename, properties=dict()):
         else:
             inp, outp, inout = blkMod.inp, blkMod.outp, []
 
+        # first initialize the connection to each pin to None
         inst['conn'] = OrderedDict()
+#        inst['signalType'] = OrderedDict()
         if isinstance(inp, int):
             for ix in range(inp):
                 inst['conn']['.i_{}'.format(ix)] = None
@@ -371,7 +364,8 @@ def resolve_connectivity(filename, properties=dict()):
         else:
             for pname, px, py in inout:
                 inst['conn'][pname] = None
-                
+        # copy keys, to signalTypes 
+#        inst['signalType'].update(inst['conn'])
 
     # find pins because they are external nets
     pinnames = set()            
@@ -447,18 +441,14 @@ def resolve_connectivity(filename, properties=dict()):
 #==============================================================================
 # resolve connection to blocks
 #==============================================================================
-#    for blkname, blk in blocks.items():
-#        blockname, libname = blk['blockname'],  blk['libname']
-#        k = blockname+'/'+libname
-#        blkMod = blkModuleCache[k]
         
     for netname, conns in resolved.items():
         for conn in conns:
             for p in ['p0', 'p1']:
                 if p in conn.d:
                     blkname, pname = conn.d[p]
-                    blk = blocks[blkname]
-                    blk['conn'][pname] = conn.netname
+                    inst = blocks[blkname]
+                    inst['conn'][pname] = (conn.netname, conn.type)
         
     # check that all block ports are connected
     for instname, inst in blocks.items():
@@ -495,7 +485,7 @@ def resolve_connectivity(filename, properties=dict()):
 if __name__ == "__main__":
     lang = 'myhdl'
 #    fname = os.path.join(d, 'saves', 'untitled.py')
-    fname = os.path.join(d, 'saves', 'sailpll.py')
+    fname = os.path.join(d, 'saves', 'test.py')
     nldir = os.path.join(const.netlist_dir + '_' + lang, strip_ext(os.path.basename(fname), '.py'))
     netlist(fname, netlist_dir=nldir)
     print('done')

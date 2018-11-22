@@ -69,9 +69,9 @@ def toMyhdlInstance(instname, connectdict, param):
     
     inp, outp, _ = ports(param)
 
-    c = connectdict['c'] # clock
+    c, ctp = connectdict['c'] # clock
     if reset:
-        r = connectdict[inp[-1][0]] # reset
+        r, rtp = connectdict[inp[-1][0]] # reset
         r_pol, r_sync = reset.split(', ')
         r_pol = 0 if r_pol == 'neg' else 1
     else:
@@ -98,7 +98,8 @@ def toMyhdlInstance(instname, connectdict, param):
     assign0 = []
     assign  = []
     for ix in range(channels):
-        nd, nq = connectdict[inp[ix][0]], connectdict[outp[ix][0]]
+        nd, ndtp = connectdict[inp[ix][0]]
+        nq, nqtp = connectdict[outp[ix][0]]
         assign.append( '{}.next = {}'.format(nq, nd))
         assign0.append('{}.next = {}'.format(nq, 0))
     assign0  = indent.join(assign0)

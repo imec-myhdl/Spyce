@@ -42,11 +42,12 @@ def getSymbol(param, properties, parent=None, scene=None,):
 def toMyhdlInstance(instname, connectdict, param):
     # properties end up in the connectdict
     inp, outp, _ = ports(param)
-    s, z = connectdict['s'], connectdict['z']
+    s, stp = connectdict['s']
+    z, ztp = connectdict['z']
     r =          '    @always_comb()\n' 
     r +=         '    def u_{inst}():\n'.format(inst=instname)
     for ix, ixy in enumerate(inp[:-1]): # skip select input (last)
-        i = connectdict[ixy[0]]
+        i, itp = connectdict[ixy[0]]
 #        print('Mux debug', ix, ixy, i)
         if ix == 0:
             r += '        if {s} == {ix}:\n'.format(s=s, ix=ix)
