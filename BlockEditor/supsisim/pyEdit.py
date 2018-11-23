@@ -155,10 +155,10 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
                                                statusTip = 'Generate C-Code',
                                                triggered = self.codegenAct)
 
-        self.netlistAction = QtWidgets.QAction(QtGui.QIcon(mypath+'codegen.png'),
-                                               'Generate netlist',self,
-                                               statusTip = 'Generate netlist',
-                                               triggered = self.netlistAct)
+        self.netlistMyhdlAction = QtWidgets.QAction(QtGui.QIcon(mypath+'codegen.png'),
+                                               'Generate mydhl netlist',self,
+                                               statusTip = 'Generate mydhl netlist',
+                                               triggered = self.netlistMyhdlAct)
 
 
         self.setBlockAction = QtWidgets.QAction(QtGui.QIcon(mypath+'settings.png'),
@@ -295,7 +295,7 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
         simMenu = menubar.addMenu('&Simulation')
         simMenu.addAction(self.runAction)
         simMenu.addAction(self.codegenAction)
-        simMenu.addAction(self.netlistAction)
+        simMenu.addAction(self.netlistMyhdlAction)
 
         setMenu = menubar.addMenu('&Settings')
         setMenu.addAction(self.setBlockAction)
@@ -344,6 +344,8 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
     def onChange(self,i):
         self.view=self.centralWidget.widget(i)
         self.scene=self.centralWidget.widget(i).scene()
+        if hasattr(self.centralWidget.widget(i), 'fname'):
+            self.filename = self.centralWidget.widget(i).fname
         self.editor.install(self.scene)
 #        for item in self.scene.items():
 #            if isinstance(item,Block) and item.type == 'symbol':
@@ -609,10 +611,11 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
         if whole:
             for i in range(self.centralWidget.count()):              
                 items = self.centralWidget.widget(i).scene().items()
+                fname = self.centralWidget.widget(i).fname
                 if len(items) != 0:
                     self.centralWidget.setCurrentIndex(i)
                     msg = QtWidgets.QMessageBox()
-                    msg.setText('The Document has been modified')
+                    msg.setText('{} has been modified'.format(os.path.basename(fname)))
                     msg.setInformativeText('Do you want to save your changes?')
                     msg.setStandardButtons(     QtWidgets.QMessageBox.Question |
                                                 QtWidgets.QMessageBox.Save |
@@ -663,9 +666,10 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
             i = self.centralWidget.addTab(view, fname)
         else:
             i = self.centralWidget.addTab(view, 'untitled')
+            self.centralWidget.widget(i).fname = 'untitled'
         self.centralWidget.setCurrentIndex(i)
-        if fname:
-            self.openDiagram(fname)
+#        if fname:
+#            self.openDiagram(fname)
         
 #        fname = self.filename
 #        try:
@@ -696,6 +700,9 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
             self.path = path
             self.filename = bname
             self.newTab(self.filename)
+
+            ix = self.centralWidget.currentIndex()
+            self.centralWidget.widget(ix).fname = filename # store name
             
             dgm = import_module_from_source_file(os.path.abspath(filename))
             
@@ -836,7 +843,9 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
 #            
 #        else:
         if filename in [None, False]:
-            fname = os.path.join(self.path, 'saves', self.filename + '.py')
+            ix = self.centralWidget.currentIndex()
+            fname = self.centralWidget.widget(ix).fname
+#            fname = os.path.join(self.path, 'saves', self.filename)
             filename = QtWidgets.QFileDialog.getSaveFileName(self, 'Save', fname, filter='*.py')
         if filename:
             filename = os.path.abspath(filename)
@@ -917,7 +926,8 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
     def codegenAct(self):
         self.scene.codegen(True)
 
-    def netlistAct(self):
+    def netlistMyhdlAct(self):
+        print (self.tabs)
         error('to be implemented')
 
 
