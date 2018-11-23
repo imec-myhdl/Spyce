@@ -432,9 +432,8 @@ class propertiesDialog(QtWidgets.QDialog):
                     w = QtWidgets.QSpinBox()
                     w.setValue(v)
                 elif isinstance(v, float):
-                    w = QtWidgets.QDoubleSpinBox()
-                    w.setValue(v)
-
+                    w = QtWidgets.QLineEdit()
+                    w.setText(str(v))
                 elif isinstance(v, (list, tuple)) and len(v) == 2:
                     default, options = v
                     if isinstance(default, int):
@@ -483,7 +482,10 @@ class propertiesDialog(QtWidgets.QDialog):
                     if v == 'None':
                         dd[k] = None
                     else:
-                        dd[k] = v                    
+                        try:
+                            dd[k] = float(v)
+                        except ValueError:
+                            dd[k] = v                    
                 elif isinstance(self.w[ix], QtWidgets.QComboBox):
                     v = self.w[ix].currentText()
                     if isinstance(self.dd[k], (list, tuple)) and len(self.dd[k]) == 2:
