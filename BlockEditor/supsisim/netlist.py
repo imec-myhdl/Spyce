@@ -2,7 +2,7 @@
 from __future__ import (division, print_function, absolute_import,
                         unicode_literals)
 
-import os, sys, string
+import os, sys, string, math
 from collections import OrderedDict
 
 d = os.path.dirname(os.path.dirname(__file__))
@@ -18,19 +18,7 @@ filenamemyhdl_template = 'libraries.library_{}.{}'
 def strip_ext(fname, ext):
     return fname[:-len(ext)] if fname.endswith(ext) else fname
 
-
-myhdl_template = """
-#---------------------------------------------------------------------------------------------------
-# Project   : {projectname}
-# Filename  : {blockname}.py
-# Version   : 1.0
-# Author    : {user}
-# Contents  : MyHDL model for {blockname}
-# Copyright : {copyrightText}
-#             *** {copyrightPolicy} ***
-#---------------------------------------------------------------------------------------------------
-
-{body}
+myhdl_footer = """
     
 if __name__ == "__main__":
 # =============================================================================
@@ -40,11 +28,21 @@ if __name__ == "__main__":
     from myhdl import traceSignals    
     {blockname}_tb = {blockname} # append "_tb"
     tb = {blockname}_tb()
-    traceSignals.timescale = '1fs'    
+    traceSignals.timescale = '{t_resolution}s'    
     tb.config_sim(trace=True)
-    tb.run_sim()
+    tb.run_sim(duration = 1e-6 * TIME_UNIT)
 
 """
+
+def timeresolution():
+    tps = 1.0/const.ticks_per_second
+    si_symbols = 'yzafpnum kMGTPEZY'
+    e = int(math.floor(math.log(abs(tps), 1000.0)))  # exponent
+    m = tps/math.pow(1000.0, e)                      # mantissa
+    if -8 <= e <= +8: # si symbol range is 1e-24 ... 1e+24
+        si_symbol = si_symbols[e+8].strip()
+        return '{}{}'.format(int(m+0.001), si_symbol)
+ 
 
 blkModuleCache = dict()         
 force_renetlist = True
@@ -101,10 +99,21 @@ def propagateNets(conn, connections, resolved):
                 connections.discard(c)
                 propagateNets(c, connections, resolved)
 
+def fillTemplate(template, blockname, body):
+    return template.format(body   = body,
+                 projectname      = const.projectname,
+                 copyrightText    = const.copyrightText,
+                 copyrightPolicy  = const.copyrightPolicy,
+                 blockname        = blockname,
+                 user             = os.getlogin(),
+                 ticks_per_second = const.ticks_per_second,
+                 t_resolution     = timeresolution())
+    
+
 #==============================================================================
 # main netlist routine
 #==============================================================================
-def netlist(filename, properties=dict(), lang='myhdl', netlist_dir=const.netlist_dir, TIME_UNIT=1e15):
+def netlist(filename, properties=dict(), lang='myhdl', netlist_dir=const.netlist_dir):
     if filename in netlists:
         return
     netlists.add(filename)
@@ -129,11 +138,16 @@ def netlist(filename, properties=dict(), lang='myhdl', netlist_dir=const.netlist
         if not os.path.isdir(os.path.join(netlist_dir, libdir)):
             os.makedirs(os.path.join(netlist_dir, libdir))
         with open(filename, 'rb') as fi:
-            t = fi.read()
-            
-        with open(outfile, 'wb') as fo:
-            fo.write(t)
-        print('{} module written to {}'.format(lang, outfile))
+            body = fi.read()
+
+        if lang == 'myhdl':
+            template = const.myhdl_template
+            txt = fillTemplate(template, blockname, body)
+            with open(outfile, 'wb') as fo:
+                fo.write(txt)
+            print('{} module written to {}'.format(lang, outfile))
+        else:
+            raise Exception('todo: language support for '+lang)           
 
         
     else: # diagram
@@ -149,14 +163,9 @@ def netlist(filename, properties=dict(), lang='myhdl', netlist_dir=const.netlist
         blocks, internal_nets, external_nets = resolve_connectivity(filename, properties=dict())
 
         if lang == 'myhdl':
-            kwargs = dict()
-            kwargs['body'] = toMyhdl(module_name, blocks, internal_nets, external_nets, TIME_UNIT)
-            kwargs['projectname']     = const.projectname
-            kwargs['copyrightText']   = const.copyrightText
-            kwargs['copyrightPolicy'] = const.copyrightPolicy
-            kwargs['blockname']       = blockname
-            kwargs['user']            = os.getlogin()
-            txt = myhdl_template.format(**kwargs)
+            body = toMyhdl(module_name, blocks, internal_nets, external_nets)
+            template = const.myhdl_template + myhdl_footer
+            txt = fillTemplate(template, blockname, body)
 
             if not os.path.isdir(netlist_dir):
                 os.makedirs(netlist_dir)
@@ -209,7 +218,6 @@ def netlist(filename, properties=dict(), lang='myhdl', netlist_dir=const.netlist
                     t += imp_statement         
                     with open(initname, 'wb') as f:
                        f.write(t)
-                    print ('debug', libname, blockname, 'added to __init__.py')
 
         else:
             raise Exception('todo: language support for '+lang)
@@ -267,7 +275,7 @@ def instToMyhdl(inst):
 
 
 
-def toMyhdl(module_name, blocks, internal_nets, external_nets, TIME_UNIT=1e15):
+def toMyhdl(module_name, blocks, internal_nets, external_nets):
     '''module_name       string with the name of the module
        blocks            dict {inst_name:block definitions (from diagram) + resolved connectivity}
        external_nets     dict external_nets[netname] = signalType containing all portnames 
@@ -278,7 +286,7 @@ def toMyhdl(module_name, blocks, internal_nets, external_nets, TIME_UNIT=1e15):
     ret     = ['from myhdl import block, Signal, intbv, fixbv, instances, \\']
     ret.append('           always, always_seq, always_comb, instance # decorators')
     ret.append('')
-    ret.append('TIME_UNIT = {}'.format(TIME_UNIT))
+    ret.append('TIME_UNIT = {}'.format(const.ticks_per_second))
     ret.append('')
 
     # imports

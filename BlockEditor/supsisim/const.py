@@ -41,11 +41,31 @@ if not os.path.isdir(respath):
 pycmd = 'ipython3 qtconsole &'
 pyrun = 'python'
 
-# used in netlist
-projectname     = 'placeholder'
-copyrightText   = 'placeholder'
-copyrightPolicy = 'placeholder'
+#==============================================================================
+# # used in netlist
+#==============================================================================
+projectname      = 'projectname placeholder'
+copyrightText    = 'copyright placeholder'
+copyrightPolicy  = 'copyright policy placeholder'
+ticks_per_second = 1e15 # ticks per second
 
+myhdl_template = """
+#---------------------------------------------------------------------------------------------------
+# Project   : {projectname}
+# Filename  : {blockname}.py
+# Version   : 1.0
+# Author    : {user}
+# Contents  : MyHDL model for {blockname}
+# Copyright : {copyrightText}
+#             *** {copyrightPolicy} ***
+#---------------------------------------------------------------------------------------------------
+
+TIME_UNIT = {ticks_per_second}
+
+{body}
+
+"""
+#==============================================================================
 
 celltemplate = """# cell definition
 # name = '{name}'

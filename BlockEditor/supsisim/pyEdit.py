@@ -21,6 +21,7 @@ from supsisim.const import respath, pycmd, PD,PW,BWmin, celltemplate, viewTypes,
 from supsisim.port import isInPort, isOutPort, isNode, isPort
 from supsisim.connection import isConnection
 from supsisim.src_import import import_module_from_source_file
+from supsisim.netlist import netlist
 import libraries
 
 DEBUG = False
@@ -927,8 +928,20 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
         self.scene.codegen(True)
 
     def netlistMyhdlAct(self):
-        print (self.tabs)
-        error('to be implemented')
+        ix = self.centralWidget.currentIndex()
+        fname = self.centralWidget.widget(ix).fname
+        dirname, basename = os.path.split(fname)
+        dgmname, ext = os.path.splitext(basename)
+        netlist_dir = os.path.join(os.curdir, 'netlist_myhdl', dgmname)
+        
+        #actual netlisting
+        netlist(fname, lang='myhdl', netlist_dir=netlist_dir)
+        
+        # print message
+        b = QtWidgets.QMessageBox()
+        b.setWindowModality(QtCore.Qt.ApplicationModal)
+        b.setText('netlist written in ' + netlist_dir)
+        b.exec_()
 
 
     def setrunAct(self):
