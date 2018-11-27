@@ -104,6 +104,7 @@ def get_defs(filename):
 
 
 def toBlk(filename, libname):
+    res = []
     for name, inp, outp, properties, doc in get_defs(filename):
         if doc.strip():
             fmt = celltemplate.splitlines()
@@ -142,6 +143,8 @@ def toBlk(filename, libname):
                         parameters={}, 
                         properties=properties,
                         views=views))
+        res.append((libname, name))
+    return res # return list of imported blocks
         
     
 

@@ -2,21 +2,32 @@
 # name = 'Mux'
 # libname = 'common'
 
+tooltip = '''
+mux
+---
+parameter 'sel' is a space separated list of input values for select. 
+last entry will encode the default value
+'''
+
 inp = 2
 outp = 1
 
-parameters = dict(channels = 2)
+parameters = dict(sel='0 1')
 properties = {} #voor netlisten
 
 from  supsisim import const
 
 def ports(param):
     '''return inputs, outputs and inouts'''
-    channels =  param['channels'] if 'channels' in param else 2
+    if 'sel' in param:
+        sel =  [eval(i) for i in param['sel'].split()]
+    else:
+        sel = [0, 1]
+    channels = len(sel)
     w2, y = 50, 0
     inp = []
     for i in range(channels):
-        inp.append(('i{}'.format(i), -w2, y))
+        inp.append(('.i{}'.format(i), -w2, y))
         y += const.PD
             
     y += const.PD
@@ -27,20 +38,38 @@ def ports(param):
     return inp, outp, inout
 
 def getSymbol(param, properties, parent=None, scene=None,):
-    from  supsisim import block
+    from  supsisim import block, text
+    if 'sel' in param:
+        sel =  [eval(i) for i in param['sel'].split()]
+    else:
+        sel = [0, 1]
     attributes = dict()
     attributes['name'] = name
     attributes['libname'] = libname
     inp, outp, _ = ports(param)
     attributes['input'] = inp
     attributes['output'] = outp
+    attributes['icon'] = views['icon']
     b = block.Block(attributes,param,properties, name, libname, parent, scene)
-    
+    for p in b.ports():
+        if p.porttype == 'input':
+            t = p.label.text()
+            if t.startswith('.i'):
+                ix = int(p.label.text()[2:])
+                s  = sel[ix]
+                l = text.textItem(str(s), anchor=4, parent=b)
+                x, y = p.pos().x(), p.pos().y()
+                l.setPos(x+5,y)
+                l.setMutable(False)
     
     return b
     
 def toMyhdlInstance(instname, connectdict, param):
     # properties end up in the connectdict
+    if 'sel' in param:
+        sel =  [eval(i) for i in param['sel'].split()]
+    else:
+        sel = [0, 1]
     inp, outp, _ = ports(param)
     s, stp = connectdict['s']
     z, ztp = connectdict['z']
@@ -59,4 +88,4 @@ def toMyhdlInstance(instname, connectdict, param):
     
     return r
 
-views = {}
+views = {u'icon': u'Mux.svg'}

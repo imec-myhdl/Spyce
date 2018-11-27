@@ -7,19 +7,20 @@ from  Qt import QtGui, QtWidgets, QtCore # see https://github.com/mottosso/Qt.py
 from  Qt.QtPrintSupport import QPrinter, QPrintDialog
 
 import os
+from collections import OrderedDict
 #if sys.version_info>(3,0):
 #    import sip
 #    sip.setapi('QString', 1)
 
 
-from supsisim.block import Block, getBlock, getBlockModule
-from supsisim.text import isComment
+from supsisim.block import Block, getBlock, getBlockModule, isBlock, gridPos
+from supsisim.text import isComment, textItem, Comment
 from supsisim.editor import Editor
 from supsisim.scene import Scene, GraphicsView
 from supsisim.dialg import IO_Dialog, convertSymDialog, viewConfigDialog,error
 from supsisim.const import respath, pycmd, PD,PW,BWmin, celltemplate, viewTypes, pythonEditor
-from supsisim.port import isInPort, isOutPort, isNode, isPort
-from supsisim.connection import isConnection
+from supsisim.port import Port, isInPort, isOutPort, isNode, isPort
+from supsisim.connection import isConnection, Connection
 from supsisim.src_import import import_module_from_source_file
 from supsisim.netlist import netlist
 import libraries
@@ -28,6 +29,17 @@ DEBUG = False
 
 def strip_ext(fname, ext):
     return fname[:-len(ext)] if fname.endswith(ext) else fname
+
+def d2s(d):
+    '''dict to string'''
+    items = []
+    for k, v in d.items():
+        if k != 'type': # suppress 'type' attributes
+            if isinstance(v, (dict, OrderedDict)):
+                items.append('{}={}'.format(k, d2s(v)))
+            else:
+                items.append('{}={}'.format(k, repr(v)))
+    return 'dict({})'.format(', '.join(items))
 
 
 class SupsiSimMainWindow(QtWidgets.QMainWindow):
@@ -256,7 +268,7 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
             
             for b in content[3]:
                 comments.append(eval(b))
-            self.scene.dataToDiagram(blocks,connections,nodes,comments,False,True)  
+            self.dataToDiagram(blocks,connections,nodes,comments,False,True)  
             self.scene.status = status[:-2] 
             self.centralWidget.removeTab(i)
             self.view.setTransform(t)
@@ -306,7 +318,7 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
     def editSettingsAction(self):
         from supsisim.const import viewTypes
         editor, extension = pythonEditor
-        os.system(editor + ' supsisim/const.py')
+        os.system(editor + ' settings.py')
     
     def viewConfigAct(self):
         dialog = viewConfigDialog()
@@ -338,9 +350,16 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
                 f.write("".join(lines))
             f.close()
             
-            
-            
-        
+    def update_blocks(self, libname=None, blockname=None):
+        for i in range(self.centralWidget.count()):
+            scene = self.centralWidget.widget(i).scene()
+            for item in scene.items():
+                if isBlock(item):
+                    if libname and item.libname != libname:
+                        continue
+                    if blockname and item.blockname != blockname:
+                        continue
+                    self.editor.recreateBlock(item, scene)
     
     def onChange(self,i):
         self.view=self.centralWidget.widget(i)
@@ -351,9 +370,9 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
 #        for item in self.scene.items():
 #            if isinstance(item,Block) and item.type == 'symbol':
 #                item.reloadPorts()
-#        self.scene.diagramToData('tmp.py')
+#        self.diagramToData('tmp.py')
 #        self.scene.newDgm()
-#        self.scene.dataToDiagram('tmp',None,False)
+#        self.dataToDiagram('tmp',None,False)
 #        try:
 #            os.remove('tmp.py')
 #        except:
@@ -381,7 +400,6 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
         
     def addCommentAct(self):
         mimeData = QtCore.QMimeData()
-            
         data = 'Comment'
         mimeData.setText(data)
         drag = QtGui.QDrag(self)
@@ -397,12 +415,55 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
 
     def pasteAct(self):
         if self.scene.selection != []:
+            block_tr = dict()
+            port_tr = dict()
+            conn_list  = []
+            dx, dy = 100, 100
             for item in self.scene.selection:
-                if isinstance(item, Block) or isNode(item):
-                    try:
-                        item.clone(QtCore.QPointF(200,200))
-                    except:
-                        pass
+                newitem = None
+                if isinstance(item, Block):
+                    b = item.clone(QtCore.QPointF(dx,dy))
+                    b.setSelected(True)
+                    block_tr[item.label.text()] = b
+                elif isConnection(item):
+                    conn_list.append(item)
+                elif isPort(item, 'pin') or isPort(item, 'node'):
+                    newitem = Port(None, self.scene)
+                    port_tr[item] = newitem
+                elif isComment(item):
+                    newitem = Comment('')
+                    self.scene.addItem(newitem)
+#                else:
+#                    print ('skipping paste of ', item.toData())
+
+                item.setSelected(False)
+                if newitem:
+                    data = item.toData()
+                    data['x'] += dx
+                    data['y'] += dy
+                    newitem.fromData(data)
+                    newitem.setSelected(True)
+            
+            for c in conn_list:
+                data = c.toData()
+                conn = Connection(None, scene=self.scene)
+                conn.pos[0] = QtCore.QPointF(data['x0']+dx, data['y0']+dy)
+                conn.pos[1] = QtCore.QPointF(data['x1']+dx, data['y1']+dy)
+                for ix, p in [(0, 'p0'), (1, 'p1')]:
+                    if p in data: # translate blocknames
+                       (blkname, pinname) = data[p] # update to new blockname
+                       if blkname in block_tr:
+                           b = block_tr[blkname]
+                           conn.attach(ix, b.ports(retDict=True)[pinname])
+                    elif c.port[ix]:
+                        port = c.port[ix]
+                        if port in port_tr:
+                            conn.port[ix] = port_tr[port]
+                conn.update_path()
+
+ 
+ #                    self.editor.movBlk = gridPos(QtCore.QPointF((left+right)/2, (top+bottom)/2))
+
                     
 #TODO: fix connections
 #            for item in self.scene.selection:
@@ -482,26 +543,7 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
         
         return inp,outp
     
-#    def getSymbolData(self,attributes,properties,parameters):
-#        name = attributes['name']
-#        libname = attributes['libname']
-#        inp = attributes['input']
-#        outp = attributes['output']
-#        io   = attributes['inout'] if 'inout' in attributes else None
-#        icon = attributes['icon']
-#        views = attributes['views']
-#        views['icon'] = icon
-#        
-#        return celltemplate.format(name = name, 
-#                                   libname = libname,
-#                                   inp = inp,
-#                                   outp = outp,
-#                                   io = io,
-#                                   bbox = None, 
-#                                   properties = properties,
-#                                   parameters = parameters,
-#                                   views = views)
-        
+       
     
     def convertSymAct(self):
         selection = self.scene.items(self.scene.selectionArea())        
@@ -696,7 +738,9 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
         if filename:
             path, ffname = os.path.split(filename) # path, full filename
             bname, ext= os.path.splitext(ffname)# basename, extension('.py')
-            if ext != '.py':
+            ed, dgmext = viewTypes['diagram']
+            if ext not in ['.py', dgmext]:
+                error(filename + ' is not a diagram')
                 return
             self.path = path
             self.filename = bname
@@ -707,154 +751,28 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
             
             dgm = import_module_from_source_file(os.path.abspath(filename))
             
-#            try:
-#                blocks      = dgm.blocks
-#                nodes       = dgm.nodes
-#                connections = dgm.connections
-#                comments    = dgm.comments
-#                self.scene.dataToDiagram(blocks,connections,nodes,comments)
-#
-#            except Exception as e:
-#                message = 'Error while processing {}\nMessage:{}'.format(os.path.abspath(filename), str(e))
-#                error(message)
             blocks      = dgm.blocks
             nodes       = dgm.nodes
             connections = dgm.connections
             comments    = dgm.comments
-            self.scene.dataToDiagram(blocks,connections,nodes,comments)
+            self.dataToDiagram(blocks,connections,nodes,comments)
 
     def saveDiagram(self, filename=None, selection=None):
         ''' saves to diagram. Ask filename if not given. 
         If selected is True only selected elements are written'''
-#        if self.view.symbol:
-#            instanceName = self.centralWidget.tabText(self.centralWidget.currentIndex())
-#            symbolName = self.centralWidget.currentWidget().blockname
-#            libname = self.centralWidget.currentWidget().libname
-#            exec('import libraries.library_' + libname + '.' + symbolName)
-#            
-#            blk = libraries.blocks[libname + '/' + symbolName]
-#            attributes = dict()
-#            attributes['name'] = blk.name
-#            attributes['libname'] = blk.libname
-#            attributes['icon'] = blk.views['icon']
-#            attributes['views'] = blk.views
-#            
-#            parameters = blk.parameters
-#            properties = blk.properties
-#            
-#            blocks = []
-#            connections = []
-#            nodes = [] 
-#            comments = []
-#        
-#            for item in self.scene.items():
-#                if isinstance(item,Block):
-#                    blocks.append(str(item.toData()))
-#                if isPort(item, tp=['ipin', 'opin', 'iopin', 'node']):
-#                    print(item.porttype)
-#                    nodes.append(str(item.toData()))
-#                if isinstance(item,textItem):
-#                    if item.comment:
-#                        comments.append(str(dict(pos=dict(x=item.x(),y=item.y()),text=item.text())))
-#                    
-#            inp, outp = self.itemsToInpOutp(self.scene.items())        
-#            
-#            attributes['input'] = inp
-#            attributes['output'] = outp
-#            
-#            data = self.getSymbolData(attributes,properties,parameters)
-#            
-#
-#            self.path = os.getcwd()
-#            with open(self.path + '/libraries/library_' + libname + '/' + symbolName + '.py','w+') as f:
-#                f.write(str(data))
-#
-#            with open(self.path + '/libraries/library_' + libname + '/' + symbolName + '_diagram.py','w+') as f:
-#                f.write("blocks = [" + ",\n          ".join(blocks) + "]\n\n" + 
-#                        "connections = [" + ",\n               ".join(connections) + "]\n\n" + 
-#                        "nodes = [" + ",\n         ".join(nodes) + "]\n\n" + 
-#                        "comments = [" + ",\n         ".join(comments) + "]")
-#            
-#            if self.library.type == 'symbolView':
-#                self.library.symbolView()
-#                #self.library.tabs.setCurrentWidget(self.library.symbolTab)
-#            else:
-#                self.library.listView()
-#                #self.library.libraries.setCurrentItem(self.library.libraries.findItems('symbols',QtCore.Qt.MatchExactly)[0])
-#            
-#            
-#            
-#            #remove symbol and replace with updated one(keeping pin connections)
-#            
-#            for i in range(self.centralWidget.count()):
-#                tab = self.centralWidget.widget(i)
-#                if tab.returnSymbol:
-#                    tab.returnSymbol = False
-#                    for item in tab.scene().items():
-#                        if isinstance(item,Block):
-#                            if item.name == instanceName:
-#                                pos = item.scenePos()
-#                                libname = item.libname
-#                                
-#                                
-#                                ports = item.ports()
-#                                connections = []
-#                                for port in ports:
-#                                    connections += port.connections
-#                                
-#                                newConn = []
-#                                
-#                                for conn in connections:
-#                                    if conn.port1 in ports:
-#                                        if isInPort(conn.port1):
-#                                            inOrOut = 'in'
-#                                        else:
-#                                            inOrOut = 'out'
-#                                        newConn.append(dict(inOrOut=inOrOut,pos2=conn.pos2,pinlabel=conn.port1.pinlabel.text()))
-#                                    elif conn.port2 in ports:
-#                                        if isOutPort(conn.port2):
-#                                            inOrOut = 'in'
-#                                        else:
-#                                            inOrOut = 'out'
-#                                        newConn.append(dict(inOrOut=inOrOut,pos1=conn.pos1,pinlabel=conn.port2.pinlabel.text()))
-#                                        
-#                                        
-#                                item.remove()
-#                                b = libraries.getBlock(symbolName,libname,scene=tab.scene(),name=instanceName)
-#                                b.setPos(pos)
-#                                
-#                                for nConn in newConn:
-#                                    conn = Segment(None,tab.scene())
-#                                    if 'pos1' in nConn:
-#                                        conn.pos1 = nConn['pos1']
-#                                        for port in b.ports():
-#                                            if port.pinlabel.text() == nConn['pinlabel']:
-#                                                if (isInPort(port) and nConn['inOrOut'] == 'in')\
-#                                                or (isOutPort(port) and nConn['inOrOut'] == 'out'):
-#                                                    conn.pos2 = port.scenePos()
-#                                    else:
-#                                        conn.pos2 = nConn['pos2']
-#                                        for port in b.ports():
-#                                            if port.pinlabel.text() == nConn['pinlabel']:
-#                                                if (isInPort(port) and nConn['inOrOut'] == 'in')\
-#                                                or (isOutPort(port) and nConn['inOrOut'] == 'out'):
-#                                                    conn.pos1 = port.scenePos()
-#                                    conn.update_ports_from_pos()
-##            
-#            
-#        else:
         if filename in [None, False]:
             ix = self.centralWidget.currentIndex()
             fname = self.centralWidget.widget(ix).fname
 #            fname = os.path.join(self.path, 'saves', self.filename)
             filename = QtWidgets.QFileDialog.getSaveFileName(self, 'Save', fname, filter='*.py')
+
         if filename:
             filename = os.path.abspath(filename)
             self.path, self.filename = os.path.split(filename)
             self.filename, _ = os.path.splitext(self.filename) # strip '.py'
             self.centralWidget.setTabText(self.centralWidget.currentIndex(),self.filename)
             
-            blocks, connections, nodes, comments = self.scene.diagramToData(selection)
+            blocks, connections, nodes, comments = self.diagramToData(selection)
             with open(filename,'w+') as f:
                 f.write('# diagram {}\n'.format(self.filename))
                 for s, items in [('blocks',blocks), 
@@ -866,6 +784,82 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
             print('saved file', filename)
         else:
             return True
+
+    def diagramToData(self, selection=None):
+        blocks = []
+        connections = []
+        nodes = []        
+        comments = []
+        for block in self.scene.blocks: # force unique names
+            block.setLabel(verbose=True)
+        items = selection if selection else self.scene.items()
+        for item in items:
+            if isBlock(item):
+                blocks.append(d2s(item.toData()))
+            elif isConnection(item):
+                connections.append(d2s(item.toData()))
+            elif isPort(item, tp=['ipin', 'opin', 'iopin', 'node']):
+                nodes.append(d2s(item.toData()))
+            elif isComment(item):
+                comments.append(d2s(item.toData()))
+                    
+        return (blocks, connections, nodes, comments)
+        
+    def dataToDiagram(self, blocks, connections, nodes, comments, center=True, undo=False):
+        errors = []
+        
+        for data in blocks:
+            prop = data['properties'] if 'properties' in data else dict()
+            if 'parameters' in data:
+                #getBlock(libname, blockname, parent=None, scene=None, param=dict(), name=None, flip=False)
+                b = getBlock(data['libname'], data['blockname'], scene=self.scene,
+                             param=data['parameters'], properties=prop, errors=errors)
+            else: 
+                b = getBlock(data['libname'], data['blockname'], scene=self.scene, 
+                             properties=prop , errors=errors)
+                
+            if b:
+                b.fromData(data)
+                    
+        for item in nodes:
+            pos = QtCore.QPointF(item['x'], item['y'])
+            if self.scene.find_itemAt(pos):
+                print('discarding overlapping node at x={}, y={}'.format(item['x'], item['y']))
+            else:
+                p = Port(None, self.scene)
+                p.fromData(item)
+
+        for data in connections:        
+            conn = Connection(None, self.scene)
+            pos = [QtCore.QPointF(data['x0'], data['y0'])]
+            pos.append(QtCore.QPointF(data['x1'], data['y1']))
+            
+            for ix in [0,1]:
+                port = self.scene.find_itemAt(pos[ix], exclude=(Block, Connection, textItem))
+                if isPort(port):
+                    conn.attach(ix, port)
+                else:
+                    conn.pos[ix] = pos[ix]
+                    print('no port at ', pos[ix])
+            conn.update_path()
+                    
+            if 'label' in data:
+                conn.label = textItem(data['label'], anchor=3, parent=conn)
+                conn.label.setPos(conn.pos2.x(),conn.pos2.y())
+            if 'signalType' in data:
+                conn.signalType = textItem(data['signalType'], anchor=3, parent=conn)
+                conn.signalType.setPos(conn.pos2.x(),conn.pos2.y())
+
+        for data in comments:
+            comment = Comment('')
+            comment.fromData(data)
+            self.scene.addItem(comment)
+
+        if center:
+            self.scene.mainw.view.centerOn(self.scene.getCenter()[0],self.scene.getCenter()[1])
+            
+        if errors:
+            error('\n'.join(errors))
 
     def print_scheme(self):
         self.printer = QPrinter()

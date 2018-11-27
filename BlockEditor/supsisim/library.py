@@ -21,7 +21,7 @@ from supsisim.svg_utils import updateSvg
 from supsisim.const import DB, respath, viewTypes
 
 from supsisim.block import Block, getBlock, getBlockModule, getViews, \
-                           saveBlock, rmBlock, calcBboxFromPins, gridPos
+                           saveBlock, rmBlock, calcBboxFromPins, gridPos, updateOnDisk
                             
 from supsisim.dialg import txtDialog, \
                            textLineDialog, createBlockDialog, error, \
@@ -35,6 +35,8 @@ class CompViewer(QtWidgets.QGraphicsScene):
         super(CompViewer, self).__init__()
         self.parent = parent
         self.actComp = None
+        
+        self.blocks = set()
 
         self.componentList = []	 
         self.activeComponent = None 
@@ -229,10 +231,11 @@ class Library(QtWidgets.QMainWindow):
                 item = self.libraries.currentItem()
                 libname =item.text() if item else None
             if libname:
-                myhdl_to_blk.toBlk(filename, libname)
-                self.refresh()
+                res = myhdl_to_blk.toBlk(filename, libname)
+                self.refresh(res)
+
                 
-    def refresh(self):
+    def refresh(self, list_of_blocks=None):
         if self.type == 'symbolView':
             i = self.tabs.currentIndex()
             self.symbolView()
@@ -243,6 +246,9 @@ class Library(QtWidgets.QMainWindow):
             self.listView()
             self.libraries.setCurrentRow(l)
             self.cells.setCurrentRow(c)
+        if list_of_blocks:
+            for libname, blockname in list_of_blocks:
+                self.diagram_editor.update_blocks(libname, blockname)
 
         
     def editBbox(self,actComp=None):
@@ -255,6 +261,7 @@ class Library(QtWidgets.QMainWindow):
             bbox = (int(cx - w/2), int(cy - h/2), int(w), int(h))
             
         else:
+            error()
             libname = self.libraries.currentItem().text()
             blockname = self.cells.currentItem().text()
             blk = getBlockModule(libname,blockname)
@@ -280,10 +287,10 @@ class Library(QtWidgets.QMainWindow):
             d = dict(ret)
             x0, y0, x1, y1 = d['left'], d['top'], d['right'], d['bottom']
             bbox = (x0, y0, x1-x0, y1-y0)
-            libname, blockname, fname, blk = self.getnames(actComp)
+            libname, blockname, fname, blk = self.getnames(blk)
             dd = dict()
             dd['bbox'] = bbox
-            src = actComp.updateOnDisk(dd)
+            src = updateOnDisk(libname, blockname, dd)
             if 'bbox' not in src:
                 lines = src.splitlines()
                 for ix, line in enumerate(lines):
@@ -295,7 +302,7 @@ class Library(QtWidgets.QMainWindow):
                     f.write(src)
                 reload('libraries.library_{}.{}'.format(libname, blockname))
             
-            self.refresh()
+            self.refresh([(libname, blockname)])
     
     def addLibrary(self):
         dialog = textLineDialog('Name: ','Add library')
@@ -350,7 +357,7 @@ class Library(QtWidgets.QMainWindow):
             return
             
         #reset library
-        self.refresh()
+        self.refresh([(libname, blockname)])
                
     def listView(self):
         '''switch to listView'''
@@ -582,7 +589,7 @@ class Library(QtWidgets.QMainWindow):
             saveBlock(libname, blockname, pins, icon, bbox=None, properties=properties, parameters=parameters)
             
             # update libary viewer
-            self.refresh()
+            self.refresh([(libname, blockname)])
 
 
 
@@ -590,6 +597,8 @@ class Library(QtWidgets.QMainWindow):
         '''edit svg file'''
         if self.type == 'symbolView':
             block = actComp
+            libname = actComp.libname
+            blockname = actComp.blockname
         else:
             libname = self.libraries.currentItem().text()
             blockname = self.cells.currentItem().text()
@@ -629,7 +638,9 @@ class Library(QtWidgets.QMainWindow):
                 print('mv to', svgiconname)
                 block.setIcon(svgiconname)
                 # register niew view
-                block.setView('icon', svgiconname)
+                blockdir = os.path.dirname(libraries.blockpath(block.libname, block.blockname))
+                relpath = os.path.relpath(svgiconname, blockdir)
+                block.setView('icon', relpath)
                 
             # creanup tempfile
             if os.path.exists(svgtempfilename):
@@ -661,7 +672,7 @@ class Library(QtWidgets.QMainWindow):
             
             actComp.updateOnDisk(dd)
             
-            self.refresh()
+            self.refresh([(libname, blockname)])
 
     def cutBlock(self,actComp=None):
         if self.type == 'symbolView':

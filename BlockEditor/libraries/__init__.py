@@ -15,7 +15,11 @@ from supsisim.const import viewTypes
 libs = dict()  # key = library name (minus the 'library_' prefix)
 #                value = a set containing all blocknames
 
-libroot = os.path.dirname(__file__) # home of all libaries
+if os.path.isfile('libraries'): # home of all libaries
+    libroot =  'libraries'
+else:
+    libroot = os.path.dirname(__file__) # home of all libaries
+
 libprefix = 'library_'
 
    

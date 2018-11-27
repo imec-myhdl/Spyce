@@ -18,21 +18,6 @@ filenamemyhdl_template = 'libraries.library_{}.{}'
 def strip_ext(fname, ext):
     return fname[:-len(ext)] if fname.endswith(ext) else fname
 
-myhdl_footer = """
-    
-if __name__ == "__main__":
-# =============================================================================
-#     setup and run testbench
-# =============================================================================
-
-    from myhdl import traceSignals    
-    {blockname}_tb = {blockname} # append "_tb"
-    tb = {blockname}_tb()
-    traceSignals.timescale = '{t_resolution}s'    
-    tb.config_sim(trace=True)
-    tb.run_sim(duration = 1e-6 * TIME_UNIT)
-
-"""
 
 def timeresolution():
     tps = 1.0/const.ticks_per_second
@@ -46,7 +31,7 @@ def timeresolution():
 
 blkModuleCache = dict()         
 force_renetlist = True
-netlists = set()
+
 
 def dest_newer_than_source(dest, source):
     '''return true if dest is up to date'''
@@ -102,125 +87,145 @@ def propagateNets(conn, connections, resolved):
 def fillTemplate(template, blockname, body):
     return template.format(body   = body,
                  projectname      = const.projectname,
+                 version          = const.version,
                  copyrightText    = const.copyrightText,
                  copyrightPolicy  = const.copyrightPolicy,
+                 ticks_per_second = const.ticks_per_second,
+                 t_stop           = const.t_stop,
                  blockname        = blockname,
                  user             = os.getlogin(),
-                 ticks_per_second = const.ticks_per_second,
-                 t_resolution     = timeresolution())
+                 t_resolution     = timeresolution() )
     
 
 #==============================================================================
 # main netlist routine
 #==============================================================================
-def netlist(filename, properties=dict(), lang='myhdl', netlist_dir=const.netlist_dir):
+def netlist(filename, properties=dict(), lang='myhdl', netlist_dir=const.netlist_dir, netlists = set()):
+    '''netlist a file in netlist_dir
+    netlists contains a set of already netlisted blocks'''
+    
+    # check if already netlisted
     if filename in netlists:
         return
+        
+    toplevel = len(netlists) == 0
     netlists.add(filename)
-    d, module_name  = os.path.split(filename)
+    
     ed, ext_diagram = const.viewTypes['diagram']
     ed, ext_lang    = const.viewTypes[lang]
+
+    d, module_name  = os.path.split(filename)
     
+    libname, blockname = libraries.pathToLibnameBlockname(filename) # removes extension
+    ext = '.py' if lang == 'myhdl' else ext_lang # .mhdl.py -> .py etc.
+    
+    # note: libdir is empty when outside library i.e. toplevel
+    if toplevel:
+        subdir = ''
+    else:
+        subdir = libraries.libprefix + libname  if libname else libname 
+        
+    outfile = os.path.join(netlist_dir, subdir, blockname + ext)
+
+
+    if lang == 'myhdl':
+        template     = const.myhdl_template.lstrip()
+        tbfooter     = const.myhdl_tbfooter
+        convert      = toMyhdl
+        codegen_stmt = 'toMyhdlInstance'
+    elif lang == 'systemverilog':
+        template     = const.systemverilog_template.lstrip()
+        tbfooter     = const.systemverilog_tbfooter
+        convert      = toSystemverilog
+        codegen_stmt = 'toSytemverilogInstance'
+    else:
+        raise Exception('todo: language support for '+lang)           
+
+
     if filename.endswith(ext_lang): # other view (myhdl verilog etc.)
         # copy file to netlist location (if newer than existing netlist)
-    
-        libname, blockname = libraries.pathToLibnameBlockname(strip_ext(filename, ext_lang))
-        ext = '.py' # .mhdl.py -> .py etc.
-        
-        # note: libdir is empty when outside library i.e. toplevel
-        libdir = libraries.libprefix + libname  if libname else libname
-            
-        outfile = os.path.join(netlist_dir, libdir, blockname + ext)
         if outfile in netlists or dest_newer_than_source(dest=outfile, source=filename):
             # print('{} module already present in {}'.format(lang, outfile))
             return # do nothing if outfile newer than infile
 
-        if not os.path.isdir(os.path.join(netlist_dir, libdir)):
-            os.makedirs(os.path.join(netlist_dir, libdir))
+        if not os.path.isdir(os.path.join(netlist_dir, subdir)):
+            os.makedirs(os.path.join(netlist_dir, subdir))
         with open(filename, 'rb') as fi:
             body = fi.read()
-
-        if lang == 'myhdl':
-            template = const.myhdl_template
-            txt = fillTemplate(template, blockname, body)
-            with open(outfile, 'wb') as fo:
-                fo.write(txt)
-            print('{} module written to {}'.format(lang, outfile))
-        else:
-            raise Exception('todo: language support for '+lang)           
+            
+        txt = fillTemplate(template, blockname, body)
+        with open(outfile, 'wb') as fo:
+            fo.write(txt)
+        print('{} module written to {}'.format(lang, outfile))
 
         
     else: # diagram
-        if filename.endswith(ext_diagram):
-            module_name = strip_ext(os.path.basename(filename), ext_diagram)
-        else:
-            module_name = strip_ext(module_name, '.py') # toplevel can have arbitrary_name.py
-
-        libname, blockname = libraries.pathToLibnameBlockname(strip_ext(filename, ext_lang))
-        libdir = libraries.libprefix + libname if libname else libname 
 
         # resolve connections
         blocks, internal_nets, external_nets = resolve_connectivity(filename, properties=dict())
-
-        if lang == 'myhdl':
-            body = toMyhdl(module_name, blocks, internal_nets, external_nets)
-            template = const.myhdl_template + myhdl_footer
-            txt = fillTemplate(template, blockname, body)
-
-            if not os.path.isdir(netlist_dir):
-                os.makedirs(netlist_dir)
-
-            outfile = os.path.join(netlist_dir, libdir, module_name + '.py')
-            if not dest_newer_than_source(dest=outfile, source=filename):
-                with open(outfile, 'wb') as fo:
-                    fo.write('# myhdl netlist generated from {}\n\n'.format(filename))
-                    fo.write(txt)
-                print('diagram netlist written to', outfile)
+        body = convert(module_name, blocks, internal_nets, external_nets)
             
-            # also netlist blocks in the diagram
-            for name, block in blocks.items():
-                libname, blockname = block['libname'], block['blockname']
-                k = libname + '/' + blockname
-                libpath = libraries.libpath(libname)
-                fname = os.path.join(libpath, blockname)
+        txt = fillTemplate(template+tbfooter, blockname, body)
+
+        if not os.path.isdir(netlist_dir):
+            os.makedirs(netlist_dir)
+
+        if not dest_newer_than_source(dest=outfile, source=filename):
+            with open(outfile, 'wb') as fo:
+                fo.write('# diagram netlist generated from {}\n\n'.format(filename))
+                fo.write(txt)
+            print('diagram netlist written to', outfile)
+        
+        # also netlist blocks in the diagram
+        for name, block in blocks.items():
+            libname, blockname = block['libname'], block['blockname']
+            k = libname + '/' + blockname
+            libpath = libraries.libpath(libname)
+            fname = os.path.join(libpath, blockname)
 #                netlist_subdir = os.path.join(netlist_dir, libraries.libprefix+libname)
-                
-                # inst contains toMyhdlInstance code 
-                if k in blkModuleCache and hasattr(blkModuleCache[k], 'toMyhdlInstance'):
-                    pass
+            
+            # block module contains code genration (no need to netlist)
+            if k in blkModuleCache and hasattr(blkModuleCache[k], codegen_stmt):
+                continue
 
-                # inst has a netlist view
-                elif os.path.exists(fname + ext_lang):
-                    netlist(fname + ext_lang, properties, lang, netlist_dir)
+            # inst has a netlist view
+            elif os.path.exists(fname + ext_lang):
+                netlist(fname + ext_lang, properties, lang, netlist_dir)
 
-                # inst has diagram (that can be netlisted)
-                elif os.path.exists(fname + ext_diagram):
-                    netlist(fname + ext_diagram, properties, lang, netlist_dir)
+            # inst has diagram (that can be netlisted)
+            elif os.path.exists(fname + ext_diagram):
+                netlist(fname + ext_diagram, properties, lang, netlist_dir)
 
+            else:
+                print('Warning: {}.{} is missing a {} view or diagram'.format(libname, blockname, lang))
+
+            if lang != 'myhdl':
+                continue
+            
+            # add __init__ files as needed
+            # and add 'from library import block'
+            # this allows the instantiation to look like:
+            #     library.block(pin1=net1, pin2=net2)
+            # otherwise instantiation would look like: 
+            #     library.block.block(pin1=net1, pin2=net2)
+            libdir = libraries.libprefix + libname if libname else libname
+            initname = os.path.join(netlist_dir, libdir, '__init__.py')
+            modname = os.path.join(netlist_dir, libdir, blockname+'.py')
+            imp_statement = 'from {p}{l}.{b} import {b}\n'.format(p=libraries.libprefix, l=libname, b=blockname)
+
+            if os.path.isfile(modname):
+                if os.path.isfile(initname):                    
+                    with open(initname, 'rb') as f:
+                        t = f.read()
+                    if imp_statement in t:
+                        return # nothing to do
                 else:
-                    print('Warning: {}.{} is missing a {} view'.format(libname, blockname, lang))
-    
-                libdir = libraries.libprefix + libname if libname else libname
-                initname = os.path.join(netlist_dir, libdir, '__init__.py')
-                modname = os.path.join(netlist_dir, libdir, blockname+'.py')
-                imp_statement = 'from {p}{l}.{b} import {b}\n'.format(p=libraries.libprefix, l=libname, b=blockname)
+                    t = '# import blocks in name-space\n\n'
+                
+                t += imp_statement         
+                with open(initname, 'wb') as f:
+                   f.write(t)
 
-                if os.path.isfile(modname):
-                    if os.path.isfile(initname):                    
-                        with open(initname, 'rb') as f:
-                            t = f.read()
-                        if imp_statement in t:
-                            return # nothing to do
-                    else:
-                        t = '# import blocks in name-space\n\n'
-                        t+= 'TIME_UNIT = {}\n\n'.format(TIME_UNIT)
-                    
-                    t += imp_statement         
-                    with open(initname, 'wb') as f:
-                       f.write(t)
-
-        else:
-            raise Exception('todo: language support for '+lang)
 
            
 
@@ -280,7 +285,6 @@ def toMyhdl(module_name, blocks, internal_nets, external_nets):
        blocks            dict {inst_name:block definitions (from diagram) + resolved connectivity}
        external_nets     dict external_nets[netname] = signalType containing all portnames 
        internal_nets     dict internal_nets[netname] = signalType containing all internal netnames 
-       TIME_UNIT         ammount of ticsk per second    
     '''
 
     ret     = ['from myhdl import block, Signal, intbv, fixbv, instances, \\']
@@ -474,6 +478,7 @@ def resolve_connectivity(filename, properties=dict()):
     for instname, inst in blocks.items():
         for pin, net in inst['conn'].items():
             if net is None:
+                print ('debug', inst['conn'])
                 raise Exception('file {}: instance {}, pin {} is not Connected'.format(filename, instname, pin))
 
     internal_nets = dict()

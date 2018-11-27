@@ -16,7 +16,7 @@ from collections import OrderedDict
 from supsisim.port import Port, isInPort, isOutPort, isPort, isNode
 from supsisim.connection import Connection, isConnection
 from supsisim.block import isBlock, gridPos, getBlock
-from supsisim.text  import textItem, isComment, isTextItem
+from supsisim.text  import textItem, Comment, isTextItem, isComment
 from supsisim.dialg import BlockName_Dialog, textLineDialog, overWriteNetlist, \
                            error, propertiesDialog
 import supsisim.RCPDlg as pDlg
@@ -28,6 +28,7 @@ class Editor(QtCore.QObject):
     def __init__(self, parent):
         super(Editor, self).__init__(parent)
         self.conn = None
+        self.move = None
         self.scene = None
         self.status = parent.status
         self.movBlk = False
@@ -74,6 +75,10 @@ class Editor(QtCore.QObject):
         connDelAction.triggered.connect(self.deleteConn)
         connInsAction.triggered.connect(self.insConn)
         connLabelAction.triggered.connect(self.addConnLabel)
+
+        self.subMenuText = QtWidgets.QMenu()
+        textCloneAction  = self.subMenuText.addAction('Clone')
+        textCloneAction.triggered.connect(self.cloneText)
     
         self.subMenuNothing = QtWidgets.QMenu() # right mouse menu when nothing on pos
         nodeInsAction   = self.subMenuNothing.addAction('Insert node')
@@ -94,34 +99,9 @@ class Editor(QtCore.QObject):
             else:
                 conn.label = textItem(ret, anchor=3, parent=conn)
                 conn.label.setPos(conn.pos2.x(),conn.pos2.y())
+   
+    
 
-    
-    
-#    def addView(self,blockname,libname,type):
-#        error('fix me: addView in editor.py')
-#        return
-#        path = os.getcwd()
-#        fname = '/libraries/library_{}/{}.py'.format(libname,blockname)
-#        f = open(path + fname,'r')
-#        lines = f.readlines()
-#        f.close()
-#        
-#        for index,line in enumerate(lines):
-#            if line.startswith('iconSource = '):
-#                source = "{type}Source = 'libraries/library_{libname}/{blockname}_{extension}'\n"
-#                from supsisim.const import viewEditors
-#                for viewEditor in viewEditors:
-#                    if type == viewEditor['type']:
-#                        extension = viewEditor['extension']
-#                source = source.format(type=type,libname=libname,blockname=blockname,extension = extension)
-#                lines.insert(index+1,source)
-#            if line.startswith('views = {'):
-#                lines[index] = line.replace('views = {',"views = {{'{type}':{type}Source,".format(type=type))
-#        
-#        
-#        f = open(path + fname,'w+')
-#        f.write("".join(lines))
-#        f.close()
 
     def cloneBlock(self):
         item = self.scene.item
@@ -129,6 +109,12 @@ class Editor(QtCore.QObject):
 #        b.name = self.scene.setUniqueName(b)
         b.setup()
 
+    def cloneText(self):
+        item = self.scene.item
+        c = Comment('')
+        c.fromData(item.toData())
+        c.setPos(c.pos() + QtCore.QPointF(100,100))
+        self.scene.addItem(c)
 
     def deleteBlock(self):
         item = self.scene.item
@@ -293,7 +279,9 @@ class Editor(QtCore.QObject):
             item.properties = dd
             self.recreateBlock(item)
     
-    def recreateBlock(self, item):
+    def recreateBlock(self, item, scene=None):
+        if scene is None:
+            scene = self.scene
         pp = dict()
         for port in item.ports():
             portname = port.label.text()
@@ -311,7 +299,7 @@ class Editor(QtCore.QObject):
         # recreate with new parameters
         par  = item.parameters
         prop = item.properties
-        b = getBlock(data['libname'], data['blockname'], scene=self.scene, 
+        b = getBlock(data['libname'], data['blockname'], scene=scene, 
                      param=par, properties=prop, name=data['blockname'])
         b.fromData(data)
         b.setLabel()
@@ -322,10 +310,10 @@ class Editor(QtCore.QObject):
             if portname in pp:
                 for (ix, p) in pp[portname]:
                     if ix == 0:
-                        c = Connection(None, self.scene, port)
+                        c = Connection(None, scene, port)
                         c.attach(1, p)
                     else:
-                        c = Connection(None, self.scene, p)
+                        c = Connection(None, scene, p)
                         c.attach(1, port)
                     c.update_path()
             
@@ -339,8 +327,7 @@ class Editor(QtCore.QObject):
             self.recreateBlock(item)
 
 
-
-    
+               
         
     def insertConnection(self,event):
         pos = gridPos(event.scenePos())
@@ -445,7 +432,7 @@ class Editor(QtCore.QObject):
         else: # not in connection mode
             while ports:
                 port = ports.pop()
-                if isOutPort(port):
+                if isOutPort(port) and not port.connections:
                     # Try to create new connection starting at selected output port
                     self.connectionStart(port)
                     return
@@ -465,7 +452,7 @@ class Editor(QtCore.QObject):
             return
         pos = gridPos(event.scenePos())    
         item = self.itemAt(pos)
-        
+                
         if self.conn:
             self.scene.mainw.view.setCursor(QtCore.Qt.ArrowCursor)
             if item and isInPort(item) or isNode(item):
@@ -517,7 +504,7 @@ class Editor(QtCore.QObject):
 
     def mouseRightButtonPressed(self, obj, event):
         if self.conn == None:
-            b, p, c = [], [], []
+            b, p, c, t = [], [], [], []
             for i in self.itemAt(event.scenePos(), single=False):
                 if isBlock(i):
                     b.append(i)
@@ -525,7 +512,9 @@ class Editor(QtCore.QObject):
                     p.append(i)
                 elif isConnection(i):
                     c.append(i)
-            item = p.pop() if p else b.pop() if b else c.pop() if c else None
+                elif isComment(i):
+                    t.append(i)
+            item = p.pop() if p else b.pop() if b else c.pop() if c else t.pop() if t else None
             if isBlock(item):
                 self.scene.item = item
 #                self.netlistMenu.clear()
@@ -538,6 +527,10 @@ class Editor(QtCore.QObject):
                 self.scene.item = item
                 self.event = event
                 self.subMenuConn.exec_(event.screenPos())
+            elif isComment(item):
+                self.scene.item = item
+                self.event = event
+                self.subMenuText.exec_(event.screenPos())
             else:
                 self.event = event
                 self.subMenuNothing.exec_(event.screenPos())

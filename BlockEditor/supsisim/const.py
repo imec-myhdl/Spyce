@@ -2,19 +2,6 @@ import os, sys
 from collections import OrderedDict
 
 
-GRID = 10
-PW   = 8   # pin width
-PD   = 20  # pin distance (spacing between pins in blocks)
-NW   = 4   # node width
-LW   = 1.5 # line width for conncetion
-
-BWmin = 80 # block minimum width
-BHmin = 60 # block minimum height
-
-
-DB = 2   # selection radius (dynamically scaling whith zoom)
-
-stdfont = 'Sans Serif,12' # used for (pin)labels/comments
 
 if 'PYSUPSICTRL' in os.environ:
     path = os.environ['PYSUPSICTRL']
@@ -24,6 +11,9 @@ else:
     if path.endswith('supsisim'):
         path = os.path.dirname(path)
     print('defaulting to {}'.format(path))
+
+if not path in os.sys.path:
+    os.sys.path.insert(0, path)
 #    sys.exit()
     
 # defaults for icon creation
@@ -42,31 +32,18 @@ pycmd = 'ipython3 qtconsole &'
 pyrun = 'python'
 
 #==============================================================================
-# # used in netlist
+# Netlisting
 #==============================================================================
 projectname      = 'projectname placeholder'
+version          = '1.0'
 copyrightText    = 'copyright placeholder'
 copyrightPolicy  = 'copyright policy placeholder'
 ticks_per_second = 1e15 # ticks per second
+t_stop           = 1e-6 # simulation stop time
 
-myhdl_template = """
-#---------------------------------------------------------------------------------------------------
-# Project   : {projectname}
-# Filename  : {blockname}.py
-# Version   : 1.0
-# Author    : {user}
-# Contents  : MyHDL model for {blockname}
-# Copyright : {copyrightText}
-#             *** {copyrightPolicy} ***
-#---------------------------------------------------------------------------------------------------
-
-TIME_UNIT = {ticks_per_second}
-
-{body}
-
-"""
 #==============================================================================
-
+# templates
+#==============================================================================
 celltemplate = """# cell definition
 # name = '{name}'
 # libname = '{libname}'
@@ -84,6 +61,84 @@ properties = {properties} # netlist properties
 views = {views}
 """
 
+# available fields for netlist templates:
+#   body            - netlist that was created
+#   projectname      
+#   version          
+#   copyrightText    
+#   copyrightPolicy  
+#   ticks_per_second 
+#   t_stop           
+#   blockname        
+#   user             
+#   t_resolution     - string e.g. 1fs if ticks_per_second == 1e15
+
+myhdl_template = """
+#---------------------------------------------------------------------------------------------------
+# Project   : {projectname}
+# Filename  : {blockname}.py
+# Version   : {version}
+# Author    : {user}
+# Contents  : MyHDL model for {blockname}
+# Copyright : {copyrightText}
+#             *** {copyrightPolicy} ***
+#---------------------------------------------------------------------------------------------------
+
+TIME_UNIT = {ticks_per_second}
+
+{body}
+
+"""
+systemverilog_template = """
+//--------------------------------------------------------------------------------------------------
+// Project   : {projectname}                                                                             
+// Filename  : {blockname}.sv
+// Version   : {version}                                                                             
+// Author    : {user}
+// Contents  : systemVerilog model for {blockname}
+// Copyright : {copyrightText}                                     
+//             *** {copyrightPolicy} ***
+//--------------------------------------------------------------------------------------------------
+`timescale 1ps/{t_resolution}
+`include "global_pkg.v"
+
+{body}
+
+"""
+
+# test bench
+myhdl_tbfooter = """
+    
+if __name__ == "__main__":
+# =============================================================================
+#     setup and run testbench
+# =============================================================================
+
+    from myhdl import traceSignals    
+    {blockname}_tb = {blockname} # append "_tb"
+    tb = {blockname}_tb()
+    traceSignals.timescale = '{t_resolution}s'    
+    tb.config_sim(trace=True)
+    tb.run_sim(duration = {t_stop} * TIME_UNIT)
+
+"""
+
+systemverilog_tbfooter = ""
+
+#==============================================================================
+# GUI preferences
+#==============================================================================
+
+GRID  = 10  # grid spacing
+PW    = 8   # pin width
+PD    = 20  # pin distance (spacing between pins in blocks)
+NW    = 4   # node width
+LW    = 1.5 # line width for conncetion
+BWmin = 80 # block minimum width
+BHmin = 60 # block minimum height
+DB    = 2     # selection radius (dynamically scaling whith zoom)
+
+stdfont = 'Sans Serif,12' # used for (pin)labels/comments
 #==============================================================================
 # predefined colors
 # Qt.white       3  White (#ffffff)
@@ -123,6 +178,7 @@ if 'Qt'in sys.modules: # needed to import without gui
 
 #==============================================================================
 # view editors:
+#==============================================================================
 textEditor        = 'kate'
 codeEditor        = 'kate'
 officeEditor      = 'libreoffice --writer'
@@ -139,3 +195,6 @@ viewTypes['systemverilog'] = (codeEditor,    '.sv'        )
 viewTypes['verilog']       = (codeEditor,    '.v'         )
 viewTypes['doc']           = (officeEditor,  '.odt'       )
 #==============================================================================
+
+if os.path.isfile('settings.py'):
+    from settings import *

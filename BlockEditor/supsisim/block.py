@@ -71,12 +71,13 @@ def _addBlockModuleDefaults(libname, blockname):
         if os.path.isfile(fn):
             blk.views[viewname] = fn        
 
-def getBlockModule(libname, blockname):
+def getBlockModule(libname, blockname, errors=[]):
     '''read python module of block from disk'''
     fpath = libraries.blockpath(libname, blockname)
-    blk = import_module_from_source_file(fpath)
+    blk = import_module_from_source_file(fpath, errors)
     block_modules[libname+'/'+blockname] = blk
-    _addBlockModuleDefaults(libname, blockname)
+    if blk:
+        _addBlockModuleDefaults(libname, blockname)
     return blk
 
 #==============================================================================
@@ -91,18 +92,23 @@ def gridPos(pt):
 #==============================================================================
 # helper function to easily create a Block object        
 #==============================================================================
-def getBlock(libname, blockname, parent=None, scene=None, param=dict(), properties=dict(), name=None, flip=False):
+def getBlock(libname, blockname, parent=None, scene=None, param=dict(), 
+             properties=dict(), name=None, flip=False, errors=[]):
     '''create a Block'''
-    blk = getBlockModule(libname, blockname)
-    if blk.parameters and not param:
+
+    blk = getBlockModule(libname, blockname, errors=errors)
+    if blk is None:
+        return
+    if blk.parameters and not param: # default parameters
         param = blk.parameters
-    if blk.properties and not properties:
+    if blk.properties and not properties:# default properties
         properties = blk.properties
 
     try:
          b = blk.getSymbol(param, properties, parent, scene)
     except AttributeError:
          b = None
+         
     if b: # pcell
         b.libname = libname
         
@@ -129,6 +135,7 @@ def getBlock(libname, blockname, parent=None, scene=None, param=dict(), properti
 #            return False
 
     else: # std block
+        
         if param:
             error('pcell {}.{}.getSymbol did not return block'.format(libname, blockname))
         else:
@@ -237,7 +244,43 @@ def calcBboxFromPins(inp, outp, io=[]):
         else:
             h = BHmin
             top = - h/2
-    return (left, top, w, h)        
+    return (left, top, w, h)
+
+
+def updateOnDisk(libname, blockname, dd=dict(), writeback=True):
+    '''replace assignments with new values for variable names in dd
+    and write back to disk'''
+    fname = libraries.blockpath(libname, blockname)
+    src = []
+    with open(fname) as f:
+        lines = f.readlines()
+        ix = 0
+        while ix < len(lines):
+            line = lines[ix]
+            s = line.replace('=', ' = ').split()
+            if len(s) > 2  and line.startswith(s[0]) and  s[0] in dd and s[1] == '=':
+                # assignment without leading whitespace
+                key = s[0]
+                while line.endswith('\\\n') or line.strip().endswith(','):
+                    ix += 1
+                    line = lines[ix]
+                # get comment if present
+                line, _ , cmt = line.partition('#')
+                if cmt:
+                    cmt = ' # '+ cmt.strip()
+                line = '{} = {}\n'.format(key, dd[key], cmt)
+            
+            src.append(line)
+            ix += 1
+
+    src = ''.join(src)
+    if writeback:
+        with open(fname, 'wb') as f:
+            f.write(src)
+            
+    getBlockModule(libname, blockname) # update module
+    return src
+     
 #==============================================================================
 # main Block class
 #==============================================================================
@@ -281,6 +324,7 @@ class Block(QtWidgets.QGraphicsPathItem):
 
         if self.scene:
             self.setup()
+            self.scene.blocks.add(self)
     
 #    def __str__(self):
 #        txt  = 'Name         :' + self.name.__str__() +'\n'
@@ -332,27 +376,22 @@ class Block(QtWidgets.QGraphicsPathItem):
         return calcBboxFromPins(self.inp, self.outp)
         
     def clone(self, pt):
-        b = getBlock(self.libname, self.blockname, scene=self.scene, \
-                     param=self.parameters, name=self.name)
-        b.properties = self.properties
-        b.setPos(self.scenePos().__add__(pt))
+        data = self.toData()
+        prop = data['properties'] if 'properties' in data else dict()
+        if 'parameters' in data:
+            #getBlock(libname, blockname, parent=None, scene=None, param=dict(), name=None, flip=False)
+            b = getBlock(data['libname'], data['blockname'], scene=self.scene,
+                         param=data['parameters'], properties=prop)
+        else: 
+            b = getBlock(data['libname'], data['blockname'], scene=self.scene, 
+                         properties=prop)
+            
+        if b:
+            b.fromData(data)
+            b.setPos(self.scenePos() + pt)
         return b
         
-    def addView(self, viewtype, fname):
-        if viewtype not in viewTypes:
-            error('viewtype {} is not defined in const.py'.format(viewtype))
-            return
-        views = self.getViews()
-        if viewtype in views:
-            error('viewtype {} is already present'.format(viewtype))
-            return
-        views[viewtype] = fname
-        self.updateOnDisk(views)
 
-    def getViews(self):
-        '''return the views that are defined for this block
-        if viewType is specified, return the value if present'''
-        return getViews(self.libname, self.blockname)
 
     def gridPos(self, pt):
          gr = GRID
@@ -371,21 +410,6 @@ class Block(QtWidgets.QGraphicsPathItem):
         rect = self.img.rect()
         painter.drawImage(-rect.width()/2,-rect.height()/2, self.img)
 
-        
-#    def pins(self):
-#        '''return (inputs, outputs, inouts) that lists of tuples (io, x, y, name)'''
-#        inputs, outputs, inouts  = [], [], []
-#        ports = self.ports()
-#        for p in ports:
-#            x, y = int(p.x() + self.center.x()) , int(p.y() + self.center.y())
-#            name = p.name
-#            if isinstance(p, InPort):
-#                 inputs.append(('i', x, y, name))
-#            elif isinstance(p, OutPort):
-#                outputs.append(('o', x, y, name))
-#            else:
-#                inouts.append(('io', x, y, name))
-#        return inputs, outputs, inouts
 
     def ports(self, retDict=False):
         if retDict:
@@ -402,13 +426,29 @@ class Block(QtWidgets.QGraphicsPathItem):
 
                      
     def remove(self):
-        self.scene.rmBlkName(self)
+        self.scene.blocks -= self # remove from set 
         for thing in self.childItems():
             try:
                 thing.remove()
             except:
                 pass
         self.scene.removeItem(self)
+
+    def getViews(self):
+        '''return the views that are defined for this block
+        if viewType is specified, return the value if present'''
+        return getViews(self.libname, self.blockname)
+
+    def addView(self, viewtype, fname):
+        if viewtype not in viewTypes:
+            error('viewtype {} is not defined in const.py'.format(viewtype))
+            return
+        views = self.getViews()
+        if viewtype in views:
+            error('viewtype {} is already present'.format(viewtype))
+            return
+        views[viewtype] = fname
+        self.updateOnDisk(views)
 
     def rmView(self, viewname):
         '''add a view and update disk'''
@@ -418,6 +458,22 @@ class Block(QtWidgets.QGraphicsPathItem):
         if viewname in dd:
             del dd[viewname]
         self.updateOnDisk(dd)
+
+    def setView(self, viewname, viewvalue):
+        '''add a view and update disk'''
+        views = copy(self.getViews())
+        if 'textSource' in views:
+            del views['textSource']
+        # make relative paths
+        dirname = libraries.libpath(self.libname)
+        viewvalue = os.path.relpath(viewvalue, dirname)
+            
+        views[viewname] = viewvalue
+        vv = self.getViews.copy()
+        if 'textSource' in vv:
+            del vv['textSource']
+        self.updateOnDisk(dd=dict(views=vv))
+
 
     def setFlip(self, flip=None):
         if flip: 
@@ -476,18 +532,31 @@ class Block(QtWidgets.QGraphicsPathItem):
             pt = self.gridPos(pt)
             super(Block, self).setPos(pt-delta)
     
-        
-
-    def setLabel(self):
-        name = self.name
+    def setLabel(self, verbose=False):
+        labels = set()
+        for b in self.scene.blocks:
+            if b != self:
+                labels.add(b.label.text())
         if self.label:
-            self.label.setText(name)
+            name = self.label.text()
+            self.name = name
         else:
+            name = self.name
             self.label = textItem(name, anchor=8, parent=self)
+        if name in labels:
+            cnt = 0
+            while name and name[-1] in '0123456789':
+                name = name[:-1]
+            base = name
+            while name in labels:
+                name = base + str(cnt)
+                cnt += 1
+            if verbose:
+                print('renamed block {} to unique name {}'.format(self.name, name))
             self.label.setText(name)
+            self.name = name
         self.label.setPos(0, self.h/2)
         self.setFlip()
- 
        
     def setup(self):
         self.setIcon()
@@ -521,13 +590,6 @@ class Block(QtWidgets.QGraphicsPathItem):
         self.setFlag(self.ItemIsSelectable)
         self.setLabel()
 
-    def setView(self, viewname, viewvalue):
-        '''add a view and update disk'''
-        views = copy(self.getViews())
-        if 'textSource' in views:
-            del views['textSource']
-        views[viewname] = viewvalue
-        self.updateOnDisk(dd=dict(views=views))
 
     def toData(self):
         data = OrderedDict(type='block')
@@ -557,6 +619,7 @@ class Block(QtWidgets.QGraphicsPathItem):
         self.setPos(data['x'],data['y'])
         if 'label' in data:
             self.label.fromData(data['label'])
+            self.setLabel()
         if 'properties' in data:
             self.properties = data['properties']
         else:
@@ -569,65 +632,8 @@ class Block(QtWidgets.QGraphicsPathItem):
     def updateOnDisk(self, dd=dict(), writeback=True):
         '''replace assignments with new values for variable names in dd
         and write back to disk'''
-        fname = libraries.blockpath(self.libname, self.blockname)
-        src = []
-        with open(fname) as f:
-            lines = f.readlines()
-            ix = 0
-            while ix < len(lines):
-                line = lines[ix]
-                s = line.replace('=', ' = ').split()
-                if len(s) > 2  and line.startswith(s[0]) and  s[0] in dd and s[1] == '=':
-                    # assignment without leading whitespace
-                    key = s[0]
-                    while line.endswith('\\\n') or line.strip().endswith(','):
-                        ix += 1
-                        line = lines[ix]
-                    # get comment if present
-                    line, _ , cmt = line.partition('#')
-                    if cmt:
-                        cmt = ' # '+ cmt.strip()
-                    line = '{} = {}\n'.format(key, dd[key], cmt)
-                
-                src.append(line)
-                ix += 1
-
-        src = ''.join(src)
-        if writeback:
-            with open(fname, 'wb') as f:
-                f.write(src)
-                
-        getBlockModule(self.libname, self.blockname) # update module
+        src = updateOnDisk(self.libname, self.blockname, dd, writeback) # update 
         return src
-
-    
-    
-            
-        
-                    
-
-
-
-
-        
-       
-#    def save(self, root):
-#        blk = etree.SubElement(root,'block')
-#        etree.SubElement(blk,'name').text = self.name
-#        etree.SubElement(blk,'inp').text = self.inp.__str__()
-#        etree.SubElement(blk,'outp').text = self.outp.__str__()
-#        if self.iosetble:
-#            etree.SubElement(blk,'ioset').text = '1'
-#        else:
-#            etree.SubElement(blk,'ioset').text = '0'
-#        etree.SubElement(blk,'icon').text = self.icon
-#        etree.SubElement(blk,'parameters').text = self.parameters
-#        if self.flip:self
-#            etree.SubElement(blk,'flip').text = '1'
-#        else:
-#            etree.SubElement(blk,'flip').text = '0'
-#        etree.SubElement(blk,'posX').text = self.pos().x().__str__()
-#        etree.SubElement(blk,'posY').text = self.pos().y().__str__()
 
 
 def isBlock(item):

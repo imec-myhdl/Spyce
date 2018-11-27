@@ -62,7 +62,7 @@ class textItem(QtWidgets.QGraphicsTextItem):
         self.setDefaultTextColor(color)
         
     def setPos(self, x, y=None):
-        if isinstance(x, (QtCore.QPoint, QtCore.QPointF)): # called with 
+        if isinstance(x, (QtCore.QPoint, QtCore.QPointF)): # called with point
             x, y = x.x(), x.y()
         x, y = round(x*10)/10, round(y*10)/10
         super(textItem, self).setPos(x, y)
@@ -86,12 +86,12 @@ class textItem(QtWidgets.QGraphicsTextItem):
             self.setText(data)
         else:
             self.setText(data['text'])
-            self.setPos(data['x'], data['y'])
-            self.setAnchor(data['anchor'])
             if 'font' in data:
                 font = QtGui.QFont()
                 font.fromString(data['font'])
                 self.setFont(font)
+            self.setAnchor(data['anchor'])
+            self.setPos(data['x'], data['y'])
             self.setNormal()
     
     def remove(self):
@@ -101,13 +101,11 @@ class textItem(QtWidgets.QGraphicsTextItem):
     def setFlipped(self):
         '''mirror in place (use when parent is flipped'''
         self.setTransform(QtGui.QTransform().translate(self.dx, self.dy).scale(-self.scale,self.scale).translate(-self.boundingRect().width(),0))
-        self.setAnchor()
         self.setTransform(QtGui.QTransform().translate(self.dx, self.dy).scale(-self.scale,self.scale).translate(-self.boundingRect().width(),0))
 
     def setNormal(self):
         '''normal orientation'''
         self.setTransform(QtGui.QTransform.fromScale(self.scale,self.scale).translate(self.dx, self.dy))
-        self.setAnchor()
         self.setTransform(QtGui.QTransform.fromScale(self.scale,self.scale).translate(self.dx, self.dy))
         
     def setAnchor(self, anchor=None):
@@ -136,6 +134,13 @@ class Comment(textItem):
         data = super(Comment, self).toData()
         data['type'] = 'comment'
         return data
+
+    def fromData(self, data):
+        super(Comment, self).fromData(data)
+        # comments do not have an anchor
+        self.dx = 0 
+        self.dy = 0
+        self.setNormal()
 
 def isTextItem(item):
     return isinstance(item, textItem)

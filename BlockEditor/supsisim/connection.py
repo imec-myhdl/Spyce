@@ -37,6 +37,11 @@ class Connection(QtWidgets.QGraphicsPathItem):
         self.lineColor = colors['connection']
 
         self.setup()
+        
+#    def setMutable(self, mutable=False):
+#        self.setFlag(self.ItemIsMovable, mutable)
+#        self.setFlag(self.ItemIsSelectable, mutable)
+
 
     def attach(self, ix, p):
         if ix in [0,1]:
@@ -103,8 +108,9 @@ class Connection(QtWidgets.QGraphicsPathItem):
         self.setPen(pen)
 
     def update_pos_from_ports(self):
-        self.pos[0] = self.port[0].scenePos()
-        self.pos[1] = self.port[1].scenePos()
+        for ix in [0, 1]:
+            if self.port[ix]:
+                self.pos[ix] = self.port[ix].scenePos()
         
     def update_path(self, portOrPos=None):
         p = QtGui.QPainterPath()

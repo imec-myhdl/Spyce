@@ -16,20 +16,9 @@ from supsisim.block import Block, isBlock, getBlock, gridPos
 from supsisim.text  import textItem, Comment, isComment
 from supsisim.port  import Port, isInPort, isOutPort, isNode, isPort
 from supsisim.connection import Connection, isConnection
-from supsisim.dialg import RTgenDlg
+from supsisim.dialg import RTgenDlg, error
 from supsisim.const import pyrun, netlist_dir, DB
 import libraries
-
-def d2s(d):
-    '''dict to string'''
-    items = []
-    for k, v in d.items():
-        if k != 'type': # suppress 'type' attributes
-            if isinstance(v, (dict, OrderedDict)):
-                items.append('{}={}'.format(k, d2s(v)))
-            else:
-                items.append('{}={}'.format(k, repr(v)))
-    return 'dict({})'.format(', '.join(items))
 
 class GraphicsView(QtWidgets.QGraphicsView):
     def __init__(self, parent=None,symbol=False):
@@ -61,7 +50,7 @@ class Scene(QtWidgets.QGraphicsScene):
     def __init__(self, main, parent=None):
         super(Scene,self).__init__(parent)
         self.mainw = main
-        self.nameList = dict() # count for block names
+        self.blocks = set() # hold blocks (objects)
         self.selection = []
 
         self.template = 'sim.tmf'
@@ -95,39 +84,39 @@ class Scene(QtWidgets.QGraphicsScene):
             self.lastPosition = True
         
 
-    def addBlkName(self, block):
-        name = block.name
-        if name not in self.nameList:
-            self.nameList[name] = 0
-        
-        if self.nameList[name] > 0:
-            name = self.setUniqueName(block)
-            self.nameList[name] = 0
-            block.name = name
-            block.setLabel()
-        self.nameList[name] += 1
-        return name
-
-    def rmBlkName(self, block):
-        name = block.name
-        if name in self.nameList:
-            self.nameList[name] -= 1
-            if self.nameList[name] <= 0:
-                del self.nameList[name]
-    
-    def setUniqueName(self, block):
-        name = block.name
-        if name in self.nameList:
-            cnt = 0
-            while name and name[-1] in '0123456789':
-                name = name[:-1]
-            base = name
-            while name in self.nameList and self.nameList[name] > 0:
-                name = base + str(cnt)
-                cnt += 1
-            return name
-        else:
-            return name
+#    def addBlkName(self, block):
+#        name = block.name
+#        if name not in self.nameList:
+#            self.nameList[name] = 0
+#        
+#        if self.nameList[name] > 0:
+#            name = self.setUniqueName(block)
+#            self.nameList[name] = 0
+#            block.name = name
+#            block.setLabel()
+#        self.nameList[name] += 1
+#        return name
+#
+#    def rmBlkName(self, block):
+#        name = block.name
+#        if name in self.nameList:
+#            self.nameList[name] -= 1
+#            if self.nameList[name] <= 0:
+#                del self.nameList[name]
+#    
+#    def setUniqueName(self, block):
+#        name = block.name
+#        if name in self.nameList:
+#            cnt = 0
+#            while name and name[-1] in '0123456789':
+#                name = name[:-1]
+#            base = name
+#            while name in self.nameList and self.nameList[name] > 0:
+#                name = base + str(cnt)
+#                cnt += 1
+#            return name
+#        else:
+#            return name
         
     def forceUniqueNames(self):
         self.nameList = dict()
@@ -204,76 +193,6 @@ class Scene(QtWidgets.QGraphicsScene):
         self.Tf='10.0'
         self.nameList = []
     
-    def diagramToData(self, selection=None):
-        blocks = []
-        connections = []
-        nodes = []        
-        comments = []
-        self.forceUniqueNames()
-        items = selection if selection else self.items()
-        for item in items:
-            if isBlock(item):
-                blocks.append(d2s(item.toData()))
-            elif isConnection(item):
-                connections.append(d2s(item.toData()))
-            elif isPort(item, tp=['ipin', 'opin', 'iopin', 'node']):
-                nodes.append(d2s(item.toData()))
-            elif isComment(item):
-                comments.append(d2s(item.toData()))
-                    
-        return (blocks, connections, nodes, comments)
-        
-    def dataToDiagram(self,blocks,connections,nodes,comments,center=True, undo=False):
-        
-        
-        for data in blocks:
-            prop = data['properties'] if 'properties' in data else dict()
-            if 'parameters' in data:
-                #getBlock(libname, blockname, parent=None, scene=None, param=dict(), name=None, flip=False)
-                b = getBlock(data['libname'], data['blockname'], scene=self,\
-                    param=data['parameters'], properties=prop)
-            else:
-                b = getBlock(data['libname'], data['blockname'], properties=prop, scene=self)
-                
-            if b:
-                b.fromData(data)
-                    
-        for item in nodes:
-            pos = QtCore.QPointF(item['x'], item['y'])
-            if self.find_itemAt(pos):
-                print('discarding overlapping node at x={}, y={}'.format(item['x'], item['y']))
-            else:
-                p = Port(None, self)
-                p.fromData(item)
-
-        for data in connections:        
-            conn = Connection(None, self)
-            pos = [QtCore.QPointF(data['x0'], data['y0'])]
-            pos.append(QtCore.QPointF(data['x1'], data['y1']))
-            
-            for ix in [0,1]:
-                port = self.find_itemAt(pos[ix], exclude=(Block, Connection, textItem))
-                if isPort(port):
-                    conn.attach(ix, port)
-                else:
-                    conn.pos[ix] = pos[ix]
-                    print('no port at ', pos[ix])
-            conn.update_path()
-                    
-            if 'label' in data:
-                conn.label = textItem(data['label'], anchor=3, parent=conn)
-                conn.label.setPos(conn.pos2.x(),conn.pos2.y())
-            if 'signalType' in data:
-                conn.signalType = textItem(data['signalType'], anchor=3, parent=conn)
-                conn.signalType.setPos(conn.pos2.x(),conn.pos2.y())
-
-        for data in comments:
-            comment = Comment('')
-            comment.fromData(data)
-            self.addItem(comment)
-
-        if center:
-            self.mainw.view.centerOn(self.getCenter()[0],self.getCenter()[1])
     
     def getCenter(self):
         coordinatesX = []
