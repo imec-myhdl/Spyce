@@ -24,7 +24,7 @@ icon_cache_dir = '.iconcache'
 netlist_dir    = 'netlist' #path for netlists
     
 # path to resources
-respath = os.path.join(path, 'resources')
+respath = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'resources')
 if not os.path.isdir(respath):
     raise Exception('resource path ({}) not found'.format(respath))
 
