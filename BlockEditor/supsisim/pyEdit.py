@@ -18,7 +18,7 @@ from supsisim.text import isComment, textItem, Comment
 from supsisim.editor import Editor
 from supsisim.scene import Scene, GraphicsView
 from supsisim.dialg import IO_Dialog, convertSymDialog, viewConfigDialog,error
-from supsisim.const import respath, pycmd, PD,PW,BWmin, celltemplate, viewTypes, pythonEditor
+from supsisim.const import respath, pycmd, PD,PW,BWmin, templates, viewTypes, pythonEditor
 from supsisim.port import Port, isInPort, isOutPort, isNode, isPort
 from supsisim.connection import isConnection, Connection
 from supsisim.src_import import import_module_from_source_file

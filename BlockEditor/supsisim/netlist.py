@@ -9,7 +9,7 @@ d = os.path.dirname(os.path.dirname(__file__))
 sys.path.append(d)
 
 #import subprocess
-from   supsisim import const 
+from   supsisim import const
 from   supsisim.src_import import import_module_from_source_file
 import libraries
 
@@ -84,7 +84,7 @@ def propagateNets(conn, connections, resolved):
                 connections.discard(c)
                 propagateNets(c, connections, resolved)
 
-def fillTemplate(template, blockname, body):
+def fillTemplate(template, blockname, body, include):
     return template.format(body   = body,
                  projectname      = const.projectname,
                  version          = const.version,
@@ -94,16 +94,19 @@ def fillTemplate(template, blockname, body):
                  t_stop           = const.t_stop,
                  blockname        = blockname,
                  user             = os.getlogin(),
-                 t_resolution     = timeresolution() )
+                 t_resolution     = timeresolution(),
+                 include          = include)
     
 
 #==============================================================================
 # main netlist routine
 #==============================================================================
-def netlist(filename, properties=dict(), lang='myhdl', netlist_dir=const.netlist_dir, netlists = set()):
+def netlist(filename, properties=dict(), lang='myhdl', netlist_dir=const.netlist_dir, netlists = None):
     '''netlist a file in netlist_dir
     netlists contains a set of already netlisted blocks'''
     
+    if netlists is None:
+        netlists = set()
     # check if already netlisted
     if filename in netlists:
         return
@@ -129,15 +132,23 @@ def netlist(filename, properties=dict(), lang='myhdl', netlist_dir=const.netlist
 
 
     if lang == 'myhdl':
-        template     = const.myhdl_template.lstrip()
-        tbfooter     = const.myhdl_tbfooter
+        template     = const.templates['myhdl'].lstrip()
+        tbfooter     = const.templates['myhdl_tbfooter']
         convert      = toMyhdl
         codegen_stmt = 'toMyhdlInstance'
+        if toplevel:
+            include = const.templates['myhdl_toplevel_include'] 
+        else: 
+            include = const.templates['myhdl_include']
     elif lang == 'systemverilog':
-        template     = const.systemverilog_template.lstrip()
-        tbfooter     = const.systemverilog_tbfooter
+        template     = const.templates['systemverilog'].lstrip()
+        tbfooter     = const.templates['systemverilog_tbfooter']
         convert      = toSystemverilog
         codegen_stmt = 'toSytemverilogInstance'
+        if toplevel:
+            include = const.templates['systemverilog_toplevel_include'] 
+        else: 
+            include = const.templates['systemverilog_include']
     else:
         raise Exception('todo: language support for '+lang)           
 
@@ -153,7 +164,7 @@ def netlist(filename, properties=dict(), lang='myhdl', netlist_dir=const.netlist
         with open(filename, 'rb') as fi:
             body = fi.read()
             
-        txt = fillTemplate(template, blockname, body)
+        txt = fillTemplate(template, blockname, body, include)
         with open(outfile, 'wb') as fo:
             fo.write(txt)
         print('{} module written to {}'.format(lang, outfile))
@@ -163,9 +174,9 @@ def netlist(filename, properties=dict(), lang='myhdl', netlist_dir=const.netlist
 
         # resolve connections
         blocks, internal_nets, external_nets = resolve_connectivity(filename, properties=dict())
-        body = convert(module_name, blocks, internal_nets, external_nets)
+        body = convert(blockname, blocks, internal_nets, external_nets)
             
-        txt = fillTemplate(template+tbfooter, blockname, body)
+        txt = fillTemplate(template+tbfooter, blockname, body, include)
 
         if not os.path.isdir(netlist_dir):
             os.makedirs(netlist_dir)
@@ -280,8 +291,8 @@ def instToMyhdl(inst):
 
 
 
-def toMyhdl(module_name, blocks, internal_nets, external_nets):
-    '''module_name       string with the name of the module
+def toMyhdl(block_name, blocks, internal_nets, external_nets):
+    '''block_name        string with the name of the block
        blocks            dict {inst_name:block definitions (from diagram) + resolved connectivity}
        external_nets     dict external_nets[netname] = signalType containing all portnames 
        internal_nets     dict internal_nets[netname] = signalType containing all internal netnames 
@@ -304,7 +315,7 @@ def toMyhdl(module_name, blocks, internal_nets, external_nets):
     ret.append('')
     
     # block definition
-    ret.append('@block\ndef {}({}):'.format(module_name, ', '.join(external_nets)))
+    ret.append('@block\ndef {}({}):'.format(block_name, ', '.join(external_nets)))
     ret.append('')
 
     # internal_nets
@@ -416,14 +427,13 @@ def resolve_connectivity(filename, properties=dict()):
             resolved[conn.netname].add(conn)
         else:
             unresolved.add(conn)
-    
 #==============================================================================
 # propagate names nets
 #==============================================================================
     for netname in resolved.keys():
         for conn in set(resolved[netname]):
             propagateNets(conn, unresolved, resolved)
-    
+ 
 #==============================================================================
 #  propagate anonymous nets
 #==============================================================================
@@ -461,7 +471,8 @@ def resolve_connectivity(filename, properties=dict()):
             resolved[conn.netname] = set()
         resolved[conn.netname].add(conn)
         propagateNets(conn, unresolved, resolved)
-    
+
+   
 #==============================================================================
 # resolve connection to blocks
 #==============================================================================
@@ -473,13 +484,14 @@ def resolve_connectivity(filename, properties=dict()):
                     blkname, pname = conn.d[p]
                     inst = blocks[blkname]
                     inst['conn'][pname] = (conn.netname, conn.type)
-        
+       
     # check that all block ports are connected
     for instname, inst in blocks.items():
         for pin, net in inst['conn'].items():
             if net is None:
                 print ('debug', inst['conn'])
                 raise Exception('file {}: instance {}, pin {} is not Connected'.format(filename, instname, pin))
+#                print('file {}: instance {}, pin {} is not Connected'.format(filename, instname, pin))
 
     internal_nets = dict()
     external_nets = dict()
@@ -510,7 +522,8 @@ def resolve_connectivity(filename, properties=dict()):
 if __name__ == "__main__":
     lang = 'myhdl'
 #    fname = os.path.join(d, 'saves', 'untitled.py')
-    fname = os.path.join(d, 'saves', 'test.py')
+#    fname = os.path.join(d, 'saves', 'test.py')
+    fname = sys.argv[1]
     nldir = os.path.join(const.netlist_dir + '_' + lang, strip_ext(os.path.basename(fname), '.py'))
     netlist(fname, netlist_dir=nldir)
     print('done')

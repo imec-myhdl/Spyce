@@ -1,7 +1,6 @@
 import os, sys
 from collections import OrderedDict
-
-
+from template_files import _templates
 
 if 'PYSUPSICTRL' in os.environ:
     path = os.environ['PYSUPSICTRL']
@@ -41,89 +40,6 @@ copyrightPolicy  = 'copyright policy placeholder'
 ticks_per_second = 1e15 # ticks per second
 t_stop           = 1e-6 # simulation stop time
 
-#==============================================================================
-# templates
-#==============================================================================
-celltemplate = """# cell definition
-# name = '{name}'
-# libname = '{libname}'
-
-inp  = {inp}
-outp = {outp}
-# io   = {io}
-
-bbox = {bbox}
-
-parameters = {parameters} # pcell if not empty
-properties = {properties} # netlist properties
-
-#view variables:
-views = {views}
-"""
-
-# available fields for netlist templates:
-#   body            - netlist that was created
-#   projectname      
-#   version          
-#   copyrightText    
-#   copyrightPolicy  
-#   ticks_per_second 
-#   t_stop           
-#   blockname        
-#   user             
-#   t_resolution     - string e.g. 1fs if ticks_per_second == 1e15
-
-myhdl_template = """
-#---------------------------------------------------------------------------------------------------
-# Project   : {projectname}
-# Filename  : {blockname}.py
-# Version   : {version}
-# Author    : {user}
-# Contents  : MyHDL model for {blockname}
-# Copyright : {copyrightText}
-#             *** {copyrightPolicy} ***
-#---------------------------------------------------------------------------------------------------
-
-TIME_UNIT = {ticks_per_second}
-
-{body}
-
-"""
-systemverilog_template = """
-//--------------------------------------------------------------------------------------------------
-// Project   : {projectname}                                                                             
-// Filename  : {blockname}.sv
-// Version   : {version}                                                                             
-// Author    : {user}
-// Contents  : systemVerilog model for {blockname}
-// Copyright : {copyrightText}                                     
-//             *** {copyrightPolicy} ***
-//--------------------------------------------------------------------------------------------------
-`timescale 1ps/{t_resolution}
-`include "global_pkg.v"
-
-{body}
-
-"""
-
-# test bench
-myhdl_tbfooter = """
-    
-if __name__ == "__main__":
-# =============================================================================
-#     setup and run testbench
-# =============================================================================
-
-    from myhdl import traceSignals    
-    {blockname}_tb = {blockname} # append "_tb"
-    tb = {blockname}_tb()
-    traceSignals.timescale = '{t_resolution}s'    
-    tb.config_sim(trace=True)
-    tb.run_sim(duration = {t_stop} * TIME_UNIT)
-
-"""
-
-systemverilog_tbfooter = ""
 
 #==============================================================================
 # GUI preferences
@@ -195,6 +111,10 @@ viewTypes['systemverilog'] = (codeEditor,    '.sv'        )
 viewTypes['verilog']       = (codeEditor,    '.v'         )
 viewTypes['doc']           = (officeEditor,  '.odt'       )
 #==============================================================================
-
 if os.path.isfile('settings.py'):
     from settings import *
+    if 'templates' in locals():
+        _templates.update(templates)
+
+templates = _templates
+        

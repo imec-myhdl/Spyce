@@ -36,7 +36,7 @@ from collections import OrderedDict
 import libraries
 from supsisim.port  import Port, isPort
 from supsisim.const import GRID, PW, LW, BWmin, BHmin, PD, respath, \
-                            celltemplate, colors, viewTypes
+                            colors, viewTypes, templates
 from supsisim.dialg import error
 from supsisim.text  import textItem
 from supsisim.src_import import import_module_from_source_file
@@ -115,9 +115,9 @@ def getBlock(libname, blockname, parent=None, scene=None, param=dict(),
         if isinstance(b, Block):
             if name:
                 if scene:
-                    scene.rmBlkName(b)
+                    scene.blocks.discard(b)
                     b.name = name
-                    scene.addBlkName(b)
+                    scene.blocks.add(b)
                 else:
                     b.name = name
 
@@ -192,7 +192,8 @@ def saveBlock(libname, blockname, pins, icon=None, bbox=None, properties=dict(),
     views['icon'] = icon
     
     bbox = 'bbox = {}\n'.format(str(bbox)) if bbox else None
-    src = celltemplate.format(name=blockname,
+    template = templates['block']
+    src = template.format(name=blockname,
                             libname=libname,
                             inp=inp,
                             outp=outp,
@@ -426,7 +427,7 @@ class Block(QtWidgets.QGraphicsPathItem):
 
                      
     def remove(self):
-        self.scene.blocks -= self # remove from set 
+        self.scene.blocks.discard(self) # remove from set 
         for thing in self.childItems():
             try:
                 thing.remove()

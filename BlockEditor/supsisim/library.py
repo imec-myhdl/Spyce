@@ -533,15 +533,15 @@ class Library(QtWidgets.QMainWindow):
                     
             if libname != self.copiedBlockLibname:
                 filenames = []
-                views = libraries.getViews(self.copiedBlockLibname, self.copiedBlock)
+                views = getViews(self.copiedBlockLibname, self.copiedBlock)
                 for key in views.keys():
                     if key != 'icon':
                         filenames.append(views[key])
                 for filename in filenames:
                     newFilename = filename.replace('libraries/library_' + self.copiedBlockLibname,'libraries/library_' + libname)
-                    os.rename(path + '/' + filename,path + '/' + newFilename)
+                    os.rename(filename,newFilename)
                     try:
-                        os.remove(path + '/' + filename + 'c')
+                        os.remove(filename + 'c')
                     except:
                         pass
                     
