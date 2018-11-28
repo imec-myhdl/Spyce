@@ -6,7 +6,7 @@ Created on Wed Nov 21 13:25:13 2018
 """
 import sys, os
 
-from supsisim.const import celltemplate, PD, viewTypes
+from supsisim.const import templates, PD, viewTypes
 import libraries
 
 def get_defs(filename):
@@ -107,11 +107,11 @@ def toBlk(filename, libname):
     res = []
     for name, inp, outp, properties, doc in get_defs(filename):
         if doc.strip():
-            fmt = celltemplate.splitlines()
+            fmt = templates['block'].splitlines()
             fmt.insert(3, 'tooltip = """{tooltip}"""\n')
             fmt = '\n'.join(fmt)
         else:
-            fmt = celltemplate
+            fmt = templates['block']
         wi = max([len(i) for i in inp])
         wo = max([len(o) for o in outp])
         w2 = (wi + wo + 1)//2 * 10
