@@ -27,13 +27,25 @@ Installing as normal user:
    pip install --user git+https://github.com/imec-myhdl/myhdl.git
 ```
 
+Workspace preparation
+---------------------
+```
+   mkdir workdir
+   cd workdir
+   
+   # create settings.py this file to make local modifications to the defaults in supsisim/const.py
+   
+   # link common libraries
+   mkdir libraries
+   ln -s ~/pycontrol-gui/BlockEditor/libraries/* libraries
+```
 
 Editor (standalone)
 -------------------
 To start the editor you do not need a setup/make step. You can run it can directly without installing.
 ```
-cd ~/pycontrol-gui/BlockEditor
-python spyce.py
+cd workdir
+python ~/pycontrol-gui/BlockEditor/spyce.py
 ```
 Documentation (standalone)
 --------------------------
