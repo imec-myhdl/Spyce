@@ -27,13 +27,15 @@ scalable vector graphics utilities
      '''generate svg file (if not yet existing)'''
 
 """
+from __future__ import (division, print_function, absolute_import,
+                        unicode_literals)
 
 import os, tempfile, subprocess
 import svgwrite
 from lxml import etree
 from collections import OrderedDict
 
-from libraries import libroot
+import libraries
 
 from supsisim.const import icon_font_size, icon_pin_size, PW, icon_cache_dir, respath
 #from supsisim.port import isInPort, isOutPort, isInoutPort
@@ -46,6 +48,7 @@ def svg2png(svgfilename):
     '''convert an svg drawing to png (using inkscape).
        also returns a png image with text mirrored, to be used in flipped blocks (so the text remains readble :)'''
     svgfilename = os.path.abspath(svgfilename)
+    libroot = os.path.abspath(libraries.libroot)
     if svgfilename.startswith(libroot):
         pngfilename = svgfilename[len(libroot)+1:]
     elif svgfilename.startswith(respath):
