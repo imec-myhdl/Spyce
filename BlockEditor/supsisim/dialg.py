@@ -483,8 +483,8 @@ class propertiesDialog(QtWidgets.QDialog):
                         dd[k] = None
                     else:
                         try:
-                            dd[k] = float(v)
-                        except ValueError:
+                            dd[k] = eval(v)
+                        except NameError:
                             dd[k] = v                    
                 elif isinstance(self.w[ix], QtWidgets.QComboBox):
                     v = self.w[ix].currentText()
@@ -500,10 +500,8 @@ class propertiesDialog(QtWidgets.QDialog):
             for k, ix in self.propix.items():
                 val = self.w[ix].text()
                 try:
-                    v = float(val)
-                    if int(v) == v:
-                        v = int(v)
-                except ValueError:
+                    v = eval(val)
+                except NameError:
                     v = val
                 if isinstance(self.dd[k], (list, tuple)) and len(self.dd[k]) == 2:
                     properties[k] = (v, self.dd[k][1])

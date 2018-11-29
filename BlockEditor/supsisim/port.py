@@ -111,11 +111,11 @@ class Port(QtWidgets.QGraphicsPathItem):
 
     def setLabel(self, label=None, label_side=None):
         if self.label is None:
-            if label:
+            if not label in [None, '']:
                 self.label = textItem(label, parent=self)
             else:
                 return
-        elif label:
+        elif not label in [None, '']:
             self.label.setText(label)
             
         if label_side:
