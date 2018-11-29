@@ -27,7 +27,7 @@ class textItem(QtWidgets.QGraphicsTextItem):
     8: top-center
     9: top-right'''
     def __init__(self, text, anchor=1, parent=None):
-        super(textItem, self).__init__(text, parent)
+        super(textItem, self).__init__(str(text), parent)
         self.anchor = anchor
         self.scale = 1
 #        self.setFont(iconFont)
