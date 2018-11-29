@@ -25,7 +25,7 @@ def ports(param):
     inp, outp, inout = [], [], []
 
     # inp
-    inp.append(('section', -w2, -const.PD))    
+    inp.append(('reg', -w2, -const.PD))    
 
     # outp
     for ix, pname in enumerate(reg_names):
@@ -50,15 +50,16 @@ def toMyhdlInstance(instname, connectdict, param):
     inp, outp, _ = ports(param)
     
     r  = []
-    section, tp = connectdict[inp[0][0]]
+    reg, tp = connectdict[inp[0][0]]
     for pname, x, y in outp:
         netname, tp = connectdict[pname]
-        r.append('{nn}.next = {s}.{pn}'.format(nn = netname, pn = pname, s = section))
+        r.append('{nn}.next = {r}.{pn}'.format(nn = netname, pn = pname, r = reg))
         
     assigns = '\n        '.join(r)
-    fmt = '    @always({})\n' + \
-          '    def u_{}():\n' + \
-          '        {}\n'
-    return fmt.format(section, instname, assigns)
+    fmt = '    #assignments\n' + \
+          '    @always_comb\n' + \
+          '    def u_{i}():\n' + \
+          '        {a}\n'
+    return fmt.format(i=instname, a=assigns)
 
 views = {}
