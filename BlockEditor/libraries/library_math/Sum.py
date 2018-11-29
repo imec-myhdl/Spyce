@@ -70,7 +70,7 @@ def toMyhdlInstance(instname, connectdict, param):
     inputs = []
     outp = connectdict['.z']
     for ix, s in enumerate(gains):
-        net = connectdict['.a{}'.format(ix)]
+        net,tp = connectdict['.a{}'.format(ix)]
         if s == '-':
             inputs.append('- {}'.format(net))
         else:
