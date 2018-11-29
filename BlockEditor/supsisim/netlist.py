@@ -104,11 +104,12 @@ def fillTemplate(template, blockname, body, include):
 def netlist(filename, properties=dict(), lang='myhdl', netlist_dir=const.netlist_dir, netlists = None):
     '''netlist a file in netlist_dir
     netlists contains a set of already netlisted blocks'''
-    
+#    print('netlisting', filename)
     if netlists is None:
         netlists = set()
     # check if already netlisted
     if filename in netlists:
+#        print('skip')
         return
         
     toplevel = len(netlists) == 0
@@ -117,7 +118,7 @@ def netlist(filename, properties=dict(), lang='myhdl', netlist_dir=const.netlist
     ed, ext_diagram = const.viewTypes['diagram']
     ed, ext_lang    = const.viewTypes[lang]
 
-    d, module_name  = os.path.split(filename)
+#    d, module_name  = os.path.split(filename)
     
     libname, blockname = libraries.pathToLibnameBlockname(filename) # removes extension
     ext = '.py' if lang == 'myhdl' else ext_lang # .mhdl.py -> .py etc.
@@ -127,6 +128,8 @@ def netlist(filename, properties=dict(), lang='myhdl', netlist_dir=const.netlist
         subdir = ''
     else:
         subdir = libraries.libprefix + libname  if libname else libname 
+        if not os.path.isdir(os.path.join(netlist_dir, subdir)):
+            os.makedirs(os.path.join(netlist_dir, subdir))
         
     outfile = os.path.join(netlist_dir, subdir, blockname + ext)
 
@@ -159,8 +162,6 @@ def netlist(filename, properties=dict(), lang='myhdl', netlist_dir=const.netlist
             # print('{} module already present in {}'.format(lang, outfile))
             return # do nothing if outfile newer than infile
 
-        if not os.path.isdir(os.path.join(netlist_dir, subdir)):
-            os.makedirs(os.path.join(netlist_dir, subdir))
         with open(filename, 'rb') as fi:
             body = fi.read()
             
@@ -174,7 +175,7 @@ def netlist(filename, properties=dict(), lang='myhdl', netlist_dir=const.netlist
 
         # resolve connections
         blocks, internal_nets, external_nets = resolve_connectivity(filename, properties=dict())
-        body = convert(blockname, blocks, internal_nets, external_nets)
+        body = convert(blockname, blocks, internal_nets, external_nets, netlist_dir)
             
         txt = fillTemplate(template+tbfooter, blockname, body, include)
 
@@ -190,6 +191,7 @@ def netlist(filename, properties=dict(), lang='myhdl', netlist_dir=const.netlist
         # also netlist blocks in the diagram
         for name, block in blocks.items():
             libname, blockname = block['libname'], block['blockname']
+#            print ('subblock', libname, blockname)
             k = libname + '/' + blockname
             libpath = libraries.libpath(libname)
             fname = os.path.join(libpath, blockname)
@@ -201,11 +203,11 @@ def netlist(filename, properties=dict(), lang='myhdl', netlist_dir=const.netlist
 
             # inst has a netlist view
             elif os.path.exists(fname + ext_lang):
-                netlist(fname + ext_lang, properties, lang, netlist_dir)
+                netlist(fname + ext_lang, properties, lang, netlist_dir, netlists)
 
             # inst has diagram (that can be netlisted)
             elif os.path.exists(fname + ext_diagram):
-                netlist(fname + ext_diagram, properties, lang, netlist_dir)
+                netlist(fname + ext_diagram, properties, lang, netlist_dir, netlists)
 
             else:
                 print('Warning: {}.{} is missing a {} view or diagram'.format(libname, blockname, lang))
@@ -228,12 +230,12 @@ def netlist(filename, properties=dict(), lang='myhdl', netlist_dir=const.netlist
                 if os.path.isfile(initname):                    
                     with open(initname, 'rb') as f:
                         t = f.read()
-                    if imp_statement in t:
-                        return # nothing to do
+                    if not imp_statement in t:
+                        t += imp_statement         
                 else:
                     t = '# import blocks in name-space\n\n'
-                
-                t += imp_statement         
+                    t += imp_statement 
+                    
                 with open(initname, 'wb') as f:
                    f.write(t)
 
@@ -291,7 +293,7 @@ def instToMyhdl(inst):
 
 
 
-def toMyhdl(block_name, blocks, internal_nets, external_nets):
+def toMyhdl(block_name, blocks, internal_nets, external_nets, netlist_dir):
     '''block_name        string with the name of the block
        blocks            dict {inst_name:block definitions (from diagram) + resolved connectivity}
        external_nets     dict external_nets[netname] = signalType containing all portnames 
@@ -334,7 +336,22 @@ def toMyhdl(block_name, blocks, internal_nets, external_nets):
     # blocks
     ret.append('    # body')
     for name, inst in blocks.items():
-        ret.append(instToMyhdl(inst))
+        r = instToMyhdl(inst)
+        if isinstance(r, dict):
+            # additional files keys=filename ( __main__ for main file),  values=text,
+            main_netlist = r.pop('__main__')
+            for path, txt in r.items():
+                dirname, fn = os.path.split(path)
+                if not os.path.isabs(dirname):
+                    dirname = os.path.join(netlist_dir, dirname)
+                if dirname and not os.path.isdir(dirname):
+                    os.makedirs(dirname)
+                with open(os.path.join(dirname,fn), 'wb') as f:
+                    f.write(txt)
+        else:            
+            main_netlist = r
+        
+        ret.append(main_netlist)
 
     ret.append('    return instances()')
             
