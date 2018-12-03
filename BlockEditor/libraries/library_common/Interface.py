@@ -56,7 +56,7 @@ def toMyhdlInstance(instname, connectdict, param):
         r.append('{nn}.next = {r}.{pn}'.format(nn = netname, pn = pname, r = reg))
         
     assigns = '\n        '.join(r)
-    fmt = '    #assignments\n' + \
+    fmt = '    # instance {i}\n' + \
           '    @always_comb\n' + \
           '    def u_{i}():\n' + \
           '        {a}\n'
