@@ -75,6 +75,8 @@ def getBlockModule(libname, blockname, errors=[]):
     '''read python module of block from disk'''
     fpath = libraries.blockpath(libname, blockname)
     blk = import_module_from_source_file(fpath, errors)
+    if errors:
+        print (errors)
     block_modules[libname+'/'+blockname] = blk
     if blk:
         _addBlockModuleDefaults(libname, blockname)
@@ -99,11 +101,10 @@ def getBlock(libname, blockname, parent=None, scene=None, param=dict(),
     blk = getBlockModule(libname, blockname, errors=errors)
     if blk is None:
         return
-    if blk.parameters and not param: # default parameters
-        param = blk.parameters
-    if blk.properties and not properties:# default properties
-        properties = blk.properties
-
+    if blk.parameters: # start from default parameters
+        param = dict(blk.parameters.items() + param.items())
+    if blk.properties: # start from default properties
+        properties = dict(blk.properties.items() + properties.items())
     try:
          b = blk.getSymbol(param, properties, parent, scene)
     except AttributeError:
@@ -412,20 +413,22 @@ class Block(QtWidgets.QGraphicsPathItem):
         painter.drawImage(-rect.width()/2,-rect.height()/2, self.img)
 
 
-    def ports(self, retDict=False):
+    def ports(self, retDict=False, tp='all'):
         if retDict:
             ports = dict()
             for item in self.childItems():
                 if isinstance(item, Port):
-                    ports[item.label.text()] = item
+                    if tp == 'all' or item.porttype == tp:
+                        ports[item.label.text()] = item
         else:
             ports = []
             for item in self.childItems():
                 if isinstance(item, Port):
-                    ports.append(item)
+                    if tp == 'all' or item.porttype == tp:
+                        ports.append(item)
         return ports
 
-                     
+                    
     def remove(self):
         self.scene.blocks.discard(self) # remove from set 
         for thing in self.childItems():
@@ -445,9 +448,9 @@ class Block(QtWidgets.QGraphicsPathItem):
             error('viewtype {} is not defined in const.py'.format(viewtype))
             return
         views = self.getViews()
-        if viewtype in views:
-            error('viewtype {} is already present'.format(viewtype))
-            return
+#        if viewtype in views:
+#            error('viewtype {} is already present'.format(viewtype))
+#            return
         views[viewtype] = fname
         self.updateOnDisk(views)
 
@@ -622,9 +625,9 @@ class Block(QtWidgets.QGraphicsPathItem):
             self.label.fromData(data['label'])
             self.setLabel()
         if 'properties' in data:
-            self.properties = data['properties']
-        else:
-            self.properties = dict()
+            self.properties.update(data['properties'])
+#        else:
+#            self.properties = dict()
         if 'flip' in data:
             self.setFlip(data['flip'])
 

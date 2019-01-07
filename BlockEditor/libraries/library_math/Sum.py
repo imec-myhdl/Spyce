@@ -68,7 +68,7 @@ def toMyhdlInstance(instname, connectdict, param):
     # properties end up in the connectdict
     gains = param['A'] if 'A' in param else '++' 
     inputs = []
-    outp = connectdict['.z']
+    outp, tp = connectdict['.z']
     for ix, s in enumerate(gains):
         net,tp = connectdict['.a{}'.format(ix)]
         if s == '-':

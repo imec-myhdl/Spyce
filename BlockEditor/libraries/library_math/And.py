@@ -1,17 +1,21 @@
-# block definition
-# name = 'Compare' 
-# libname = 'math'
+# -*- coding: utf-8 -*-
+"""
+Created on Thu Dec 13 11:11:59 2018
+
+@author: paul
+"""
 
 from libraries.library_math.Bitwise import *
 from libraries.library_math.Bitwise import getSymbol as _getSymbol
 
-tooltip = '''Compare function with optional delay
-     e.g. a_0 > a_1
+tooltip = '''And function with optional delay
+     e.g. a0 & a1
 the output can be inverted by putting Z parameter to '-' 
+the inputs can be inverted by putting A parameter to '-' 
 (uses Bitwise block as primitive)'''
 
-parameters = {'Z':'+'} # pcell if not empty
-properties = {'delay':0.0, 'op':['==', '== != < >'.split()]} # netlist properties
+properties = {'delay':0.0, 'op':['&', ('&')]} # netlist properties
+
 
 def getSymbol(param, properties,parent=None,scene=None):
     pp = dict(_name=name, _libname=libname)

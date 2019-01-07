@@ -18,9 +18,9 @@ from supsisim.connection import Connection, isConnection
 from supsisim.block import isBlock, gridPos, getBlock
 from supsisim.text  import textItem, Comment, isTextItem, isComment
 from supsisim.dialg import BlockName_Dialog, textLineDialog, overWriteNetlist, \
-                           error, propertiesDialog
+                           error, propertiesDialog, selectionDialog
 import supsisim.RCPDlg as pDlg
-from supsisim.const import DB, colors
+from supsisim.const import DB, colors, viewTypes
 import libraries
 
 class Editor(QtCore.QObject):
@@ -396,6 +396,27 @@ class Editor(QtCore.QObject):
         if isBlock(item):
             if 'diagram' in item.getViews():
                 self.scene.mainw.descend(item)
+            else:
+                views = item.getViews()
+                fname = None
+                if len(views) == 1:
+                    viewtype, fname = views.items()[0]
+                elif len(views) > 1:
+                    d = selectionDialog(views.keys(), title='Select view')
+                    ret = d.getRet()
+                    if ret:
+                        fname = views[ret]
+                if fname:
+                    for tp, (editor, extension) in viewTypes.items():
+                        if fname.endswith(extension):
+                            cmd = editor
+                            break
+                    if cmd:
+                        os.system(cmd + " " + fname)
+                    else:
+                        error("{} is unkown type\nplease see viewTypes in menu Settings -> Edit settings".format(source))
+                        return
+                    
         elif isPort(item, tp='ipin opin iopin node'.split()):
             self.scene.item = item
             self.portEdit()

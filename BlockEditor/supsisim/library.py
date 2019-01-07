@@ -18,7 +18,7 @@ import libraries
 import myhdl_to_blk
 from supsisim.svg_utils import updateSvg
 
-from supsisim.const import DB, respath, viewTypes
+from supsisim.const import DB, respath, viewTypes, templates
 
 from supsisim.block import Block, getBlock, getBlockModule, getViews, \
                            saveBlock, rmBlock, calcBboxFromPins, gridPos, updateOnDisk
@@ -181,6 +181,8 @@ class Library(QtWidgets.QMainWindow):
         self.closeFlag = False
         
         # set to symbolview mode
+        self.type = ''
+        self.libraries=None
         self.symbolView()
 
     def getnames(self, actComp=None):
@@ -507,15 +509,21 @@ class Library(QtWidgets.QMainWindow):
         dialog = addViewDialog(libname,blockname)
         ret = dialog.getRet()
         if ret:
+            view, path = ret[0],ret[1]
+            if view in templates:
+                txt = templates[view].format(name=blockname)
+            else:
+                txt = ''
             try:
                 path = os.getcwd()
                 f = open(path + "/" + ret[1],'w+')
+                f.write(txt)
                 f.close()
             except:
                 error('File source not correct')
                 return
                 
-            actComp.addView(ret[0],ret[1])
+            actComp.addView(view, path)
             
             self.openView(ret[0], actComp)
             
@@ -535,7 +543,7 @@ class Library(QtWidgets.QMainWindow):
                 filenames = []
                 views = getViews(self.copiedBlockLibname, self.copiedBlock)
                 for key in views.keys():
-                    if key != 'icon':
+                    if key != 'icon' or views[key].endswith('.svg'):
                         filenames.append(views[key])
                 for filename in filenames:
                     newFilename = filename.replace('libraries/library_' + self.copiedBlockLibname,'libraries/library_' + libname)
@@ -698,9 +706,15 @@ class Library(QtWidgets.QMainWindow):
             self.refresh() 
     
     def symbolView(self):
+        if self.type == 'symbolView':
+            curr_ix = self.quickSelTab.currentIndex()
+        elif self.libraries:
+            curr_ix = self.libraries.currentRow()
+        else:
+            curr_ix = -1
+        self.type = 'symbolView'
         self.copiedBlock = None
         self.copiedBlockLibname = None
-        self.type = 'symbolView'
         reload(libraries)
         self.centralWidget = QtWidgets.QWidget()
         self.tabs = QtWidgets.QTabWidget()
@@ -743,9 +757,10 @@ class Library(QtWidgets.QMainWindow):
             tab.setLayout(layout)
 
             self.tabs.addTab(tab, libname)
-            self.quickSelTab.currentIndexChanged.connect(self.setCurrentTab)
-            
-                
+            self.tabs.currentChanged.connect(self.setCurrentTab)           
+            self.quickSelTab.currentIndexChanged.connect(self.setCurrentTab)           
+        if curr_ix >= 0:
+            self.setCurrentTab(curr_ix)
         layout = QtWidgets.QHBoxLayout()
         self.tabs.setCornerWidget(self.quickSelTab, QtCore.Qt.TopLeftCorner)
         layout.addWidget(self.tabs)
@@ -784,7 +799,7 @@ class Library(QtWidgets.QMainWindow):
 
     def setCurrentTab(self, ix):
         self.tabs.setCurrentIndex(ix)
-#        self.quickSelTab.setEditText(str(ix))
+        self.quickSelTab.setCurrentIndex(ix)
         
     def readLib(self):
         files = os.listdir(os.path.join(respath,'blocks'))

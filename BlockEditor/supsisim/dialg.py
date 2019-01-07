@@ -14,6 +14,10 @@ from collections import OrderedDict
 from supsisim.const import path,respath
 import libraries
 
+
+
+
+
 class editPinsDialog(QtWidgets.QDialog):
     def __init__(self,inps, outps, title='Edit pins', size=(600, 300), parent=None): 
         super(editPinsDialog, self).__init__(parent)
@@ -393,6 +397,7 @@ class propertiesDialog(QtWidgets.QDialog):
         self.n = 0
 #        addButton = not properties is None
         self.dd = dd
+#        print ('debug', dd)
         self.addrows(dd, properties)
 
         if addButton:
@@ -436,7 +441,7 @@ class propertiesDialog(QtWidgets.QDialog):
                     w.setText(str(v))
                 elif isinstance(v, (list, tuple)) and len(v) == 2:
                     default, options = v
-                    if isinstance(default, int):
+                    if isinstance(default, int) and isinstance(options, dict):
                         w = QtWidgets.QSpinBox()
                         w.setValue(default)
                         for kk, func in [('prefix',  w.setPrefix),
@@ -445,10 +450,10 @@ class propertiesDialog(QtWidgets.QDialog):
                                          ('max',     w.setMaximum)]:
                              if kk in options:
                                  func(options[kk])
-                    elif isinstance(default, basestring):
+                    elif isinstance(default, (float, int, basestring)) and isinstance(options, (list, tuple)):
                         w = QtWidgets.QComboBox()
                         for elem in options:
-                            w.addItem(elem)
+                            w.addItem(str(elem))
                         if default in options:
                             ix = options.index(default)
                             w.setCurrentIndex(ix)
@@ -473,29 +478,39 @@ class propertiesDialog(QtWidgets.QDialog):
             self.layout.addWidget(w, self.n, 1)
             self.n += 1
 
+
     def getRet(self):
         if self.exec_():
             dd = dict()
             for k, ix in self.keyix.items():
+                if isinstance(self.dd[k], (list, tuple)) and len(self.dd[k]) == 2:
+                    if isinstance(self.dd[k][1],(list, tuple)):
+                        tp = type(self.dd[k][1][0])
+                    else:
+                        tp = type(self.dd[k][0])
+                else:
+                    tp = type(self.dd[k])
                 if isinstance(self.w[ix], QtWidgets.QLineEdit):
                     v = self.w[ix].text()
                     if v == 'None':
-                        dd[k] = None
+                        v = None
                     else:
                         try:
-                            dd[k] = eval(v)
-                        except NameError:
-                            dd[k] = v                    
+                            v = eval(v)
+                        except (NameError, SyntaxError):
+                            pass                   
                 elif isinstance(self.w[ix], QtWidgets.QComboBox):
                     v = self.w[ix].currentText()
-                    if isinstance(self.dd[k], (list, tuple)) and len(self.dd[k]) == 2:
-                        dd[k] = (v, self.dd[k][1])
-                    else:
+                elif isinstance(self.w[ix], (QtWidgets.QSpinBox, QtWidgets.QDoubleSpinBox)):
+                    v = self.w[ix].value()
+                
+                if isinstance(self.dd[k], (list, tuple)) and len(self.dd[k]) == 2:
+                    dd[k] = (tp(v), self.dd[k][1])
+                else:
+                    try:
+                        dd[k] = tp(v)
+                    except ValueError:
                         dd[k] = v
-                elif isinstance(self.w[ix], QtWidgets.QSpinBox):
-                    dd[k] = self.w[ix].value()
-                elif isinstance(self.w[ix], QtWidgets.QDoubleSpinBox):
-                    dd[k] = self.w[ix].value()
             properties = dict()
             for k, ix in self.propix.items():
                 val = self.w[ix].text()
@@ -1257,8 +1272,8 @@ class convertSymDialog(QtWidgets.QDialog):
             if not re.match(r'[a-z_]\w*$', self.text_name.text(), re.I):
                 error('No valid variable name')
                 return False
-            if self.filename:
-                ret['icon'] = QtCore.QFileInfo(self.filename).baseName()
+            if self.filename[0]:
+                ret['icon'] = QtCore.QFileInfo(self.filename[0]).baseName()
             else:
                 ret['icon']= None 
                 error('No icon selected', warn=True)
@@ -1273,6 +1288,34 @@ class convertSymDialog(QtWidgets.QDialog):
             return ret         
         else:
             return False
+
+class selectionDialog(QtWidgets.QDialog):
+    def __init__(self, optionlist, title='selection', parent=None):
+        super(selectionDialog, self).__init__(parent)
+#        self.layout = QtWidgets.QGridLayout()
+        self.layout = QtWidgets.QVBoxLayout()
+        self.setLayout(self.layout)
+        self.setWindowModality(QtCore.Qt.ApplicationModal)
+        self.resize(380, 180)
+        self.cb = QtWidgets.QComboBox()
+        for elem in optionlist:
+            self.cb.addItem(str(elem))
+        self.cb.setCurrentIndex(0)
+        self.layout.addWidget(self.cb)
+        buttons = QtWidgets.QDialogButtonBox.Ok|QtWidgets.QDialogButtonBox.Cancel
+        self.bbox = QtWidgets.QDialogButtonBox(buttons)
+        self.bbox.accepted.connect(self.accept)
+        self.bbox.rejected.connect(self.reject)
+        self.layout.addWidget(self.bbox)
+
+        # set window title and window size
+        self.setWindowTitle(title)
+
+    def getRet(self):
+        if self.exec_():
+            return self.cb.currentText()
+
+
             
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)

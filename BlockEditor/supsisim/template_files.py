@@ -38,6 +38,17 @@ properties = {properties} # netlist properties
 #view variables:
 views = {views}
 """
+_templates['diagram'] = """# diagram {name}
+# auto-generated, hand edits will be lost
+
+blocks = []
+
+connections = []
+
+nodes = []
+
+comments = []
+"""
 
 #==============================================================================
 # Netlits templates

@@ -592,7 +592,7 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
                 parameters = dict()
                 properties = ret['properties']
                 
-                data = celltemplate.format(name = name, 
+                data = templates['block'].format(name = name, 
                                    libname = libname,
                                    inp = inp,
                                    outp = outp,
@@ -631,8 +631,9 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
                 item.setPos(center[0],center[1])
                 
                 if self.library.type == 'symbolView':
+                    ix = self.library.tabs.currentIndex()
                     self.library.symbolView()
-                    self.library.tabs.setCurrentWidget(self.library.symbolTab)
+                    self.library.tabs.setCurrentIndex(ix)
                 else:
                     self.library.listView()
                     self.library.libraries.setCurrentItem(self.library.libraries.findItems('symbols',QtCore.Qt.MatchExactly)[0])
@@ -732,7 +733,7 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
         
     def openDiagram(self, filename=None):
         if filename in [None, False]: 
-            filename = QtWidgets.QFileDialog.getOpenFileName(self, 'Open', self.path+'/saves/', filter='*.py')
+            filename = QtWidgets.QFileDialog.getOpenFileName(self, 'Open', self.path+'/saves/', filter='Diagram (*.py *.diagram);;All (*.*)')
             if isinstance(filename, tuple):
                 filename = filename[0]
         if filename:
@@ -764,13 +765,18 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
             ix = self.centralWidget.currentIndex()
             fname = self.centralWidget.widget(ix).fname
 #            fname = os.path.join(self.path, 'saves', self.filename)
-            filename = QtWidgets.QFileDialog.getSaveFileName(self, 'Save', fname, filter='*.py')
+            filename = QtWidgets.QFileDialog.getSaveFileName(self, 'Save', fname, filter='Diagram (*.py *.diagram);;All (*.*)')
 
         if filename:
+            fn, ext = os.path.splitext(filename)
+            if ext not in [viewTypes['diagram'][1], '.py']: # add extension if missing
+                filename += '.py' 
             filename = os.path.abspath(filename)
+            ix = self.centralWidget.currentIndex()
+            self.centralWidget.widget(ix).fname = filename # store full path
             self.path, self.filename = os.path.split(filename)
             self.filename, _ = os.path.splitext(self.filename) # strip '.py'
-            self.centralWidget.setTabText(self.centralWidget.currentIndex(),self.filename)
+            self.centralWidget.setTabText(ix, self.filename)
             
             blocks, connections, nodes, comments = self.diagramToData(selection)
             with open(filename,'w+') as f:
@@ -830,25 +836,27 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
                 p.fromData(item)
 
         for data in connections:        
-            conn = Connection(None, self.scene)
             pos = [QtCore.QPointF(data['x0'], data['y0'])]
             pos.append(QtCore.QPointF(data['x1'], data['y1']))
-            
-            for ix in [0,1]:
-                port = self.scene.find_itemAt(pos[ix], exclude=(Block, Connection, textItem))
-                if isPort(port):
-                    conn.attach(ix, port)
-                else:
-                    conn.pos[ix] = pos[ix]
-                    print('no port at ', pos[ix])
-            conn.update_path()
-                    
-            if 'label' in data:
-                conn.label = textItem(data['label'], anchor=3, parent=conn)
-                conn.label.setPos(conn.pos2.x(),conn.pos2.y())
-            if 'signalType' in data:
-                conn.signalType = textItem(data['signalType'], anchor=3, parent=conn)
-                conn.signalType.setPos(conn.pos2.x(),conn.pos2.y())
+            if pos[0] == pos[1]:
+                print('discarding zero length segment x={}, y={}'.format(data['x0'], data['y0']))
+            else:
+                conn = Connection(None, self.scene)
+                for ix in [0,1]:
+                    port = self.scene.find_itemAt(pos[ix], exclude=(Block, Connection, textItem))
+                    if isPort(port):
+                        conn.attach(ix, port)
+                    else:
+                        conn.pos[ix] = pos[ix]
+                        print('no port at ', pos[ix])
+                conn.update_path()
+                        
+                if 'label' in data:
+                    conn.label = textItem(data['label'], anchor=3, parent=conn)
+                    conn.label.setPos(conn.pos2.x(),conn.pos2.y())
+                if 'signalType' in data:
+                    conn.signalType = textItem(data['signalType'], anchor=3, parent=conn)
+                    conn.signalType.setPos(conn.pos2.x(),conn.pos2.y())
 
         for data in comments:
             comment = Comment('')
@@ -929,7 +937,10 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
         netlist_dir = os.path.join(os.curdir, 'netlist_myhdl', dgmname)
         
         #actual netlisting
-        netlist(fname, lang='myhdl', netlist_dir=netlist_dir)
+        try:
+            netlist(fname, lang='myhdl', netlist_dir=netlist_dir)
+        except Exception as e:
+            error('netlist of {} produced error {}'.format(fname, str(e)))
         
         # print message
         b = QtWidgets.QMessageBox()

@@ -13,6 +13,8 @@ from   supsisim import const
 from   supsisim.src_import import import_module_from_source_file
 import libraries
 
+debug=False
+
 filenamemyhdl_template = 'libraries.library_{}.{}'
 
 def strip_ext(fname, ext):
@@ -104,7 +106,13 @@ def fillTemplate(template, blockname, body, include):
 def netlist(filename, properties=dict(), lang='myhdl', netlist_dir=const.netlist_dir, netlists = None):
     '''netlist a file in netlist_dir
     netlists contains a set of already netlisted blocks'''
-#    print('netlisting', filename)
+    if debug:
+        print ('debug netlist' )
+        print ('      filename   ', filename)
+        print ('      properties ', properties)
+        print ('      lang       ', lang)
+#    print ('      netlist_dir', netlist_dir)
+#    print ('      netlists   ', netlists)
     if netlists is None:
         netlists = set()
     # check if already netlisted
@@ -130,6 +138,9 @@ def netlist(filename, properties=dict(), lang='myhdl', netlist_dir=const.netlist
         subdir = libraries.libprefix + libname  if libname else libname 
         if not os.path.isdir(os.path.join(netlist_dir, subdir)):
             os.makedirs(os.path.join(netlist_dir, subdir))
+            if lang == 'myhdl':
+                with open(os.path.join(netlist_dir, subdir, '__init__.py'), 'wb') as f:
+                    f.write('# import blocks in name-space\n\n')
         
     outfile = os.path.join(netlist_dir, subdir, blockname + ext)
 
@@ -271,7 +282,7 @@ def instToMyhdl(inst):
     # try module.toMyhdlInstance()
     try:
         instance_netlist = blkMod.toMyhdlInstance(name, args, parameters)
-        return instance_netlist
+        return instance_netlist, False
 
     except AttributeError:
         if parameters: # parametrized cell should have netlist function
@@ -288,7 +299,7 @@ def instToMyhdl(inst):
             conns.append('{} = {}'.format(pinname, netname))
         jj = ',\n' + ' ' * 12
         c = jj.join(conns)
-        return '    u_{} = {}{}.{}({})\n'.format(name, libraries.libprefix, libname, blkname, c)
+        return '    u_{} = {}{}.{}({})\n'.format(name, libraries.libprefix, libname, blkname, c), True
 
 
 
@@ -299,63 +310,81 @@ def toMyhdl(block_name, blocks, internal_nets, external_nets, netlist_dir):
        external_nets     dict external_nets[netname] = signalType containing all portnames 
        internal_nets     dict internal_nets[netname] = signalType containing all internal netnames 
     '''
+    hdr  = [] # header
+    imp  = [] # import defs
+    sig  = [] # signal defs
+    bdef, body = [], [] # block def, block body
 
-    ret     = ['from myhdl import block, Signal, intbv, fixbv, instances, \\']
-    ret.append('           always, always_seq, always_comb, instance # decorators')
-    ret.append('')
-    ret.append('TIME_UNIT = {}'.format(const.ticks_per_second))
-    ret.append('')
-
-    # imports
+    # set of library imports
     imports = set()
-    for name, inst in blocks.items():
-        imports.add(libraries.libprefix + inst['libname'])
-    
-    ret.append('# import block libraries')
-    for lib in imports:
-        ret.append('import {}'.format(lib))
-    ret.append('')
-    
+
+#    hdr.append('TIME_UNIT = {}'.format(const.ticks_per_second))
+    hdr.append('')
+    hdr.append('from myhdl import Signal, concat, delay, intbv, fixbv, instances, \\')
+    hdr.append('           block, always, always_seq, always_comb, instance # decorators')
+    hdr.append('')
+
+
     # block definition
-    ret.append('@block\ndef {}({}):'.format(block_name, ', '.join(external_nets)))
-    ret.append('')
+    bdef.append('@block\ndef {}({}):'.format(block_name, ', '.join(external_nets)))
+    bdef.append('')
 
-    # internal_nets
-    if internal_nets:
-        ret.append('    # internal nets')
-        for netname in internal_nets:
-            tp = internal_nets[netname]['signalType']
-            if netname[0] in '_' + string.lowercase + string.uppercase:
-                if tp:
-                    ret.append('    {} = Signal({})'.format(netname, tp))
-                else:
-                    ret.append('    {} = Signal(0)'.format(netname))
-        ret.append('')
-
-
-    # blocks
-    ret.append('    # body')
+    body.append('    # body')
     for name, inst in blocks.items():
-        r = instToMyhdl(inst)
+        r, isimport = instToMyhdl(inst)
+        if isimport:
+            imports.add(libraries.libprefix + inst['libname'])
         if isinstance(r, dict):
             # additional files keys=filename ( __main__ for main file),  values=text,
-            main_netlist = r.pop('__main__')
+            main_netlist = r.pop('__main__') if '__main__' in r else ''
+            signals_netlist = r.pop('__signals__') if '__signals__' in r else ''
             for path, txt in r.items():
                 dirname, fn = os.path.split(path)
                 if not os.path.isabs(dirname):
                     dirname = os.path.join(netlist_dir, dirname)
                 if dirname and not os.path.isdir(dirname):
                     os.makedirs(dirname)
+                    with open(os.path.join(dirname, '__init__.py'), 'wb') as f:
+                        f.write('# auto generated by netlist procedure')
+                fmt = const.templates['myhdl'].lstrip()
+                incl = const.templates['myhdl_include']
+                txt = fillTemplate(fmt, block_name, txt, incl)
                 with open(os.path.join(dirname,fn), 'wb') as f:
                     f.write(txt)
+                if signals_netlist:
+                    for line in signals_netlist.splitlines():
+                        if '=' in line:
+                            a, _, _ = line.partition('=')
+                            a = a.strip()
+                            if a and a in internal_nets:
+                                internal_nets.pop(a)
+                    sig.append(signals_netlist)
         else:            
             main_netlist = r
         
-        ret.append(main_netlist)
+        body.append(main_netlist)
 
-    ret.append('    return instances()')
+    if imports:
+        imp.append('# import block libraries')
+        for lib in imports:
+            imp.append('import {}'.format(lib))
+        imp.append('')
+
+    # internal_nets
+    if internal_nets:
+        sig.append('    # internal nets')
+        for netname in sorted(internal_nets.keys()):
+            tp = internal_nets[netname]['signalType']
+            if netname[0] in '_' + string.lowercase + string.uppercase:
+                if tp:
+                    sig.append('    {} = Signal({})'.format(netname, tp))
+                else:
+                    sig.append('    {} = Signal(bool(0))'.format(netname))
+        sig.append('')
+
+    body.append('    return instances()')
             
-    return  '\n'.join(ret)
+    return  '\n'.join(hdr+imp+bdef+sig+body)
 
 
 def resolve_connectivity(filename, properties=dict()):
@@ -466,7 +495,7 @@ def resolve_connectivity(filename, properties=dict()):
         # check if there are driven conncetions
         if driven_connections: # name after driving instance
             conn = driven_connections.pop()
-            unresolved.discard(conn)
+            unresolved.discard(conn)                   
             instname, portname =  conn.d['p0']
             inst = blocks[instname]
             
@@ -476,10 +505,15 @@ def resolve_connectivity(filename, properties=dict()):
                if len(inst['outp']) > 1: # not the only output
                    netname += '_{}'.format(portname.lstrip('.').lower()) # + port_name
             else:
+                print( inst)
                 raise Exception('{}: connection to {} pin {} is not an output of {}.{}'.format(filename, instname, portname, inst['libname'], inst['blockname']))
                         
         else: # choose arbitrary name
             conn = unresolved.pop()
+            if debug:
+                print ('anonymous net in ', filename)
+                print ('   p0 = {}, {}'.format(conn.d['x0'],conn.d['y0']))
+                print ('   p1 = {}, {}'.format(conn.d['x1'],conn.d['y1']))
             n_nets += 1
             netname = 'net{}'.format(n_nets)
             
@@ -506,7 +540,8 @@ def resolve_connectivity(filename, properties=dict()):
     for instname, inst in blocks.items():
         for pin, net in inst['conn'].items():
             if net is None:
-                print ('debug', inst['conn'])
+                if debug:
+                    print ('debug', inst['conn'])
                 raise Exception('file {}: instance {}, pin {} is not Connected'.format(filename, instname, pin))
 #                print('file {}: instance {}, pin {} is not Connected'.format(filename, instname, pin))
 
@@ -542,5 +577,6 @@ if __name__ == "__main__":
 #    fname = os.path.join(d, 'saves', 'test.py')
     fname = sys.argv[1]
     nldir = os.path.join(const.netlist_dir + '_' + lang, strip_ext(os.path.basename(fname), '.py'))
+    debug=True
     netlist(fname, netlist_dir=nldir)
     print('done')

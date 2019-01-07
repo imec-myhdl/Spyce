@@ -1,5 +1,5 @@
 # cell definition
-# name = 'Register'
+# name = 'Latch'
 # libname = 'common'
 
 from  supsisim import const
@@ -7,21 +7,18 @@ from  supsisim import const
 inp = 2
 outp = 1
 
-parameters = dict(clk_edge = ('pos', ['pos', 
+tooltip = '''Latch with optional delay, 
+transparent when c = 1 (or cn == 0)''' 
+
+parameters = dict(clk_pol = ('pos', ['pos', 
                                       'neg']), 
-                  reset = ('neg, async', ['neg, async', 
-                                         'pos, async', 
-                                         'neg, sync', 
-                                         'pos, sync', 
-                                         'None']),
                   channels = 1,
                   inv = ['none',('none', 'odd', 'even', 'all')])
 properties = {'delay':0.0} #voor netlisten
 #view variables:
 
 def ports(param):
-    clk_edge = param['clk_edge'][0] if 'clk_edge' in param else 'pos'
-    reset = param['reset'][0] if 'reset' in param else 'neg, async'
+    clk_pol = param['clk_pol'][0] if 'clk_pol' in param else 'pos'
     inv = param['inv'][0] if 'inv' in param else 'none'
     channels =  param['channels'] if 'channels' in param else 1
     w2, y = 60, 0
@@ -45,24 +42,12 @@ def ports(param):
         y += const.PD
             
     y += const.PD
-    if clk_edge == 'pos':
+    if clk_pol == 'pos':
         inp.append(('c', -w2, y)  )
     else:
         inp.append(('cn', -w2, y)  )  
     y += const.PD
-    
-    rst = ''
-    if reset == 'pos, async':
-        rst = 'arst'
-    elif reset == 'neg, async':
-        rst = 'arst_n'
-    elif reset == 'pos, sync':
-        rst = 'rst'
-    elif reset == 'neg, sync':
-        rst = 'rst_n'
-    if rst:
-        inp.append((rst, -w2, y))
-    
+        
     return inp, outp, inout
 
 def getSymbol(param, properties, parent=None, scene=None,):
@@ -114,68 +99,42 @@ def getSymbol(param, properties, parent=None, scene=None,):
     
 def toMyhdlInstance(instname, connectdict, param):
     # properties end up in the connectdict
-    clk_edge = param['clk_edge'][0] if 'clk_edge' in param else 'pos'
-    reset = param['reset'][0] if 'reset' in param else 'neg, async'
+    clk_pol = param['clk_pol'][0] if 'clk_pol' in param else 'pos'
 #    channels =  param['channels'] if 'channels' in param else 1
     delay = connectdict['delay'] if 'delay' in connectdict else 0.0
     inp, outp, _ = ports(param)
 
-    if clk_edge == 'pos':
+    if clk_pol == 'pos':
         c, ctp = connectdict['c'] # clock
+        cpol = 1
     else:
         c, ctp = connectdict['cn'] # clock not
+        cpol = 0
         
-    if reset not in ['None', None]:
-        r, rtp = connectdict[inp[-1][0]] # reset
-        r_pol, r_sync = reset.split(', ')
-        r_pol = 0 if r_pol == 'neg' else 1
-    else:
-        r = None
-        r_pol, r_sync = None, None
     
-    indent = '\n        '
-    sens   = '{clock}.{pos}edge'.format(clock=c, pos=clk_edge)
+    indent = '\n            '
+    sens   = [c]
+    for n, x, y in inp[:-1]:
+        nn,nt = connectdict[n]
+        sens.append(nn)
+    sens = ', '.join(sens)
+        
     if delay > 0:
         #need @instance decorator, as delay is not allowed in @always
-        if reset not in ['None', None]:
-            template = ['@instance',
-                        'def u_{inst}():',
-                        '    while True:',
-                        '        yield {sens} # reset = {reset}',
-                        '        {sample}',
-                        '        yield delay(int({delay}*TIME_UNIT))',
-                        '        if {r} == {rpol}:',
-                        '            {assign0}',
-                        '        else:',
-                        '            {assign}']
-                    
-            indent += '        '
-            if r_sync == 'async':
-                sens +=', {}.{}edge'.format(r, 'pos' if r_pol else 'neg')
-        else:
-            template = ['@instance',
-                        'def u_{inst}():',
-                        '    while True:',
-                        '        yield {sens} # reset = {reset}',
-                        '        {sample}',
-                        '        yield delay(int({delay}*TIME_UNIT))',
-                        '        {assign}']
-            indent += '    '
+        template = ['@instance',
+                    'def u_{inst}():',
+                    '    while True:',
+                    '        yield {sens}',
+                    '        if {c} == {cpol}:',
+                    '            {sample}',
+                    '            yield delay(int({delay}*TIME_UNIT))',
+                    '            {assign}']
+        indent += '    '
     else:
-        if reset not in ['None', None]:
-            template = ['@always({sens}) # reset = {reset}',
-                        'def u_{inst}():',
-                        '    if {r} == {rpol}:',
-                        '        {assign0}',
-                        '    else:',
-                        '        {assign}']
-            indent += '    '
-            if r_sync == 'async':
-                sens +=', {}.{}edge'.format(r, 'pos' if r_pol else 'neg')
-        else:
-            template = ['@always({sens}) # reset = {reset}',
-                        'def u_{inst}():',
-                        '    {assign}']
+        template = ['@always({sens})',
+                    'def u_{inst}():',
+                    '    if {c} == {cpol}:',
+                    '        {assign}']
     fmt = '    ' + '\n    '.join(template) + '\n'
     sample = []    
     assign0 = []
@@ -191,17 +150,15 @@ def toMyhdlInstance(instname, connectdict, param):
             
         if n.startswith('qn'):
             assign.append( '{}.next = not {}'.format(nq, ndd))
-            assign0.append('{}.next = {}'.format(nq, 1))
         else:
             assign.append( '{}.next = {}'.format(nq, ndd))
-            assign0.append('{}.next = {}'.format(nq, 0))
             
     
     sample   = indent[:-4].join(sample)
     assign0  = indent.join(assign0)
     assign   = indent.join(assign )
     
-    return fmt.format(sens=sens, reset=reset, r=r , rpol= r_pol, inst=instname, 
-                      assign0=assign0, assign=assign, delay=delay, sample=sample)
+    return fmt.format(sens=sens, c=c, cpol=cpol, inst=instname, 
+                      assign=assign, delay=delay, sample=sample)
 
 views = {}

@@ -73,7 +73,7 @@ def toMyhdlInstance(instname, connectdict, param):
     inp, outp, _ = ports(param)
     s, stp = connectdict['s']
     z, ztp = connectdict['z']
-    r =          '    @always_comb()\n' 
+    r =          '    @always_comb\n' 
     r +=         '    def u_{inst}():\n'.format(inst=instname)
     for ix, ixy in enumerate(inp[:-1]): # skip select input (last)
         i, itp = connectdict[ixy[0]]
