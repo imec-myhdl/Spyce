@@ -2,14 +2,20 @@
 """
 TextItem Class
 """
-from __future__ import (division, print_function, absolute_import,
-                        unicode_literals)
+from __future__ import (division, print_function, unicode_literals)
 
-from  Qt import QtGui, QtWidgets, QtCore # see https://github.com/mottosso/Qt.py
+# Standard library imports
+import sys
+if sys.version_info >= (3,0):
+    basestring = str
 from collections import OrderedDict
 
-#from supsisim.const import iconFont
-from supsisim.const import colors, stdfont
+# Third party imports
+from  Qt import QtGui, QtWidgets, QtCore # see https://github.com/mottosso/Qt.py
+
+
+# Local application imports
+from .const import colors, stdfont
 
 class textItem(QtWidgets.QGraphicsTextItem):
     '''convenience class, extension of QGraphicsSimpleTextItem, that realises aligned text

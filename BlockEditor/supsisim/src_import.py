@@ -19,7 +19,7 @@ def import_module_from_source_file(filepath, errors = []):
         except:
             mod = None
             errors.append('loading of {} caused error:\n{}'.format(fullpath, sys.exc_info()[1]))
-
+            print('loading of {} caused error:\n{}'.format(fullpath, sys.exc_info()))
     elif sys.version_info >= (3,3) and sys.version_info < (3,5):
         # python 3.3 or 3.4
         try:
@@ -28,6 +28,7 @@ def import_module_from_source_file(filepath, errors = []):
         except:
             mod = None
             errors.append('loading of {} caused error:\n{}'.format(fullpath, sys.exc_info()[1]))
+            print('loading of {} caused error:\n{}'.format(fullpath, sys.exc_info()))
 
     elif sys.version_info >= (3,5):
         # python 3.5+
@@ -39,6 +40,7 @@ def import_module_from_source_file(filepath, errors = []):
         except:
             mod = None
             raise Exception('loading of {} caused error:\n{}'.format(fullpath, sys.exc_info()))
+            print('loading of {} caused error:\n{}'.format(fullpath, sys.exc_info()))
     else:
         raise Exception ('This version of python is not supported\nUse latest 2.7, 3.5 or newer')
 

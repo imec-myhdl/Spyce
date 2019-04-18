@@ -15,7 +15,7 @@ import os
 
 
 import threading
-import autopep8
+#import autopep8
 from supsisim.pyEdit import SupsiSimMainWindow
 from supsisim.library import Library
 

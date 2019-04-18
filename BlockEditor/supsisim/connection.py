@@ -1,7 +1,6 @@
 #!/usr/bin/python
 # aim for python 2/3 compatibility
-from __future__ import (division, print_function, absolute_import,
-                        unicode_literals)
+from __future__ import (division, print_function, unicode_literals)
 
 from  Qt import QtGui, QtWidgets, QtCore # see https://github.com/mottosso/Qt.py
 from collections import OrderedDict
@@ -11,10 +10,10 @@ from collections import OrderedDict
 #    import sip
 #    sip.setapi('QString', 1)
 
-from supsisim.const import LW, colors
-from supsisim.port import isPort, isInPort, isOutPort, isNode
-from supsisim.node import Node
-from supsisim.dialg import error
+from .const import LW, colors
+from .port import isPort, isInPort, isOutPort#, isNode
+#from .node import Node
+#from .dialg import error
 from lxml import etree
 
 class Connection(QtWidgets.QGraphicsPathItem):

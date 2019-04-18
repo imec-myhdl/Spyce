@@ -1,6 +1,6 @@
 import os, sys
 from collections import OrderedDict
-from template_files import _templates
+from .template_files import _templates
 
 if 'PYSUPSICTRL' in os.environ:
     path = os.environ['PYSUPSICTRL']

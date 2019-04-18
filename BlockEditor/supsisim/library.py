@@ -2,32 +2,33 @@
 """
 """
 # aim for python 2/3 compatibility
-from __future__ import (division, print_function, absolute_import,
-                        unicode_literals)
-
-from  Qt import QtGui, QtWidgets, QtCore # see https://github.com/mottosso/Qt.py
-
+from __future__ import (division, print_function, unicode_literals)
+# Standard library imports
 import os, sys
-from lxml import etree
-
+if sys.version_info >= (3,4):
+    from importlib import reload
 import tempfile
 import subprocess
 import shutil
 
+# Third party imports
+from  Qt import QtGui, QtWidgets, QtCore # see https://github.com/mottosso/Qt.py
+from lxml import etree
+
+
+# Local application imports
 import libraries
 import myhdl_to_blk
-from supsisim.svg_utils import updateSvg
+from .svg_utils import updateSvg
 
-from supsisim.const import DB, respath, viewTypes, templates
+from .const import DB, respath, viewTypes, templates
 
-from supsisim.block import Block, getBlock, getBlockModule, getViews, \
-                           saveBlock, rmBlock, calcBboxFromPins, gridPos, updateOnDisk
+from .block import Block, getBlock, getBlockModule, getViews, \
+                   saveBlock, rmBlock, calcBboxFromPins, gridPos, updateOnDisk
                             
-from supsisim.dialg import txtDialog, \
-                           textLineDialog, createBlockDialog, error, \
-                           addViewDialog, editPinsDialog
-          
-
+from .dialg import txtDialog, \
+                   textLineDialog, createBlockDialog, error, \
+                   addViewDialog, editPinsDialog
 
 class CompViewer(QtWidgets.QGraphicsScene):
     '''mini diagram used in symbolView tabs'''

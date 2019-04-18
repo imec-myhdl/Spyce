@@ -1,21 +1,19 @@
 #!/usr/bin/python
 # aim for python 2/3 compatibility
-from __future__ import (division, print_function, absolute_import,
-                        unicode_literals)
+from __future__ import (division, print_function, unicode_literals)
 
-from  Qt import QtGui, QtWidgets, QtCore # see https://github.com/mottosso/Qt.py
+# Standard library imports
 import sys, os, re
+if sys.version_info >= (3,0):
+    basestring = str
 from collections import OrderedDict
 
-#if sys.version_info>(3,0):
-#    import sip
-#    sip.setapi('QString', 1)
-#
-from supsisim.const import path,respath
+# Third party imports
+from  Qt import QtGui, QtWidgets, QtCore # see https://github.com/mottosso/Qt.py
+
+# Local application imports
+from .const import path,respath
 import libraries
-
-
-
 
 
 class editPinsDialog(QtWidgets.QDialog):

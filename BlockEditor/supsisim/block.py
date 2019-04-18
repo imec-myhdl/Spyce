@@ -22,26 +22,27 @@ Block
     class definition for the Block object
 """
 # aim for python 2/3 compatibility
+from __future__ import (division, print_function, unicode_literals)
 
-from __future__ import (division, print_function, absolute_import,
-                        unicode_literals)
-
-from  Qt import QtGui, QtWidgets, QtCore # see https://github.com/mottosso/Qt.py
-
+# Standard library imports
 import os
-import subprocess
+#import subprocess
 from copy import copy
 from collections import OrderedDict
 
-import libraries
-from supsisim.port  import Port, isPort
-from supsisim.const import GRID, PW, LW, BWmin, BHmin, PD, respath, \
-                            colors, viewTypes, templates
-from supsisim.dialg import error
-from supsisim.text  import textItem
-from supsisim.src_import import import_module_from_source_file
+# Third party imports
+from  Qt import QtGui, QtWidgets, QtCore # see https://github.com/mottosso/Qt.py
 
-from supsisim.svg_utils import svg2png #createSvgMirrorTxt
+# Local application imports
+import libraries
+from .port  import Port #, isPort
+from .const import GRID, PW, LW, BWmin, BHmin, PD, respath, \
+                            colors, viewTypes, templates
+from .dialg import error
+from .text  import textItem
+from .src_import import import_module_from_source_file
+from .svg_utils import svg2png #createSvgMirrorTxt
+
 
 block_modules = dict()
 
@@ -97,14 +98,13 @@ def gridPos(pt):
 def getBlock(libname, blockname, parent=None, scene=None, param=dict(), 
              properties=dict(), name=None, flip=False, errors=[]):
     '''create a Block'''
-
     blk = getBlockModule(libname, blockname, errors=errors)
     if blk is None:
         return
     if blk.parameters: # start from default parameters
-        param = dict(blk.parameters.items() + param.items())
+        param = dict(list(blk.parameters.items()) + list(param.items()))
     if blk.properties: # start from default properties
-        properties = dict(blk.properties.items() + properties.items())
+        properties = dict(list(blk.properties.items()) + list(properties.items()))
     try:
          b = blk.getSymbol(param, properties, parent, scene)
     except AttributeError:

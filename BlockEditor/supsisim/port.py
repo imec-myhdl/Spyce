@@ -1,18 +1,21 @@
 #!/usr/bin/python
 # aim for python 2/3 compatibility
-from __future__ import (division, print_function, absolute_import,
-                        unicode_literals)
+from __future__ import (division, print_function, unicode_literals)
 
-from  Qt import QtGui, QtWidgets, QtCore # see https://github.com/mottosso/Qt.py
+# Standard library imports
+import sys
+if sys.version_info >= (3,0):
+    basestring = str
 from collections import OrderedDict
 
-#if sys.version_info>(3,0):
-#    import sip
-#    sip.setapi('QString', 1)
+# Third party imports
+from  Qt import QtGui, QtWidgets, QtCore # see https://github.com/mottosso/Qt.py
 
-from supsisim.const import PW, PD, NW, colors
-from supsisim.dialg import error
-from supsisim.text  import textItem
+
+# Local application imports
+from .const import PW, PD, NW, colors
+from .dialg import error
+from .text  import textItem
 
 class Port(QtWidgets.QGraphicsPathItem):
     """A block holds ports that can be connected to.
@@ -30,6 +33,7 @@ class Port(QtWidgets.QGraphicsPathItem):
         self.connections = set()
         self.nodeID = '0'
         self.parent = parent
+        self.scene = scene
         if label:
             self.label = textItem(label, parent=self)
         else:
@@ -40,6 +44,8 @@ class Port(QtWidgets.QGraphicsPathItem):
         self.setup()
         self.setLabel()
         self.setFlip()
+        if self not in self.scene.items(): # added since pins/nodes were not auta added in Qt5? 
+            self.scene.addItem(self)
 
     def setup(self):
         self.setPath(self.p)
@@ -107,7 +113,7 @@ class Port(QtWidgets.QGraphicsPathItem):
 
         else:
             error('unknown Port type: {}'.format(self.porttype))
-
+            
 
     def setLabel(self, label=None, label_side=None):
         if self.label is None:
