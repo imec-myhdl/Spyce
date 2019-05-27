@@ -7,8 +7,8 @@ some remaining packages that we did not yet update or remove
 The following packages should be installed on your PC
 
 * Python 2.7+ or Python 3.5+
-* Qt (see https://github.com/mottosso/Qt.py)
 * PySide, PySide2, PyQt4 or PyQt5
+* Qt.py wrapper around PySide, PySide2, PyQt4 or PyQt5(see https://github.com/mottosso/Qt.py)
 * MyHDL (best with fixbv extension, see https://github.com/imec-myhdl/myhdl)
 * LateX if you want to build the pdf documentation
 
