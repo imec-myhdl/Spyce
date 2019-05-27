@@ -1,6 +1,6 @@
 Spyce, Simple python circuit editor
 =============
-A simulink like editor with netlist support. Heavily borrowed from a similar project for pycontrol by Roberto Bucher
+A simulink like editor with MyHDL netlist support. Heavily borrowed from a project for pycontrol by Roberto Bucher
 http://robertobucher.dti.supsi.ch/python/ for the SUPSI university. You will find many references to supsi :) and also
 some remaining packages that we did not yet update or remove
 
@@ -19,7 +19,7 @@ Installing as normal user:
 --------------------------
 1) Install Spyce (checkout with git)
 ```
-   git clone https://github.com/imec-myhdl/pycontrol-gui.git
+   git clone https://github.com/imec-myhdl/Spyce.git
 ```
 2) install the  dependencies with pip:
 ```
@@ -37,7 +37,7 @@ Workspace preparation
    
    # link common libraries
    mkdir libraries
-   ln -s ~/pycontrol-gui/BlockEditor/libraries/* libraries
+   ln -s ~/Spyce/BlockEditor/libraries/* libraries
 ```
 
 Editor (standalone)
@@ -45,12 +45,19 @@ Editor (standalone)
 To start the editor you do not need a setup/make step. You can run it can directly without installing.
 ```
 cd workdir
-python ~/pycontrol-gui/BlockEditor/spyce.py
+python ~/Spyce/BlockEditor/spyce.py
+
+# or define an alias (e.g. in your ~/.bashrc):
+alias spyce='python ~/Spyce/BlockEditor/spyce.py'
+cd workdir
+spyce
+
+
 ```
 Documentation (standalone)
 --------------------------
 ```
-cd ~/pycontrol-gui/doc
+cd ~/Spyce/doc
 make latexpdf # or make html whatever you prefer and is supported by sphinx
 ```
 manual will be in build/latex/spyce.pdf
