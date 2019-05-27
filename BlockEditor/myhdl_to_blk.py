@@ -81,8 +81,10 @@ def get_defs(filename):
         outp= []        
         for p in args:
             t = p+'.next'
-            if t in body:
+            if t in body: # surely an output as pin.next is in the code
                 outp.append(p)
+            elif p.startswith('o_'): # probably an output as pin name starts with 'o_'
+                 outp.append(p)               
             else:
                 inp.append(p)
                 
@@ -112,8 +114,8 @@ def toBlk(filename, libname):
             fmt = '\n'.join(fmt)
         else:
             fmt = templates['block']
-        wi = max([len(i) for i in inp])
-        wo = max([len(o) for o in outp])
+        wi = max([len(i) for i in inp]) if inp else 0
+        wo = max([len(o) for o in outp]) if outp else 0
         w2 = (wi + wo + 1)//2 * 10
         inputs, outputs = [], []
         

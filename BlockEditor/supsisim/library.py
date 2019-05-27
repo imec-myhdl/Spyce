@@ -226,6 +226,8 @@ class Library(QtWidgets.QMainWindow):
     def importMyhdl(self):
         path = os.getcwd()
         filename = QtWidgets.QFileDialog.getOpenFileName(self, 'Open', path, filter='*.py')
+        if isinstance(filename, tuple): # Qt5
+            filename = filename[0]
         if filename:
             if self.type == 'symbolView':
                 ix = self.tabs.currentIndex()
@@ -513,11 +515,25 @@ class Library(QtWidgets.QMainWindow):
             view, path = ret[0],ret[1]
             if view in templates:
                 txt = templates[view].format(name=blockname)
+                if view == 'diagram':
+                    n = []
+                    tpi = "dict(porttype=u'ipin', x={x:1.1f}, y={y:1.1f}, label=dict(text=u'{name}', x=-10.0, y=0.0, anchor=6, font=u'Sans Serif,12,-1,5,50,0,0,0,0,0'))"
+                    tpo = "dict(porttype=u'opin', x={x:1.1f}, y={y:1.1f}, label=dict(text=u'{name}', x=10.0, y=0.0, anchor=4, font=u'Sans Serif,12,-1,5,50,0,0,0,0,0'))"                    
+                    for ix, p in enumerate(actComp.inp):
+                        n.append(tpi.format(x=0, y=ix*20, name = p[0]))
+                    for ix, p in enumerate(actComp.outp):
+                        n.append(tpo.format(x=400, y=ix*20, name = p[0]))
+                    nodes = 'nodes = [{}]'.format(',\n         '.join(n))
+                    txt = txt.replace('nodes = []', nodes)
             else:
                 txt = ''
             try:
                 path = os.getcwd()
-                f = open(path + "/" + ret[1],'w+')
+                fn = os.path.join(path, ret[1])
+                if os.path.exists(fn):
+                    error('{} view already exists'.format(view))
+                    return
+                f = open(fn,'w+')
                 f.write(txt)
                 f.close()
             except:

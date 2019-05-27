@@ -27,6 +27,14 @@ Creating Blocks with the GUI
 ============================
 .. index:: single: Creating Blocks with the GUI
 
+There are two ways to create a Block: either via the *import MyHdl* function or manually via the *Create Block* function.
+
+If you already have a MyHdl file, you can create a Block (symbolic view) by importing it.
+In the library viewer select the destination library, and then click on the *import Myhdl* icon.
+The import routine will guess in and outputs, but might get it wrong, so you might want to edit the pins or their positions.
+Note that any keyword arguments are treated as properties. You can check the created block by right-clicking on the new block 
+and selecting views->blk_source, which will pop up the prefered editor
+
 In the library viewer right-click somewhere in empty space and choose *Create block*.
 You can choose an icon if you can re-use an existing icon (but most of the time you 
 will create a new one later). You add inputs, outputs, parameters and properties. 
@@ -98,7 +106,10 @@ The getSymbol function will probably start with importing the block class, and Q
 This function should return a properly indented string (4 leading space) containing the MyHDL code.
 It is required for myhdl netlisting a parametrized blocks. The instance name is the name of 
 the block in the diagram. Connectdict is a dictionary with connections and properties 
-(connectdict[pinname] = nettname or connectdict[property_name] = property_value)
+(connectdict[pinname] = nettname or connectdict[property_name] = property_value). 
+This choice was made since they are both elements of an instantiation e.g.::
+    b1ock1_instance = myBlock(signal_1, signal_2, property_1=42)
+note: spyce always netlists with the *pin_name = connected_signal_name* syntax to remove all ambiguity
 
 .. py:function:: toSystemVerilogInstance(instname, connectdict, param)
 This function should return a properly indented string (4 leading space) containing the SystemVerilog code.

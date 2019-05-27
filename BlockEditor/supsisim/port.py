@@ -174,7 +174,7 @@ class Port(QtWidgets.QGraphicsPathItem):
             except:
                 pass
         try:
-            self.scene().removeItem(self)
+            self.scene.removeItem(self)
         except AttributeError:
             pass
 

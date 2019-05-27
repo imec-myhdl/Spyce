@@ -2,6 +2,8 @@
 # aim for python 2/3 compatibility
 from __future__ import (division, print_function, absolute_import,
                         unicode_literals)
+                        
+import sys, traceback
 
 from  Qt import QtGui, QtWidgets, QtCore # see https://github.com/mottosso/Qt.py
 from  Qt.QtPrintSupport import QPrinter, QPrintDialog
@@ -766,6 +768,8 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
             fname = self.centralWidget.widget(ix).fname
 #            fname = os.path.join(self.path, 'saves', self.filename)
             filename = QtWidgets.QFileDialog.getSaveFileName(self, 'Save', fname, filter='Diagram (*.py *.diagram);;All (*.*)')
+            if isinstance(filename, tuple): #Qt5
+                filename = filename[0]
 
         if filename:
             fn, ext = os.path.splitext(filename)
@@ -937,16 +941,20 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
         netlist_dir = os.path.join(os.curdir, 'netlist_myhdl', dgmname)
         
         #actual netlisting
+#        netlist(fname, lang='myhdl', netlist_dir=netlist_dir)
         try:
             netlist(fname, lang='myhdl', netlist_dir=netlist_dir)
-        except Exception as e:
-            error('netlist of {} produced error {}'.format(fname, str(e)))
+            # print message
+            b = QtWidgets.QMessageBox()
+            b.setWindowModality(QtCore.Qt.ApplicationModal)
+            b.setText('netlist written in ' + netlist_dir)
+            b.exec_()
+
+        except Exception:
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            ee = traceback.format_tb(exc_traceback)
+            error('netlist of {} produced error {}'.format(fname, ''.join(ee)))
         
-        # print message
-        b = QtWidgets.QMessageBox()
-        b.setWindowModality(QtCore.Qt.ApplicationModal)
-        b.setText('netlist written in ' + netlist_dir)
-        b.exec_()
 
 
     def setrunAct(self):

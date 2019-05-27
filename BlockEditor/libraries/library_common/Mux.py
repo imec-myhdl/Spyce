@@ -79,11 +79,11 @@ def toMyhdlInstance(instname, connectdict, param):
         i, itp = connectdict[ixy[0]]
 #        print('Mux debug', ix, ixy, i)
         if ix == 0:
-            r += '        if {s} == {ix}:\n'.format(s=s, ix=ix)
+            r += '        if {s} == {sx}:\n'.format(s=s, sx=sel[ix])
         elif ix == len(inp)-2:
-            r += '        else:\n'.format(s=s, ix=ix)
+            r += '        else:\n'.format(s=s, ix=sel[ix])
         else:
-            r += '        elif {s} == {ix}:\n'.format(s=s, ix=ix)
+            r += '        elif {s} == {sx}:\n'.format(s=s, sx=sel[ix])
         r += '            {z}.next = {inp}\n'.format(z=z, inp=i)
     
     return r

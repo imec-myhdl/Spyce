@@ -165,9 +165,12 @@ class Scene(QtWidgets.QGraphicsScene):
                 if self.mainw.view.symbol and self.mainw.view.libname == data[0] and self.mainw.view.blockname == data[1]:
                     pass
                 else:
-# TODO: this is old style                    
-                    b = getBlock(data[0],data[1],scene=self)                    
-                    b.setPos(pos)
+# TODO: this is old style
+                    try: # somehow this is triggered regularly and causes crashes
+                        b = getBlock(data[0],data[1],scene=self)                    
+                        b.setPos(pos)
+                    except IndexError:
+                        pass
 #                    b = Block(eval(data[0]),eval(data[1]),eval(data[2]),data[3],data[4],None, self)
             else:
                 data = event.mimeData().text().split('@')

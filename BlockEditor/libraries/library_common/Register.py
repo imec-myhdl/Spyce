@@ -4,11 +4,31 @@
 
 from  supsisim import const
 
+tooltip = '''Register (clocked process)
+
+parameters:
+-----------
+    clk_edge:    any of  ('pos', 'neg'), 
+    reset:       any of 'neg, async' # negative active, asynchronous,
+                        'pos, async' # positive active, asynchronous, 
+                        'neg, sync'  # negative active, synchronous, 
+                        'pos, sync'  # positive active, synchronous, 
+                        'None'       # no reset
+    channels:    number of channels (different signals),
+    inv:         invert outputs; any one of ('none', 'odd', 'even', 'all')
+
+properties:
+-----------
+    delay:       Time delay [s] (from clk to out)
+    reset_val    reset value or list of space separated reset values. 
+                 the last entry is repeated when channels is higher than lenght of list
+    '''
+
+
 inp = 2
 outp = 1
 
-parameters = dict(clk_edge = ('pos', ['pos', 
-                                      'neg']), 
+parameters = dict(clk_edge = ('pos', ['pos', 'neg']), 
                   reset = ('neg, async', ['neg, async', 
                                          'pos, async', 
                                          'neg, sync', 
@@ -16,7 +36,7 @@ parameters = dict(clk_edge = ('pos', ['pos',
                                          'None']),
                   channels = 1,
                   inv = ['none',('none', 'odd', 'even', 'all')])
-properties = {'delay':0.0} #voor netlisten
+properties = {'delay':0.0, 'reset_val':'0'} # for netlisting
 #view variables:
 
 def ports(param):
@@ -116,7 +136,12 @@ def toMyhdlInstance(instname, connectdict, param):
     # properties end up in the connectdict
     clk_edge = param['clk_edge'][0] if 'clk_edge' in param else 'pos'
     reset = param['reset'][0] if 'reset' in param else 'neg, async'
-#    channels =  param['channels'] if 'channels' in param else 1
+    channels =  param['channels'] if 'channels' in param else 1
+
+    # properties are stores in the connectdict
+    reset_val = connectdict['reset_val'].split() if 'reset_val' in connectdict else ['0']
+    if len(reset_val) < channels:
+        reset_val += reset_val[-1] * (channels - len(reset_val)) # repeat last value
     delay = connectdict['delay'] if 'delay' in connectdict else 0.0
     inp, outp, _ = ports(param)
 
@@ -191,10 +216,10 @@ def toMyhdlInstance(instname, connectdict, param):
             
         if n.startswith('qn'):
             assign.append( '{}.next = not {}'.format(nq, ndd))
-            assign0.append('{}.next = {}'.format(nq, 1))
+            assign0.append('{}.next = not {}'.format(nq, reset_val[ix]))
         else:
             assign.append( '{}.next = {}'.format(nq, ndd))
-            assign0.append('{}.next = {}'.format(nq, 0))
+            assign0.append('{}.next = {}'.format(nq, reset_val[ix]))
             
     
     sample   = indent[:-4].join(sample)

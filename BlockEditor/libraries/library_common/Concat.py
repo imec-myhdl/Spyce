@@ -4,6 +4,16 @@
 
 from supsisim import const
 
+tooltip = '''Returns an intbv object formed by concatenating the arguments.
+The following argument types are supported (All these objects have a defined bit width.): 
+     intbv objects with a defined bit width, 
+     bool objects 
+     bit strings 
+
+The first argument 'base' is special as it does not need to have a defined bit width. 
+In addition to these typeas also unsized intbv and int/long are allowed for base
+'''
+
 inp = [(u'a0', -60, 0)]
 outp = [(u'z', 60, 0)]
 # io   = []

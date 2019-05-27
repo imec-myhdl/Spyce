@@ -16,7 +16,7 @@ inp = 1
 outp = 1
 
 parameters = dict(carry=0)
-properties = dict(min=0.0, max=1.0) # voor netlisten
+properties = dict(min='0', max='1')
 #view variables:
 
 def ports(param):
@@ -68,7 +68,8 @@ def toMyhdlInstance(instname, connectdict, param):
     min = connectdict['min'] if 'min' in connectdict else None
     max = connectdict['max'] if 'max' in connectdict else None
 #    print(connectdict)
-    a, z = connectdict['.a'], connectdict['.z']
+    a, atp = connectdict['.a']
+    z, ztp = connectdict['.z']
     c = connectdict['carry'] if carry else None
 
     r =      '    @always_comb\n' + \

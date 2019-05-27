@@ -461,6 +461,13 @@ def resolve_connectivity(filename, properties=dict()):
     resolved   = dict()# resolved connections resolved[netname] == set(connections and nodes)
     unresolved = set() # unresolved connections
 
+
+    for n in dgm.nodes:
+        if 'label' in n: # create dummy connection for named nodes
+            x, y = n['x'], n['y']
+            dgm.connections.append(dict(x0=x, y0=y, x1=x, y1=y))
+
+
     for c in dgm.connections:
         conn = NetObj(c)
         for xy in [(c['x0'], c['y0']), (c['x1'], c['y1'])]:
@@ -473,6 +480,7 @@ def resolve_connectivity(filename, properties=dict()):
             resolved[conn.netname].add(conn)
         else:
             unresolved.add(conn)
+            
 #==============================================================================
 # propagate names nets
 #==============================================================================
