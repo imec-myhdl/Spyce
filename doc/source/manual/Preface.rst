@@ -28,8 +28,9 @@ prerequisites
 *************
 
 Spyce requires:
+
 - python 2.7 or 3.5+
-- Qt: wrapper around PySide, PySide2, PyQt4 and PyQt5, see https://github.com/mottosso/Qt.py
+- Qt.py: wrapper around PySide, PySide2, PyQt4 and PyQt5, see https://github.com/mottosso/Qt.py
 - any of PySide, PySide2, PyQt4 and PyQt5
 - myhdl + fixbv extension, see https://github.com/imec-myhdl/myhdl
 - inkscape to edit icons, and convert to png
@@ -45,16 +46,16 @@ Installing
 
 Install source code::
 
-    git clone https://github.com/imec-myhdl/pycontrol-gui.git
+    git clone https://github.com/imec-myhdl/Spyce.git
     
 Build documentation::
 
-    cd pycontrol-gui/doc
+    cd Spyce/doc
     make latexpdf # or html
     
 Start Spyce::
 
-    cd pycontrol-gui/BlockEditor
+    cd Spyce/BlockEditor
     python spyce.py
     
 
