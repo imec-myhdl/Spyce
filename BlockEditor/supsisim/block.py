@@ -72,6 +72,20 @@ def _addBlockModuleDefaults(libname, blockname):
         if os.path.isfile(fn):
             blk.views[viewname] = fn        
 
+def _fmt(x, sep=',\n        '):
+    '''return pretty formatted string for list of tuples, or dictionary'''
+    s = repr(x)
+    if len(s) < 80:
+        return s
+    if isinstance(x, list):
+        s = [repr(ss) for ss in x]
+        return '[{}]'.format(sep.join(s))
+    elif isinstance(x, dict):
+        s = ['{}: {}'.format(repr(ss), repr(x[ss])) for ss in x]
+        return '{' + sep.join(s) + '}'
+    return None
+
+
 def getBlockModule(libname, blockname, errors=[]):
     '''read python module of block from disk'''
     fpath = libraries.blockpath(libname, blockname)
@@ -186,6 +200,7 @@ def saveBlock(libname, blockname, pins, icon=None, bbox=None, properties=dict(),
     '''if library is set, save a (new) block to disk (as python module)
     returns src'''
     
+    
     inp, outp, io = pins
     
     # optionals
@@ -196,9 +211,9 @@ def saveBlock(libname, blockname, pins, icon=None, bbox=None, properties=dict(),
     template = templates['block']
     src = template.format(name=blockname,
                             libname=libname,
-                            inp=inp,
-                            outp=outp,
-                            io=io,
+                            inp=_fmt(inp),
+                            outp=_fmt(outp),
+                            io=_fmt(io),
                             bbox=bbox,
                             properties=properties,
                             parameters=parameters,
@@ -270,6 +285,12 @@ def updateOnDisk(libname, blockname, dd=dict(), writeback=True):
                 line, _ , cmt = line.partition('#')
                 if cmt:
                     cmt = ' # '+ cmt.strip()
+                
+                # try to split over multiple lines if line is too long
+                ss = _fmt(dd[key])
+                if ss is None: # not implemented in _fmt
+                    ss = dd[key]
+                    
                 line = '{} = {}\n'.format(key, dd[key], cmt)
             
             src.append(line)

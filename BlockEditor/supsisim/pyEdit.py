@@ -109,6 +109,11 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
                                                 statusTip = 'Save File',
                                                 triggered = self.saveDiagram)
 
+        self.saveDiagramAsAction = QtWidgets.QAction(QtGui.QIcon(mypath+'filesave.png'),
+                                                '&Save As', self,
+                                                statusTip = 'Save File As',
+                                                triggered = self.saveDiagramAs)
+
         self.copyAction = QtWidgets.QAction(QtGui.QIcon(mypath+'copy.png'),
                                             '&Copy', self,
                                             shortcut = 'Ctrl+C',
@@ -125,6 +130,11 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
                                              '&Undo',self,
                                              statusTip = 'Undo', 
                                              triggered = self.undo)                                      
+
+#        self.importPinsAction = QtWidgets.QAction('&Import pins',self,
+#                                             statusTip = 'Import pins from block', 
+#                                             triggered = self.importPins)                                      
+#
                                              
         self.addPinAction = QtWidgets.QAction(QtGui.QIcon(mypath+'AddPin.png'),
                                              '&Add Pin', self,
@@ -192,11 +202,12 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
                                                 statusTip = 'Edit settings',
                                                 triggered = self.editSettingsAction)
 
+
         self.debugAction = QtWidgets.QAction(QtGui.QIcon(mypath+'debug.png'),
                                              'Debugging',self,
                                              statusTip = 'Debug infos',
                                              triggered = self.debugAct)     
-                                                     
+                                        
         
 #        self.testIndex = QtWidgets.QAction(QtGui.QIcon(mypath+'debug.png'),
 #                                             '&Test index',self,
@@ -219,6 +230,7 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
         toolbarE.addAction(self.addPinAction)
         toolbarE.addAction(self.commentAction)
         toolbarE.addAction(self.undoAction)
+#        toolbarE.addAction(self.importPinsAction)
 
         toolbarS = self.addToolBar('Simuation')
         toolbarS.addAction(self.runAction)
@@ -276,7 +288,30 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
             self.view.setTransform(t)
             self.view.horizontalScrollBar().setValue(x)
             self.view.verticalScrollBar().setValue(y)
-            
+
+#    def importPins(self):
+#        try:
+#            blockname = self.view.blockname
+#            libname = self.view.libname
+#            blk = getBlockModule(libname, blockname)
+#            
+#            inp = blk.inp if hasattr(blk, 'inp') else []
+#            outp = blk.outp if hasattr(blk, 'outp') else []
+#            io = blk.io if hasattr(blk, 'io') else []
+#            pins = dict()
+#            for (pname, x, y) in inp:
+#                pins[pname] = ('inp', x, y)
+#            for (pname, x, y) in outp:
+#                pins[pname] = ('outp', x, y)
+#            for (pname, x, y) in io:
+#                pins[pname] = ('io', x, y)
+#                
+#            print()     
+#                
+#            
+#        except AttributeError:
+#            pass
+        
 #    def testIndexAct(self):
 #        
 #        
@@ -295,6 +330,7 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
         menubar = self.menuBar()
         fileMenu = menubar.addMenu('&File')
         fileMenu.addAction(self.openFileAction)
+        fileMenu.addAction(self.saveDiagramAsAction)
         fileMenu.addAction(self.saveDiagramAction)
         fileMenu.addSeparator()
         fileMenu.addAction(self.exitAction)
@@ -612,7 +648,7 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
                 # save diagram
                 ed, ext = viewTypes['diagram']
                 fname = strip_ext(fname, '.py') + ext
-                self.saveDiagram(fname, selection)
+                self.saveDiagramAs(fname, selection)
 
                 for item in self.scene.selectedItems():    
                     try:
@@ -669,7 +705,7 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
                                                 QtWidgets.QMessageBox.Cancel)
                     ret = msg.exec_()
                     if ret == QtWidgets.QMessageBox.Save:
-                        self.saveDiagram()
+                        self.saveDiagramAs()
                     elif ret == QtWidgets.QMessageBox.Cancel:
                         return ret
             return QtWidgets.QMessageBox.Discard
@@ -695,7 +731,7 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
         ret = self.askSaving()
         cancel = False
         if ret == QtWidgets.QMessageBox.Save:
-            cancel = self.saveDiagram()
+            cancel = self.saveDiagramAs()
         if ret != QtWidgets.QMessageBox.Cancel and not cancel:
             self.centralWidget.removeTab(currentIndex)
                  
@@ -726,7 +762,7 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
 #        ret = self.askSaving()
 #        cancel = False
 #        if ret == QtWidgets.QMessageBox.Save:
-#            cancel = self.saveDiagram()
+#            cancel = self.saveDiagramAs()
 #        if ret != QtWidgets.QMessageBox.Cancel and not cancel:
 #        self.scene.newDgm()
 #        self.filename = 'untitled'
@@ -760,7 +796,13 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
             comments    = dgm.comments
             self.dataToDiagram(blocks,connections,nodes,comments)
 
-    def saveDiagram(self, filename=None, selection=None):
+
+    def saveDiagram(self):
+        ix = self.centralWidget.currentIndex()
+        filename = self.centralWidget.widget(ix).fname
+        self.saveDiagramAs(filename)
+
+    def saveDiagramAs(self, filename=None, selection=None):
         ''' saves to diagram. Ask filename if not given. 
         If selected is True only selected elements are written'''
         if filename in [None, False]:
@@ -832,16 +874,24 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
                 b.fromData(data)
                     
         for item in nodes:
-            pos = QtCore.QPointF(item['x'], item['y'])
+            try:
+                pos = QtCore.QPointF(item['x'], item['y'])
+            except KeyError:
+                print('skipping malmormed node. Save again to clean up.')
+                continue
             if self.scene.find_itemAt(pos):
                 print('discarding overlapping node at x={}, y={}'.format(item['x'], item['y']))
             else:
                 p = Port(None, self.scene)
                 p.fromData(item)
 
-        for data in connections:        
-            pos = [QtCore.QPointF(data['x0'], data['y0'])]
-            pos.append(QtCore.QPointF(data['x1'], data['y1']))
+        for data in connections:
+            try:
+                pos = [QtCore.QPointF(data['x0'], data['y0'])]
+                pos.append(QtCore.QPointF(data['x1'], data['y1']))
+            except KeyError:
+                print('skipping malmormed connection. Save again to clean up.')
+                continue
             if pos[0] == pos[1]:
                 print('discarding zero length segment x={}, y={}'.format(data['x0'], data['y0']))
             else:
@@ -950,10 +1000,10 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
             b.setText('netlist written in ' + netlist_dir)
             b.exec_()
 
-        except Exception:
+        except Exception as e:
             exc_type, exc_value, exc_traceback = sys.exc_info()
             ee = traceback.format_tb(exc_traceback)
-            error('netlist of {} produced error {}'.format(fname, ''.join(ee)))
+            error('netlisting of {} produced error:\n\nStacktrace:\n{}\nError message:\n{}'.format(fname, ''.join(ee), str(e)))
         
 
 
@@ -970,7 +1020,7 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
             pass
         ret = self.askSaving(whole=True)
 #        if ret == QtWidgets.QMessageBox.Save:
-#            self.saveDiagram()
+#            self.saveDiagramAs()
 #            Library.closeFlag = True
 #            Library.close()
 #            event.accept()

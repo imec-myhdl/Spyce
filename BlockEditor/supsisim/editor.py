@@ -258,7 +258,7 @@ class Editor(QtCore.QObject):
         dd = OrderedDict()
         dd['Pin_label'] = item.label.text() if item.label else ''
         
-        options = 'ipin opin iopin node'.split()
+        options = 'ipin opin iopin node nodeL nodeR nodeB'.split()
         dd['Pin_type'] = (item.porttype, options)
         properties = item.properties
         title = 'Edit Node' if isNode(item) else 'Edit Pin'
@@ -273,7 +273,8 @@ class Editor(QtCore.QObject):
 
     def blockProperties(self):
         item = self.scene.item
-        dialog = propertiesDialog(self.scene.mainw, item.properties, addButton=False)
+        title = '{}: {}'.format(item.libname, item.blockname)
+        dialog = propertiesDialog(self.scene.mainw, item.properties, title=title, addButton=True)
         dd = dialog.getRet()
         if dd:
             item.properties = dd
@@ -467,6 +468,15 @@ class Editor(QtCore.QObject):
                     #starting the connection
                     self.connectionStart(node)
                     self.connFromNode = True
+            
+#            while labels:
+#                label = labels.pop()
+#                if label.isSelected():
+#                    label.setSelected(False)
+#                    print('debug, deselect', label.text(), label.isSelected())
+#                else:
+#                    print('debug, not selected', label.text())
+
 
     def moveMouse(self, obj, event):
         if self.connFromNode:
@@ -489,12 +499,13 @@ class Editor(QtCore.QObject):
             self.conn.update_path(pos)
             #return True
         elif item:
-            if isBlock(item):
+#            if isBlock(item):
+            if True:
                 items = self.scene.selectedItems()
             
-                for item in items:                                           
-                    if isBlock(item):
-                        for thing in item.childItems():
+                for itm in items:                                           
+                    if isBlock(itm):
+                        for thing in itm.childItems():
                             if isPort(thing, 'block'):
                                 for conn in thing.connections:
                                         conn.update_path()                        
@@ -573,7 +584,7 @@ class Editor(QtCore.QObject):
         elif event.type() == QtCore.QEvent.GraphicsSceneMouseDoubleClick:
             self.mouseDoubleClicked(obj, event)
                 
-        if event.type() == QtCore.QEvent.KeyPress:
+        elif event.type() == QtCore.QEvent.KeyPress:
             if event.key() == QtCore.Qt.Key_Delete:
                 items = self.scene.selectedItems()
                 for item in items:
@@ -589,15 +600,18 @@ class Editor(QtCore.QObject):
                     self.conn.remove()
                 #self.conn = None
 
-            if event.key() == QtCore.Qt.Key_Escape:
+            elif event.key() == QtCore.Qt.Key_Escape:
                 if self.conn != None:
                     self.conn.remove()
                 self.conn = None
                 self.scene.mainw.view.setCursor(QtCore.Qt.ArrowCursor)
-            if event.key() == QtCore.Qt.Key_Control:
+# FIXME: add easier move. The ctrl-key hack prevents selection modification (available fro Qt5+)
+            elif event.key() == QtCore.Qt.Key_Shift:
                 self.scene.mainw.view.setDragMode(QtWidgets.QGraphicsView.ScrollHandDrag)
-        if event.type() == QtCore.QEvent.KeyRelease and event.key() == QtCore.Qt.Key_Control:
+
+        elif event.type() == QtCore.QEvent.KeyRelease and event.key() == QtCore.Qt.Key_Shift:
             self.scene.mainw.view.setDragMode(QtWidgets.QGraphicsView.RubberBandDrag)
+
         return super(Editor, self).eventFilter(obj, event)
 
 

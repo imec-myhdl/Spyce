@@ -61,8 +61,10 @@ class Port(QtWidgets.QGraphicsPathItem):
         pp, cc = None, None  # polygon/circle coordinates
         if porttype:
             self.porttype = porttype
-        if self.porttype is None: # not set
+            
+        if self.porttype is None:
             return
+            
         if   self.porttype == 'input': # block input
             pp = ((PW/2,0), (-PW/2,PW/2), (-PW/2,-PW/2))
             self.label_side = 'right'
@@ -87,11 +89,17 @@ class Port(QtWidgets.QGraphicsPathItem):
             pp = ((-PW,0), (-PW/2,PW/2), (PW/2,PW/2), (PW,0), (PW/2,-PW/2), (-PW/2,-PW/2))
             self.label_side = 'right'
 
-        elif self.porttype == 'node':  # node
+        elif self.porttype.startswith('node'):  # node
+            s = self.porttype[-1].upper()
+            self.porttype = 'node'
+            d = dict(T='top', B='bottom', L='left', R='right')
+            if s in 'TBLR':
+                self.label_side = d[s]
+            else:
+                self.label_side = 'top'
             cc = (-NW/2, -NW/2, NW, NW)
-            self.label_side = 'top'
 
-        for k in [self.porttype, 'port_'+self.porttype]:
+        for k in [self.porttype, 'port_'+self.porttype, self.porttype[:-1]]:
             if k in colors:
                 self.lineColor, self.fillColor = colors[k]
                 pen = QtGui.QPen(self.lineColor)

@@ -4,7 +4,7 @@
 # aim for python 2/3 compatibility
 from __future__ import (division, print_function, unicode_literals)
 # Standard library imports
-import os, sys
+import os, sys, getpass
 if sys.version_info >= (3,4):
     from importlib import reload
 import tempfile
@@ -20,6 +20,8 @@ from lxml import etree
 import libraries
 import myhdl_to_blk
 from .svg_utils import updateSvg
+
+import const
 
 from .const import DB, respath, viewTypes, templates
 
@@ -511,10 +513,32 @@ class Library(QtWidgets.QMainWindow):
         libname, blockname, fname, blk = self.getnames(actComp)
         dialog = addViewDialog(libname,blockname)
         ret = dialog.getRet()
+        d = dict(blockname=blockname, libname=libname, user=getpass.getuser(), name=blockname)
+        d['include'] = '# include'
+        body = '''
+
+from myhdl import block, Signal, intbv, modbv, instances, always_seq
+
+TIME_UNIT = 1e+15
+
+@block
+def {name}({args}):
+    # body
+
+    return instances()
+'''
+        terminals = []
+        for (nm, x, y) in actComp.inp:
+            terminals.append(nm)
+        for (nm, x, y) in actComp.outp:
+            terminals.append(nm)            
+        d['body'] = body.format(name=blockname, args = ', '.join(terminals))
+        d.update(const.__dict__)
+        
         if ret:
             view, path = ret[0],ret[1]
             if view in templates:
-                txt = templates[view].format(name=blockname)
+                txt = templates[view].format(**d)
                 if view == 'diagram':
                     n = []
                     tpi = "dict(porttype=u'ipin', x={x:1.1f}, y={y:1.1f}, label=dict(text=u'{name}', x=-10.0, y=0.0, anchor=6, font=u'Sans Serif,12,-1,5,50,0,0,0,0,0'))"

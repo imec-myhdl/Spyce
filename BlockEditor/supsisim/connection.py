@@ -119,24 +119,28 @@ class Connection(QtWidgets.QGraphicsPathItem):
         for ix in [0,1]:
             if self.port[ix]:
                 self.pos[ix] = self.port[ix].scenePos()
-        if isOutPort(self.port[0]):
-            pt = QtCore.QPointF(self.pos[1].x(),self.pos[0].y())
-        elif isInPort(self.port[1]) or isInPort(item):
-            pt = QtCore.QPointF(self.pos[0].x(),self.pos[1].y())
-        else:
-            dx = abs(self.pos[1].x()-self.pos[0].x())
-            dy = abs(self.pos[1].y()-self.pos[0].y())
-            if dx > dy:
+        
+        try:        
+            if isOutPort(self.port[0]):
                 pt = QtCore.QPointF(self.pos[1].x(),self.pos[0].y())
-            else:
+            elif isInPort(self.port[1]) or isInPort(item):
                 pt = QtCore.QPointF(self.pos[0].x(),self.pos[1].y())
-
-        if self.label:
-            self.label.setPos(self.pos[1].x(),self.pos[1].y())
-        p.moveTo(self.pos[0])
-        p.lineTo(pt)
-        p.lineTo(self.pos[1])
-        self.setPath(p)
+            else:
+                dx = abs(self.pos[1].x()-self.pos[0].x())
+                dy = abs(self.pos[1].y()-self.pos[0].y())
+                if dx > dy:
+                    pt = QtCore.QPointF(self.pos[1].x(),self.pos[0].y())
+                else:
+                    pt = QtCore.QPointF(self.pos[0].x(),self.pos[1].y())
+    
+            if self.label:
+                self.label.setPos(self.pos[1].x(),self.pos[1].y())
+            p.moveTo(self.pos[0])
+            p.lineTo(pt)
+            p.lineTo(self.pos[1])
+            self.setPath(p)
+        except AttributeError: # sometimes pos[x] is still None
+            pass
 
     '''
     def paint(self, painter, option, widget):

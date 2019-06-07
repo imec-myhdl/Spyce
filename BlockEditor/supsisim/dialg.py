@@ -19,8 +19,18 @@ import libraries
 class editPinsDialog(QtWidgets.QDialog):
     def __init__(self,inps, outps, title='Edit pins', size=(600, 300), parent=None): 
         super(editPinsDialog, self).__init__(parent)
-        self.layout = QtWidgets.QVBoxLayout()
-        self.setLayout(self.layout)
+        self.scrollArea = QtWidgets.QScrollArea(self)
+        self.scrollArea.setWidgetResizable(True)
+        self.scrollAreaWidgetContents = QtWidgets.QWidget(self.scrollArea)
+        self.scrollAreaWidgetContents.setGeometry(QtCore.QRect(0, 0, 600, 300))
+        self.scrollArea.setWidget(self.scrollAreaWidgetContents)
+
+        self.scrolllayout = QtWidgets.QVBoxLayout(self)
+        self.scrolllayout.addWidget(self.scrollArea)
+
+        self.layout = QtWidgets.QVBoxLayout(self.scrollAreaWidgetContents)
+
+        self.setLayout(self.scrolllayout)
 
         self.layout.addWidget(QtWidgets.QLabel('Inputs'))
         self.text_input = QtWidgets.QWidget()
@@ -75,7 +85,7 @@ class editPinsDialog(QtWidgets.QDialog):
         self.bbox = QtWidgets.QDialogButtonBox(buttons)
         self.bbox.accepted.connect(self.accept)
         self.bbox.rejected.connect(self.reject)
-        self.layout.addWidget(self.bbox)
+        self.scrolllayout.addWidget(self.bbox)
         
         # set window title and window size
         self.setWindowTitle(title)
@@ -421,7 +431,8 @@ class propertiesDialog(QtWidgets.QDialog):
         for ddd, propflag in [(dd, False), (properties, True)]:
             if ddd is None:
                 return
-            for k, v  in ddd.items():
+            for k  in sorted(ddd.keys()):
+                v = ddd[k]
                 w = None
                 if isinstance(v, basestring) or v is None:
                     w = QtWidgets.QLineEdit()
@@ -514,9 +525,9 @@ class propertiesDialog(QtWidgets.QDialog):
                 val = self.w[ix].text()
                 try:
                     v = eval(val)
-                except NameError:
+                except:
                     v = val
-                if isinstance(self.dd[k], (list, tuple)) and len(self.dd[k]) == 2:
+                if k in dd and isinstance(self.dd[k], (list, tuple)) and len(self.dd[k]) == 2:
                     properties[k] = (v, self.dd[k][1])
                 else:
                     properties[k] = v
