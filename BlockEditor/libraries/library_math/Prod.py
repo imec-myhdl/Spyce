@@ -66,21 +66,33 @@ def toMyhdlInstance(instname, connectdict, param):
     # properties end up in the connectdict
     muls = param['A'] if 'A' in param else '**' 
     inputs = []
-    outp = connectdict['.z']
+    z, ztp = connectdict['.z']
     for ix, s in enumerate(muls):
         net,tp = connectdict['.a{}'.format(ix)]
-        if s == '/':
-            inputs.append('/ {}'.format(net))
+        if str(net).isalnum():
+            if s == '/':
+                inputs.append('/ {}'.format(net))
+            else:
+                inputs.append('* {}'.format(net))
         else:
-            inputs.append('* {}'.format(net))
+            if s == '/':
+                inputs.append('/ ({})'.format(net))
+            else:
+                inputs.append('* ({})'.format(net))
 
     expr = ' '.join(inputs).lstrip('* ')
     if expr.startswith('/'):
         expr = '1 ' + expr
-    fmt = '    @always_comb\n' + \
-          '    def u_{}():\n' + \
-          '        {}.next = {}\n'
-    return fmt.format(instname, outp, expr)
+        
+    if '{' in z: # inline expression
+        d = dict()
+        d[z] = expr
+        return dict(__expr__ = d)
+    else:
+        fmt = '    @always_comb\n' + \
+              '    def u_{}():\n' + \
+              '        {}.next = {}\n'
+        return fmt.format(instname, z, expr)
     
 
 #views = {'icon':iconSource}

@@ -59,11 +59,15 @@ def toMyhdlInstance(instname, connectdict, param):
     
     equation = eq.format(**inputs)
     
-
-    stmt = '{}.next = {} '.format(z, equation)
-    fmt = '    @always_comb\n' + \
-          '    def u_{}():\n' + \
-          '        {}\n'
-    return fmt.format(instname, stmt)
+    if '{' in z: # in line expression
+        d = dict()
+        d[z] = equation
+        return dict(__expr__ = d)
+    else:
+        stmt = '{}.next = {} '.format(z, equation)
+        fmt = '    @always_comb\n' + \
+              '    def u_{}():\n' + \
+              '        {}\n'
+        return fmt.format(instname, stmt)
 
 views = {}

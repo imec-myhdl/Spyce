@@ -54,7 +54,7 @@ class NetObj(object):
     def stamp(self, d):
         self.members.add(d)
         promotions = 0
-        if d.netname:
+        if d.netname and d.netname.strip('{} '):
             if self.netname and self.netname != d.netname:
                 raise Exception('stamping conflict: {}, {}\non {}'.format(\
                                     self.netname, d.netname, self.d))
@@ -185,7 +185,7 @@ def netlist(filename, properties=dict(), lang='myhdl', netlist_dir=const.netlist
     else: # diagram
 
         # resolve connections
-        blocks, internal_nets, external_nets = resolve_connectivity(filename, properties=dict())
+        blocks, internal_nets, external_nets = resolve_dgm_connectivity(filename, properties=dict())
         body = convert(blockname, blocks, internal_nets, external_nets, netlist_dir)
             
         txt = fillTemplate(template+tbfooter, blockname, body, include)
@@ -256,6 +256,7 @@ def netlist(filename, properties=dict(), lang='myhdl', netlist_dir=const.netlist
     
 
 def instToMyhdl(inst):
+    '''returns tuple (text, isimport'''
     libname, blkname = inst['libname'], inst['blockname']
     name = inst['label']['text'] # instance name in diagram
 
@@ -314,6 +315,7 @@ def toMyhdl(block_name, blocks, internal_nets, external_nets, netlist_dir):
     imp  = [] # import defs
     sig  = [] # signal defs
     bdef, body = [], [] # block def, block body
+    exprs = dict() # of expressions (to be resolved)
 
     # set of library imports
     imports = set()
@@ -327,7 +329,6 @@ def toMyhdl(block_name, blocks, internal_nets, external_nets, netlist_dir):
 
     # block definition
     bdef.append('@block\ndef {}({}):'.format(block_name, ', '.join(external_nets)))
-    bdef.append('')
 
     body.append('    # body')
     for name, inst in blocks.items():
@@ -338,6 +339,17 @@ def toMyhdl(block_name, blocks, internal_nets, external_nets, netlist_dir):
             # additional files keys=filename ( __main__ for main file),  values=text,
             main_netlist = r.pop('__main__') if '__main__' in r else ''
             signals_netlist = r.pop('__signals__') if '__signals__' in r else ''
+
+            if '__defs__' in r:
+                defs_netlist = r.pop('__defs__')
+                bdef.append(defs_netlist)
+
+            if '__expr__' in r:
+                netnames = r.pop('__expr__')
+                for netname, expression in netnames.items():
+                    netname = netname.lstrip('{').rstrip('}').strip()
+                    exprs[netname] = expression
+            
             for path, txt in r.items():
                 dirname, fn = os.path.split(path)
                 if not os.path.isabs(dirname):
@@ -375,7 +387,7 @@ def toMyhdl(block_name, blocks, internal_nets, external_nets, netlist_dir):
         sig.append('    # internal nets')
         for netname in sorted(internal_nets.keys()):
             tp = internal_nets[netname]['signalType']
-            if netname[0] in '_' + string.lowercase + string.uppercase:
+            if netname[0] in '_' + string.lowercase + string.uppercase and '.' not in netname:
                 if tp:
                     sig.append('    {} = Signal({})'.format(netname, tp))
                 else:
@@ -383,12 +395,49 @@ def toMyhdl(block_name, blocks, internal_nets, external_nets, netlist_dir):
         sig.append('')
 
     body.append('    return instances()')
-            
-    return  '\n'.join(hdr+imp+bdef+sig+body)
-
-
-def resolve_connectivity(filename, properties=dict()):
+    bdef.append('')
     
+    known_nets = dict()
+    for k in internal_nets:
+        if not '{' in k:
+            known_nets[k] = k
+    for k in external_nets:
+        known_nets[k] = k
+           
+    
+    while exprs:
+        found = None
+        for netname, expression in exprs.items():
+            try:
+                s = expression.format(**known_nets)
+                known_nets[netname] = s
+                found = netname
+                break
+            except KeyError:
+                continue
+
+        if found:
+            exprs.pop(found)
+        else:
+            for netname, expression in exprs.items():
+                print ('unresolved {} = {}'.format(netname, expression))
+            print ('\n')
+            for netname, expression in known_nets.items():
+                print ('  resolved {} = {}'.format(netname, expression))
+                
+            raise Exception('Not able to resolve expressions')
+        
+                
+            
+            
+    r =  '\n'.join(hdr+imp+bdef+sig+body)
+    if debug:
+        print (r)
+    return r.format(**known_nets)
+
+
+def resolve_dgm_connectivity(filename, properties=dict()):
+    '''work out the connections in a diagram'''
     #import file
     dgm = import_module_from_source_file(filename)
     
@@ -448,6 +497,20 @@ def resolve_connectivity(filename, properties=dict()):
         # copy keys, to signalTypes 
 #        inst['signalType'].update(inst['conn'])
 
+
+
+    resolved   = dict()# resolved connections resolved[netname] == set(connections and nodes)
+    unresolved = set() # unresolved connections
+
+            
+    # create names for {} (anonymous inline expressions)
+    anon_exprs  = 0
+    for n in dgm.nodes:
+        if 'label' in n and n['porttype'] == 'node':
+            if n['label']['text'].strip(' {}') == '': # auto_name {} inline-expressions
+                n['label']['text'] = '{{__anon__{}}}'.format(anon_exprs)
+                anon_exprs += 1
+
     # find pins because they are external nets
     pinnames = set()            
     nodes = dict()
@@ -457,16 +520,11 @@ def resolve_connectivity(filename, properties=dict()):
         if 'label' in n and n['porttype'] != 'node':
             pinnames.add(n['label']['text'])
 
-
-    resolved   = dict()# resolved connections resolved[netname] == set(connections and nodes)
-    unresolved = set() # unresolved connections
-
-
+    # create dummy connection for named nodes
     for n in dgm.nodes:
-        if 'label' in n: # create dummy connection for named nodes
+        if 'label' in n: 
             x, y = n['x'], n['y']
             dgm.connections.append(dict(x0=x, y0=y, x1=x, y1=y))
-
 
     for c in dgm.connections:
         conn = NetObj(c)
@@ -482,7 +540,7 @@ def resolve_connectivity(filename, properties=dict()):
             unresolved.add(conn)
             
 #==============================================================================
-# propagate names nets
+# propagate named nets
 #==============================================================================
     for netname in resolved.keys():
         for conn in set(resolved[netname]):
@@ -508,12 +566,27 @@ def resolve_connectivity(filename, properties=dict()):
             inst = blocks[instname]
             
             netname = 'w_{}'.format(instname.lower()) #instance_name
+            i = ''
+            # make sure it does not yet exists
+            while True:
+                n = '{}{}'.format(netname, i)
+                if n not in resolved:
+                    break
+                i = i+1 if i else 1
+                if i == 100:
+                    raise Exception('cannot generate unique name: '+netname)
+
+            netname = n
             if portname in inst['outp']:
                netname = 'w_{}'.format(instname.lower()) #instance_name
                if len(inst['outp']) > 1: # not the only output
                    netname += '_{}'.format(portname.lstrip('.').lower()) # + port_name
             else:
-                print( inst)
+                if debug:
+                    print(inst)
+                    print('resolved')
+                    for c in resolved:
+                        print(c.netname)
                 raise Exception('{}: connection to {} pin {} is not an output of {}.{}'.format(filename, instname, portname, inst['libname'], inst['blockname']))
                         
         else: # choose arbitrary name
@@ -550,7 +623,7 @@ def resolve_connectivity(filename, properties=dict()):
             if net is None:
                 if debug:
                     print ('debug', inst['conn'])
-                raise Exception('file {}: instance {}, pin {} is not Connected'.format(filename, instname, pin))
+                raise Exception('file {}: instance {}, pin {} is floating'.format(filename, instname, pin))
 #                print('file {}: instance {}, pin {} is not Connected'.format(filename, instname, pin))
 
     internal_nets = dict()

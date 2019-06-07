@@ -73,19 +73,33 @@ def toMyhdlInstance(instname, connectdict, param):
     inp, outp, _ = ports(param)
     s, stp = connectdict['s']
     z, ztp = connectdict['z']
-    r =          '    @always_comb\n' 
-    r +=         '    def u_{inst}():\n'.format(inst=instname)
-    for ix, ixy in enumerate(inp[:-1]): # skip select input (last)
-        i, itp = connectdict[ixy[0]]
-#        print('Mux debug', ix, ixy, i)
-        if ix == 0:
-            r += '        if {s} == {sx}:\n'.format(s=s, sx=sel[ix])
-        elif ix == len(inp)-2:
-            r += '        else:\n'.format(s=s, ix=sel[ix])
-        else:
-            r += '        elif {s} == {sx}:\n'.format(s=s, sx=sel[ix])
-        r += '            {z}.next = {inp}\n'.format(z=z, inp=i)
-    
-    return r
+    if '{' in z:
+        d = dict()
+        r = []
+        for ix, ixy in enumerate(inp[:-1]): # skip select input (last)
+            i, itp = connectdict[ixy[0]]
+            if ix == 0:
+                r.append('{inp} if {s} == {sx}'.format(inp=i, s=s, sx=sel[ix]))
+            elif ix == len(inp)-2:
+                r.append('{inp}'.format(inp=i))
+            else:
+                r.append('else {inp} if {s} == {sx}'.format(inp=i, s=s, sx=sel[ix]))
+        d[z] = ' '.join(r)
+        return dict(__expr__ = d)
+    else:
+        r =          '    @always_comb\n' 
+        r +=         '    def u_{inst}():\n'.format(inst=instname)
+        for ix, ixy in enumerate(inp[:-1]): # skip select input (last)
+            i, itp = connectdict[ixy[0]]
+#            print('Mux debug', ix, ixy, i)
+            if ix == 0:
+                r += '        if {s} == {sx}:\n'.format(s=s, sx=sel[ix])
+            elif ix == len(inp)-2:
+                r += '        else:\n'.format(s=s, ix=sel[ix])
+            else:
+                r += '        elif {s} == {sx}:\n'.format(s=s, sx=sel[ix])
+            r += '            {z}.next = {inp}\n'.format(z=z, inp=i)
+        
+        return r
 
 views = {u'icon': u'Mux.svg'}

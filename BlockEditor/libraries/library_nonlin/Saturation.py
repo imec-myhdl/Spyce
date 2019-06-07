@@ -15,7 +15,7 @@ from  supsisim import const
 inp = 1
 outp = 1
 
-parameters = dict(carry=0)
+parameters = dict(carry=0, include_max=('False', ['False', 'True']))
 properties = dict(min='0', max='1')
 #view variables:
 
@@ -35,8 +35,9 @@ def ports(param):
 def getSymbol(param, properties,parent=None,scene=None,):
     from  supsisim import block, text
     carry = param['carry'] if 'carry' in param else 0
-    min = properties['min'] if 'min' in properties else None
-    max = properties['max'] if 'max' in properties else None
+    tmin = str(properties['min']) if 'min' in properties else '0'
+    tmax = str(properties['max']) if 'max' in properties else '1'
+    include_max = param['include_max'][0] if 'include_max' in param else 'False'
     attributes = dict()
     attributes['name'] = name
     attributes['libname'] = libname
@@ -52,10 +53,12 @@ def getSymbol(param, properties,parent=None,scene=None,):
     attributes['icon'] = views['icon']
     b = block.Block(attributes,param,properties, name, libname, parent, scene)
     # display limits
-    lmin = text.textItem(str(min), anchor=7, parent=b)
+    lmin = text.textItem(tmin, anchor=7, parent=b)
     lmin.setPos(-w2+3, 20)
     lmin.setMutable(False)
-    lmax = text.textItem(str(max), anchor=3, parent=b)
+    if include_max == "True":
+        tmax += '-1'
+    lmax = text.textItem(tmax, anchor=3, parent=b)
     lmax.setPos(w2-1, -15)
     lmax.setMutable(False)
     
@@ -65,35 +68,65 @@ def getSymbol(param, properties,parent=None,scene=None,):
 def toMyhdlInstance(instname, connectdict, param):
     # properties end up in the connectdict
     carry = param['carry'] if 'carry' in param else 0
-    min = connectdict['min'] if 'min' in connectdict else None
-    max = connectdict['max'] if 'max' in connectdict else None
+    tmin = str(connectdict['min']) if 'min' in connectdict else '0'
+    tmax = str(connectdict['max']) if 'max' in connectdict else '1'
+    include_max = param['include_max'][0] if 'include_max' in param else 'False'
+    if include_max == 'False':
+        tmax += '-1'
 #    print(connectdict)
     a, atp = connectdict['.a']
     z, ztp = connectdict['.z']
-    c = connectdict['carry'] if carry else None
+    c, ctp = connectdict['carry'] if carry else ''
 
     r =      '    @always_comb\n' + \
              '    def u_{inst}():\n'
-
-    if not min is None:
+    cc = carry and not '{' in c
+    zz = '{' not in z
+    if tmin:
         r += '        if {a} < {min}:\n'
-        r += '            {z}.next = {min}\n'
-        if carry:
+        if zz:
+            r += '            {z}.next = {min}\n'
+        if cc:
             r += '            {c}.next = -1\n'
 
-    if not max is None:
-        if min is None: # choose between if and elif 
-            r +='        if {a} > {max}:\n'
-        else:
+    if tmax:
+        if tmin: # choose between if and elif 
             r +='        elif {a} > {max}:\n'
-        r += '            {z}.next = {max}\n'
-        if carry:
+        else:
+            r +='        if {a} > {max}:\n'
+        if zz:
+            r += '            {z}.next = {max}\n'
+        if cc:
             r += '            {c}.next = 1\n'
     r += '        else:\n'
     r += '            {z}.next = {a}\n'
-    if carry:
+    if cc:
         r += '            {c}.next = 0\n'
-        
-    return r.format(inst=instname, a=a, z=z, c=c, min=min, max=max)
+    
+    r = r.format(inst=instname, a=a, z=z, c=c, min=tmin, max=tmax)
+    d = dict()
+    tt = ''
+    if '{' in z: # inline expression
+        if tmin:
+            tt += 'min if {a} < {min} else '
+        if tmax:
+            tt += '{max} if {a} > {max} else '
+        tt += '{a}'
+        d[z] = tt.format(a=a, z=z, c=c, min=tmin, max=tmax)
+    if '{' in c:# inline expression
+        if tmin:
+            tt += '-1 if {a} < {min} else '
+        if tmax:
+            tt += '1 if {a} > {max} else '
+        tt += '0'
+        d[c] = tt.format(a=a, z=z, c=c, min=tmin, max=tmax)
+    
+    if d:
+        if '.next' in r:
+            return dict(__expr__ = d, __main__ = r)
+        else:
+            return dict(__expr__ = d)
+    else:
+        return r 
 
 views = {'icon':'SATUR'}

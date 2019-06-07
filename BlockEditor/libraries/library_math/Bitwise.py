@@ -47,10 +47,11 @@ def getSymbol(param, properties,parent=None,scene=None):
     pw = const.PW
     d  = 8 # size of circle
     w, h = right-left, bottom-top + 20
-    if h < const.BHmin:
-        dh = const.BHmin - h
-    else:
-        dh = 0
+#    if h < const.BHmin:
+#        dh = const.BHmin - h
+#    else:
+#        dh = 0
+    dh = 0
     attributes = dict()
     _name = properties.pop('_name') if '_name' in properties else name
     _libname = properties.pop('_libname') if '_libname' in properties else libname
@@ -126,6 +127,10 @@ def toMyhdlInstance(instname, connectdict, param):
               '        yield {sens}',
               '        yield(delay(int({delay}*TIME_UNIT)))',
               '        {out}.next = {expr}']
+    elif '{' in out:
+        d = dict()
+        d[out] = expr
+        return dict(__expr__ = d)
     else:
         t  = ['@always_comb',
               'def u_{inst}():',

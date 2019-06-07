@@ -68,18 +68,29 @@ def toMyhdlInstance(instname, connectdict, param):
     # properties end up in the connectdict
     gains = param['A'] if 'A' in param else '++' 
     inputs = []
-    outp, tp = connectdict['.z']
+    z, zp = connectdict['.z']
+    
     for ix, s in enumerate(gains):
         net,tp = connectdict['.a{}'.format(ix)]
         if s == '-':
-            inputs.append('- {}'.format(net))
+            if str(net).isalnum():
+                inputs.append('- {}'.format(net))
+            else:
+                 inputs.append('- ({})'.format(net))
         else:
             inputs.append('+ {}'.format(net))
 
     expr = ' '.join(inputs).lstrip('+ ')
-    fmt = '    @always_comb\n' + \
-          '    def u_{}():\n' + \
-          '        {}.next = {}\n'
-    return fmt.format(instname, outp, expr)
+
+    if '{' in z: # inline expression
+        d = dict()
+        d[z] = expr
+        return dict(__expr__ = d)
+    else:
+        fmt = '    @always_comb\n' + \
+              '    def u_{}():\n' + \
+              '        {}.next = {}\n'
+        return fmt.format(instname, z, expr)
+        
 
 views = {}
