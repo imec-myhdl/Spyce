@@ -7,6 +7,7 @@ Created on Wed Nov 21 13:25:13 2018
 import sys, os
 
 from supsisim.const import templates, PD, viewTypes
+from supsisim.block import _fmt
 import libraries
 
 def get_defs(filename):
@@ -108,6 +109,7 @@ def get_defs(filename):
 def toBlk(filename, libname):
     res = []
     for name, inp, outp, properties, doc in get_defs(filename):
+        
         if doc.strip():
             fmt = templates['block'].splitlines()
             fmt.insert(3, 'tooltip = """{tooltip}"""\n')
@@ -140,7 +142,9 @@ def toBlk(filename, libname):
         # write block
         with open(fnblk, 'wb') as f:
             f.write(fmt.format(name=name, libname=libname, 
-                        inp=inputs, outp=outputs, io=[], 
+                        inp=_fmt(inputs), 
+                        outp=_fmt(outputs), 
+                        io=[], 
                         bbox=None, tooltip=doc,
                         parameters={}, 
                         properties=properties,
