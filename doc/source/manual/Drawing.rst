@@ -41,8 +41,25 @@ Signal() of the net for the netlisting.
 
 Adding comments
 ===============
-comments can be added by clicking on the text-balloon symbol in the tool bar at the top of the editor. 
+Comments can be added by clicking on the text-balloon symbol in the tool bar at the top of the editor. 
 When the mouse is moved to the drawing area and clicked the comment will be 'dropped' on the place of 
 the cursor.
 
 Double cicking on any editable label will pop up a font configuration diagram. 
+
+Adding nodes
+============
+A node can be added by right-clicking in the diagram and choosing *Insert node*
+
+Adding a node name/signal_type
+==============================
+A netname can be added by right clicking on a node, and selecting *Edit*. 
+The field Pin_label can be used to enter the name. With the Pin_type the node type can be selected.
+Default (node) puts the label at the top of the node. Choose nodeL, nodeR or nodeB for a label left, 
+right or below the node. Net_names can be put in curly braces ( '{' and '}' ). This signals that the 
+connection is an expression rather than an instance. This can only work with combinatorial blocks, 
+and the driving block must support it in the toMyhdlInstance routine. see Blocks, section 
+Creating Blocks from code.
+
+A netsignal type can be added by right clicking on a node and selecting *Add/Edit signal type*.
+Nets without a definition will be assumed boolean.

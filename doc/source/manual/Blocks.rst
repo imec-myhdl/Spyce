@@ -15,7 +15,6 @@ netlisting functions.
 
 Parameters and properties
 =========================
-.. index:: single: Parameters and properties
 
 Blocks can have both parameters and properties. They control the behaviour of the 
 block, The difference is that a parameter can change the *interface* of the blocks:
@@ -25,7 +24,6 @@ a non empty *parameters* variable
 
 Creating Blocks with the GUI
 ============================
-.. index:: single: Creating Blocks with the GUI
 
 There are two ways to create a Block: either via the *import MyHdl* function or manually via the *Create Block* function.
 
@@ -53,7 +51,6 @@ When you right click on a block you can choose:
 
 Creating Blocks from code
 =========================
-.. index:: single: Creating Blocks from code
 
 Blocks are simple python files that are inside a 'library'. The blocks should *not* import 
 Qt as the netlister must be able to import them, without a gui. If Qt is needed or modules that import Qt
@@ -80,8 +77,9 @@ routines). An Example::
 .. py:data:: outp
 .. py:data:: inout
 
-*inp, outp, inout* are lists of tuples (pinname, x, y). The pinname can start with a `'.'` to indicate that the label should not be displayed. Alternatively *inp, outp, inout* can be an integer, being the number if inputs/outputs or inouts. The actual pins will be named '.i_0', '.i_1' etc. for inputs, '.o_0', '.o_1' etc. 
-for outputs, or '.io_0', '.io_1' etc. for inouts. Note: inouts are optional and not yet properly implemented.
+*inp, outp, inout* are lists of tuples (pinname, x, y). The pinname can start with a `'.'` to indicate that the label should not be displayed. 
+Alternatively *inp, outp, inout* can be an integer, being the number if inputs/outputs or inouts. The actual pins will be named '.i_0', '.i_1' 
+etc. for inputs, '.o_0', '.o_1' etc. for outputs, or '.io_0', '.io_1' etc. for inouts. Note: inouts are optional and not yet properly implemented.
 
 .. py:data:: tooltip
 *tooltip* is an optional string that will be displayed when the mouse hoovers on the block.
@@ -103,29 +101,47 @@ This function returns a :class:`Block` object. It is mandatory for parametrized 
 The getSymbol function will probably start with importing the block class, and Qt
 
 .. py:function:: toMyhdlInstance(instname, connectdict, param)
-This function should return a properly indented string (4 leading space) containing the MyHDL code.
-It is required for myhdl netlisting a parametrized blocks. The instance name is the name of 
-the block in the diagram. Connectdict is a dictionary with connections and properties 
-(connectdict[pinname] = nettname or connectdict[property_name] = property_value). 
-This choice was made since they are both elements of an instantiation e.g.::
-    b1ock1_instance = myBlock(signal_1, signal_2, property_1=42)
+.. index:: single: toMyhdlInstance
+
+This function is optionally, but mandatory when (myhdl)netlisting parametrized blocks. It should either return a 
+properly indented string (4 leading spaces) containing the MyHDL code or a dictionary (see below). 
+
+
+*toMyhdlInstance* requires the following arguments:
+
+- instance name is a string with the name of the block in the diagram. 
+- connectdict is a dictionary with connections and properties (connectdict[pinname] = nettname or connectdict[property_name] = property_value). 
+  This choice was made since they are both elements of an instantiation e.g. b1ock1_instance = myBlock(signal_1, signal_2, property_1=42)
+- param is a dictionary with all the parameters    
+
+When *toMyhdlInstance* returns a dictionary the keys represent paths, and values the (literal) content of submodules of the netlist. 
+These will be stored as a module in the given location (relative to netlist dir) and if needed an empty *__init__.py* will be created.
+There are several special cases:
+
+- '__defs__': the entry contains a properly indented string (4 leading spaces) that will be included in the top section of the netlist, 
+  prior to the signal definitions. Any variable that is defined may be used in signal definitions. 
+- '__signals__': the entry contains a properly indented string (4 leading spaces) that will be included in the top section of the netlist, 
+  that normally contains the signal definitions.
+- '__main__': the entry contains a properly indented string (4 leading spaces) containing code to be included in the main section of the netlist,
+  that normally contains the instances.
+- '__expr__': the entry is a dictionary where the keys are the netnames and the values are the expressions that need to be evaluated.
+
 note: spyce always netlists with the *pin_name = connected_signal_name* syntax to remove all ambiguity
 
 .. py:function:: toSystemVerilogInstance(instname, connectdict, param)
-This function should return a properly indented string (4 leading space) containing the SystemVerilog code.
-It is required for SystemVerilog netlisting a parametrized block. The instance name is the name of 
-the block in the diagram. Connectdict is a dictionary with connections and properties 
-(connectdict[pinname] = nettname or connectdict[property_name] = property_value)
+.. index:: single: toSystemVerilogInstance
+This function is optionally, but mandatory when (systemVerilog)netlisting parametrized blocks. It should either return a 
+properly indented string (4 leading spaces) containing the systemVerilog code or a dictionary (this function is mostly identical to 
+*toMyhdlInstance*). Note: not yet implemented.
 
-After importing a block the following defaults are added:
----------------------------------------------------------
+After importing a block the following attributes are added:
 
-.. py:data:: blockname
+.. py:data:: blk.blockname
 This is the name of the module (without the .py extension)
 
-.. py:data:: libname
+.. py:data:: blk.libname
 This is the name of the directory of the module (without the `'library_'` prefix)
 
-.. py:data:: views
-views will be extended with all views that are found (including the block-source itself)
+.. py:data:: blk.views
+the dictionary *views* will be extended with all views that are found (including the block-source itself)
 

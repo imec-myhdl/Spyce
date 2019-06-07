@@ -38,7 +38,10 @@ Spyce requires:
 - spyder3 is optional, but default configured as python editor.
 - spinx and latex if you want to build the documentation
 
-Spyce is developed on python 2.7 and PyQt4
+Spyce is developed on python 2.7 and PyQt5.5.1
+Multiple selection (by holding down control-key) has been incorporated in Qt5.5. 
+This functionality unfortunately was never backported to Qt4 (although a patch is available from
+https://asmaloney.com/2015/01/code/qt-patches-qgraphicsview-qimagewriter)
 
 **********
 Installing
