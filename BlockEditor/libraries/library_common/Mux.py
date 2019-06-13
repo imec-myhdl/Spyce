@@ -78,12 +78,10 @@ def toMyhdlInstance(instname, connectdict, param):
         r = []
         for ix, ixy in enumerate(inp[:-1]): # skip select input (last)
             i, itp = connectdict[ixy[0]]
-            if ix == 0:
-                r.append('{inp} if {s} == {sx}'.format(inp=i, s=s, sx=sel[ix]))
-            elif ix == len(inp)-2:
+            if ix == len(inp)-2:
                 r.append('{inp}'.format(inp=i))
             else:
-                r.append('else {inp} if {s} == {sx}'.format(inp=i, s=s, sx=sel[ix]))
+                r.append('{inp} if ({s}) == {sx} else'.format(inp=i, s=s, sx=sel[ix]))
         d[z] = ' '.join(r)
         return dict(__expr__ = d)
     else:
