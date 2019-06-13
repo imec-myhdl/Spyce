@@ -16,7 +16,7 @@ example ifcond: '{i0} == 1, {i1} > {i0}'
 inp = 2
 outp = 1
 
-parameters = dict(n_if_inp=1, ifcond='{i0} == 1', channels=1)
+parameters = dict(n_if_inp=1, ifcond='{i0} == 1', channels=1, clk_edge = ('None', ['None', 'pos', 'neg']), reset=('False', ['False', 'True']))
 properties = {} #voor netlisten
 
 from  supsisim import const
@@ -27,7 +27,8 @@ def ports(param):
     ifcond =  param['ifcond'] if 'ifcond' in param else '{i0} == 1'
     ncond = len(ifcond.split(','))
     channels = param['channels'] if 'channels' in param else 1
-    
+    clk_edge = param['clk_edge'][0] if 'clk_edge' in param else 'None'
+    reset = param['reset'][0] if 'reset' in param else 'False'
 
     w2, y = 100, 0
     inp = []
@@ -43,7 +44,17 @@ def ports(param):
                  outp.append(('.z{}'.format(i), w2, y))
             y += const.PD
         y += const.PD
-                    
+    y += const.PD
+    if clk_edge == 'pos':
+        inp.append(('ck', -w2, y))
+        y += const.PD
+    elif clk_edge == 'neg':
+        inp.append(('ckn', -w2, y))
+        y += const.PD
+
+    if clk_edge in ['pos', 'neg'] and reset == 'True':
+        inp.append(('rst', -w2, y))
+
     inout = []
     return inp, outp, inout
 
@@ -72,17 +83,6 @@ def getSymbol(param, properties, parent=None, scene=None,):
             x, y = p.pos().x(), p.pos().y()
             l.setPos(x+5,y)
             l.setMutable(False)
-#        elif t.startswith('i'):
-#            i = int(t[1:])
-#            if i == ncond - 1:
-#                tt = []
-#                for ix, cc in enumerate(ifcond):
-#                    tt.append('{}: {}'.format(ix, cc))
-#                tt.append('{}: otherwise'.format(ncond))
-#                l = text.textItem('\n'.join(tt), anchor=7, parent=b)
-#                x, y = p.pos().x(), p.pos().y()
-#                l.setPos(x+5,y+5)
-#                l.setMutable(False)
                
                 
     return b
@@ -94,6 +94,8 @@ def toMyhdlInstance(instname, connectdict, param):
     cond = [s.strip() for s in ifcond.split(',')]
     ncond = len(cond)
     channels = param['channels'] if 'channels' in param else 1
+    clk_edge = param['clk_edge'][0] if 'clk_edge' in param else 'None'
+    reset = param['reset'][0] if 'reset' in param else 'False'
 
     inp, outp, _ = ports(param)
     dd = dict()
@@ -101,7 +103,16 @@ def toMyhdlInstance(instname, connectdict, param):
         nm = 'i{}'.format(i)
         dd[nm], _ = connectdict[nm] # store name in dict
 
-    r =          '    @always_comb\n' 
+    clocked = clk_edge in ['pos', 'neg']
+    if clocked:
+        ck, cktp = connectdict['ck'] if clk_edge == 'pos' else  connectdict['ckn']
+        if reset == 'True':
+            rst, rsttp = connectdict['rst']
+            r =  '    @always_seq({ck}.{clk_edge}edge, reset={rst})\n'.format(ck=ck, clk_edge=clk_edge, rst=rst)
+        else:
+            r =  '    @always_seq({ck}.{clk_edge}edge)\n'.format(ck=ck, clk_edge=clk_edge) 
+    else:       
+        r =      '    @always_comb\n' 
     r +=         '    def u_{inst}():\n'.format(inst=instname)
     for c in range(ncond+1): 
         if c == 0:
@@ -115,6 +126,8 @@ def toMyhdlInstance(instname, connectdict, param):
             z, tpz = connectdict['.z{}'.format(i)]
             if '{' not in z:
                 r += '            {}.next = {}\n'.format(z, a)
+            elif clocked:
+                raise Exception("clocked signals cannot be 'inlined' as they are continuous assignments")
 
     ex = []
     d = dict()
@@ -123,18 +136,15 @@ def toMyhdlInstance(instname, connectdict, param):
         if '{' in z: # inline expression
             for c in range(ncond+1): 
                 a, tpa = connectdict['.if{}_{}'.format(i, c)]
-                if c == 0:
-                    print ('ifelse debug 4')
-                    ex.append('{} if {}'.format(a, cond[c].format(**dd)))
-                    print ('ifelse debug 5')
-                elif c == ncond:
-                    ex.append('else {}'.format(a))
+#                if c == 0:
+#                    ex.append('{} if {} else'.format(a, cond[c].format(**dd)))
+                if c == ncond:
+                    ex.append('{}'.format(a))
                 else:
-                    ex.append('{} else if {}'.format(a, cond[c].format(**dd)))
+                    ex.append('{} if {} else'.format(a, cond[c].format(**dd)))
             d[z] = ' '.join(ex)
-    print (d)
     if d:
-        if '.next' in r:
+        if '.next ' in r:
             return dict(__expr__ = d, __main__ = r)
         else:
             return dict(__expr__ = d)
