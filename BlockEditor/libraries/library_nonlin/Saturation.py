@@ -76,14 +76,21 @@ def toMyhdlInstance(instname, connectdict, param):
 #    print(connectdict)
     a, atp = connectdict['.a']
     z, ztp = connectdict['.z']
-    c, ctp = connectdict['carry'] if carry else ''
+    c, ctp = connectdict['carry'] if carry else '', None
 
     r =      '    @always_comb\n' + \
              '    def u_{inst}():\n'
     cc = carry and not '{' in c
     zz = '{' not in z
+    isinline = '{' in a
+
+    if isinline:
+        r += '        _aux = {a}\n'
+        aa = '_aux'
+    else:
+        aa = a
     if tmin:
-        r += '        if {a} < {min}:\n'
+        r += '        if {aa} < {min}:\n'
         if zz:
             r += '            {z}.next = {min}\n'
         if cc:
@@ -91,29 +98,29 @@ def toMyhdlInstance(instname, connectdict, param):
 
     if tmax:
         if tmin: # choose between if and elif 
-            r +='        elif {a} > {max}:\n'
+            r +='        elif {aa} > {max}:\n'
         else:
-            r +='        if {a} > {max}:\n'
+            r +='        if {aa} > {max}:\n'
         if zz:
             r += '            {z}.next = {max}\n'
         if cc:
             r += '            {c}.next = 1\n'
     r += '        else:\n'
-    r += '            {z}.next = {a}\n'
+    if zz:
+        r += '            {z}.next = {aa}\n'
     if cc:
         r += '            {c}.next = 0\n'
     
-    r = r.format(inst=instname, a=a, z=z, c=c, min=tmin, max=tmax)
+    r = r.format(inst=instname, a=a, aa=aa, z=z, c=c, min=tmin, max=tmax)
     d = dict()
-    tt = ''
     if '{' in z: # inline expression
         if tmin:
-            tt += 'min if {a} < {min} else '
+            a = 'max({a}, {min})'.format(a=a, min=tmin, max=tmax)
         if tmax:
-            tt += '{max} if {a} > {max} else '
-        tt += '{a}'
-        d[z] = tt.format(a=a, z=z, c=c, min=tmin, max=tmax)
+            a = 'min({a}, {max})'.format(a=a, min=tmin, max=tmax)
+        d[z] = a
     if '{' in c:# inline expression
+        tt = ''
         if tmin:
             tt += '-1 if {a} < {min} else '
         if tmax:

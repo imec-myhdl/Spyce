@@ -4,7 +4,7 @@
 
 tooltip = '''Use this block to define constants for use in the rest of the diagram
 
-each entry should be a python line (without trailing \n)
+each entry should be a python line (without trailing newline)
 Be aware that the equation must also be valid systemVerilog when netlisting to verilog
 
 Note: property names are ignored, but determine execution order (alphabetic)'''
