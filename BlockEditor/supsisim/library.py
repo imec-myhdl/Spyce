@@ -543,12 +543,16 @@ def {name}({args}):
                     n = []
                     tpi = "dict(porttype=u'ipin', x={x:1.1f}, y={y:1.1f}, label=dict(text=u'{name}', x=-10.0, y=0.0, anchor=6, font=u'Sans Serif,12,-1,5,50,0,0,0,0,0'))"
                     tpo = "dict(porttype=u'opin', x={x:1.1f}, y={y:1.1f}, label=dict(text=u'{name}', x=10.0, y=0.0, anchor=4, font=u'Sans Serif,12,-1,5,50,0,0,0,0,0'))"                    
+                    tpn = "dict(porttype=u'node', x={x:1.1f}, y={y:1.1f}, label=dict(text=u'{name}', x=-10.0, y=0.0, anchor=6, font=u'Sans Serif,12,-1,5,50,0,0,0,0,0'), signalType=dict(text=u'{tp}', x=10.0, y=0.0, anchor=4, font=u'Sans Serif,12,-1,5,50,1,0,0,0,0'))"
                     for ix, p in enumerate(actComp.inp):
                         n.append(tpi.format(x=0, y=ix*20, name = p[0]))
+                    for ixx, (k, v) in enumerate(self.extractSignalDefs(actComp)):
+                        n.append(tpn.format(x=0, y=(ix+ixx)*20, name = k, tp=v))
                     for ix, p in enumerate(actComp.outp):
                         n.append(tpo.format(x=400, y=ix*20, name = p[0]))
                     nodes = 'nodes = [{}]'.format(',\n         '.join(n))
                     txt = txt.replace('nodes = []', nodes)
+                    
             else:
                 txt = ''
             try:
@@ -567,8 +571,23 @@ def {name}({args}):
             actComp.addView(view, path)
             
             self.openView(ret[0], actComp)
+
+    def extractSignalDefs(self, actComp):
+        r = []
+        if actComp:
+            views = actComp.getViews()
+            if not 'myhdl' in views:
+                return []
+            with open(views['myhdl'], 'rb') as f:
+                for line in f.readlines():
+                    k, sep, v = line.partition('=')
+                    k = k.strip()
+                    v = v.strip()
+                    if k == '' or k.startswith('#') or not v.startswith('Signal'):
+                        continue
+                    r.append((k, v))
+        return r
             
-    
     def pasteBlock(self):
         if self.copiedBlock and self.copiedBlockLibname:
             path = os.getcwd()

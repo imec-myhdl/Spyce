@@ -3,6 +3,8 @@ from __future__ import (division, print_function, absolute_import,
                         unicode_literals)
 
 import os, sys, string, math
+import keyword
+import string
 from collections import OrderedDict
 
 d = os.path.dirname(os.path.dirname(__file__))
@@ -14,6 +16,30 @@ from   supsisim.src_import import import_module_from_source_file
 import libraries
 
 debug=False
+
+
+def isidentifier(ident):
+    """Determines if string is valid Python identifier."""
+
+    if not isinstance(ident, (str, unicode)):
+        raise TypeError("expected str, but got {!r}".format(type(ident)))
+
+    if not ident:
+        return False
+
+    if keyword.iskeyword(ident):
+        return False
+
+    first = '_' + string.lowercase + string.uppercase
+    if ident[0] not in first:
+        return False
+
+    other = first + string.digits
+    for ch in ident[1:]:
+        if ch not in other:
+            return False
+
+    return True
 
 filenamemyhdl_template = 'libraries.library_{}.{}'
 
@@ -387,7 +413,7 @@ def toMyhdl(block_name, blocks, internal_nets, external_nets, netlist_dir):
         sig.append('    # internal nets')
         for netname in sorted(internal_nets.keys()):
             tp = internal_nets[netname]['signalType']
-            if netname[0] in '_' + string.lowercase + string.uppercase and '.' not in netname:
+            if isidentifier(netname):
                 if tp:
                     sig.append('    {} = Signal({})'.format(netname, tp))
                 else:
@@ -528,6 +554,8 @@ def resolve_dgm_connectivity(filename, properties=dict()):
 
     for c in dgm.connections:
         conn = NetObj(c)
+        if debug:
+            print('connection', c)
         for xy in [(c['x0'], c['y0']), (c['x1'], c['y1'])]:
             if xy in nodes:
                 conn.stamp(nodes[xy])

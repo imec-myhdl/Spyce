@@ -66,18 +66,17 @@ class Connection(QtWidgets.QGraphicsPathItem):
     
     def toData(self):
         data = OrderedDict(type='connection')
-        if self.pos[0]:
+        if self.pos[0] and self.pos[1]:
             data['x0'] = self.pos[0].x()
             data['y0'] = self.pos[0].y()
-        if self.pos[1]:
             data['x1'] = self.pos[1].x()
             data['y1'] = self.pos[1].y()
-        for ix in [0,1]:
-            pp = ['p0', 'p1'][ix]
-            if self.port[ix] and isPort(self.port[ix], 'block'):
-                blkname = self.port[ix].parent.label.text()
-                pinname = self.port[ix].label.text()
-                data[pp] = (blkname, pinname)
+            for ix in [0,1]:
+                pp = ['p0', 'p1'][ix]
+                if self.port[ix] and isPort(self.port[ix], 'block'):
+                    blkname = self.port[ix].parent.label.text()
+                    pinname = self.port[ix].label.text()
+                    data[pp] = (blkname, pinname)
 #        if self.label:
 #            data['label'] = self.label.text()
         return data

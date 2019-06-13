@@ -847,13 +847,21 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
         items = selection if selection else self.scene.items()
         for item in items:
             if isBlock(item):
-                blocks.append(d2s(item.toData()))
+                d = item.toData()
+                if d:
+                    blocks.append(d2s(d))
             elif isConnection(item):
-                connections.append(d2s(item.toData()))
+                d = item.toData()
+                if d:
+                    connections.append(d2s(d))
             elif isPort(item, tp=['ipin', 'opin', 'iopin', 'node']):
-                nodes.append(d2s(item.toData()))
+                d = item.toData()
+                if d:
+                    nodes.append(d2s(d))
             elif isComment(item):
-                comments.append(d2s(item.toData()))
+                d = item.toData()
+                if d:
+                    comments.append(d2s(d))
                     
         return (blocks, connections, nodes, comments)
         
