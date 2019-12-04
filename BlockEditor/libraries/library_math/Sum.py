@@ -70,15 +70,35 @@ def toMyhdlInstance(instname, connectdict, param):
     inputs = []
     z, zp = connectdict['.z']
     
+    shift = dict()
+    for c in connectdict:
+        if c.startswith('.a'):
+            net,tp = connectdict[c]
+            tp = tp.strip()
+            if tp.strip().startswith('Signal'):
+                tp = tp[6:].strip('() ')
+            if tp.startswith('fixbv'):
+                tp = tp[5:].strip('() ')
+                a, _, b = tp.partition('shift')
+                if b:
+                    s = int(b.lstrip(' =').split(',')[0])
+                else:
+                    s = int(tp.split(',')[1])
+                shift[net] = s
+    print('Sum debug: shift = ', shift)
+    target_shift = min(shift.values())
+    
     for ix, s in enumerate(gains):
         net,tp = connectdict['.a{}'.format(ix)]
+        ds = shift[net] - target_shift
+        shnet = '({}<<{})'.format(net, ds) if ds else net
         if s == '-':
-            if str(net).isalnum():
-                inputs.append('- {}'.format(net))
+            if str(net).isalnum() or shnet != net:
+                inputs.append('- {}'.format(shnet))
             else:
-                 inputs.append('- ({})'.format(net))
+                 inputs.append('- ({})'.format(shnet))
         else:
-            inputs.append('+ {}'.format(net))
+            inputs.append('+ {}'.format(shnet))
 
     expr = ' '.join(inputs).lstrip('+ ')
 

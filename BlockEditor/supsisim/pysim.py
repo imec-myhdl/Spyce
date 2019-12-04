@@ -34,13 +34,15 @@ class supsisimul(threading.Thread):
         
     def run(self):
         app = QtWidgets.QApplication(sys.argv)
+        
         library = Library()
         library.setGeometry(20, 100, 400, 768)
         library.show()
+        
         main = SupsiSimMainWindow(library, self.fname, self.mypath, self.runflag)
         main.setGeometry(500,100,1024,768)
-
         main.show()
+        
         ret = app.exec_()
         app.deleteLater()
 

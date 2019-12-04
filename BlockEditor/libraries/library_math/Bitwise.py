@@ -113,7 +113,7 @@ def toMyhdlInstance(instname, connectdict, param):
         if n.startswith('.an'):
             inputs.append('(not {})'.format(net))
         else:
-            inputs.append(net)
+            inputs.append('({})'.format(net))
 
     opp  = ' ' + operator + ' '
     expr = opp.join(inputs)

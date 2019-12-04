@@ -17,7 +17,7 @@ import libraries
 
 debug=False
 
-
+    
 def isidentifier(ident):
     """Determines if string is valid Python identifier."""
 
@@ -68,49 +68,218 @@ def dest_newer_than_source(dest, source):
     return os.path.isfile(dest) and (os.stat(dest).st_mtime > os.stat(source).st_mtime)
 
         
-class NetObj(object):
-    '''either connection (members are nodes/ports), or a node/port (members are connections)'''
-    def __init__(self, d):
-        self.netname = d['label']['text'] if 'label' in d else None
-        self.type    = d['signalType']['text'] if 'signalType' in d else None
-        self.members = set()
-        self.d    = d
+class NetDescriptor(object):
+    '''Decribes a net'''
+    
+    def __init__(self, node=None):
+        self.netname     = '' # net name, or tentative name
+        self.sigtype     = None # signal type
+        self.driven      = False # True if driven by ipin, iopin or block output
+        self.external    = False # True if connected to pin
+        self.nodes       = [] # nodes on this net
+        self.connections = [] # connections on this net
+        self.node_coords = set() # (x,y) tuples where the net is connected (nodes)
+        if node:
+            self.addNode(node)
+            
+    def pprint(self):
+        '''pretty print'''
+        print('  netname           = {}'.format(self.netname))
+        print('  sigtype           = {}'.format(self.sigtype))
+        print('  driven            = {}'.format(self.driven ))
+        print('  external          = {}'.format(self.external))
+        print('  nb of nodes       = {}'.format(len(self.nodes)))
+        print('  nb of connections = {}'.format(len(self.connections)))
+        print('  node_coords       = {}'.format(self.node_coords))
         
+    def addNode(self, node):
+        '''add a node to a net and merge properties'''
+        porttype = node['porttype']
+        netname  = node['label']['text'].strip() if 'label' in node else ''
+        sigtype  = node['signalType']['text'].strip() if 'signalType' in node else None
+        xy = (node['x'], node['y'])
         
-    def stamp(self, d):
-        self.members.add(d)
-        promotions = 0
-        if d.netname and d.netname.strip('{} '):
-            if self.netname and self.netname != d.netname:
-                raise Exception('stamping conflict: {}, {}\non {}'.format(\
-                                    self.netname, d.netname, self.d))
-            elif self.netname is None:
-                self.netname = d.netname
-                promotions = 1
-        if d.type:
-            if self.type and self.type != d.type:
-                raise Exception('Type conflict: {}, {}\non {}'.format(\
-                                    self.type, d.type, self.d))
-            elif self.type is None:
-                self.type = d.type
-                promotions = 1
-
-        return promotions
-
-
+        # netname?
+        if netname:
+            if self.netname and netname != self.netname:
+                raise Exception('name conflict on net {} while adding ()'.format(self.netname, node))
+            else:
+                if netname:
+                    self.netname = netname
+                
+        # driven?
+        if porttype in ['ipin', 'iopin', 'opin']:
+            self.external = True
+        if porttype in ['ipin', 'iopin']:
+            self.driven =True
+            
+        # signaltype?
+        if sigtype:
+             if self.sigtype and sigtype != self.sigtype:
+                raise Exception('type conflict on net {} while adding ()'.format(self.netname, node))
+             else:
+                self.sigtype = sigtype
            
-def propagateNets(conn, connections, resolved):
-    # conn is a (newly) named connection
-    # connections holds UNRESOLVED nets
-    # collects all connections that are tied to conn and puts them into resolved
-    for node in conn.members:
-        node.stamp(conn)
-        resolved[conn.netname].add(conn)
-        for c in node.members:
-            c.stamp(node)
-            if c in connections:
-                connections.discard(c)
-                propagateNets(c, connections, resolved)
+        self.nodes.append(node)
+        self.node_coords.add(xy)
+    
+    def merge(self, othernet):
+        '''merge two nets'''
+        if self.netname:
+            if othernet.netname and self.netname != othernet.netname:
+                raise Exception('Short between net {} and {}'.format(self.netname, othernet.netname))
+        else:
+            self.netname = othernet.netname
+            
+        if self.sigtype:
+            if othernet.sigtype and self.sigtype != othernet.sigtype:
+                raise Exception('net {} has conflicting types ({}, {})'.format(self.netname, self.sigtype, othernet.sigtype))
+        else:
+            self.sigtype = othernet.sigtype
+        
+        #merge
+        self.driven |= othernet.driven
+        self.nodes += othernet.nodes
+        self.connections += othernet.connections
+        self.node_coords |= othernet.node_coords
+        return self
+        
+
+class Nets(object):
+    '''holds all nets (in a diagram'''
+    
+    def __init__(self):
+        self.named     = dict() # names must be unique, so use dict for easy lookup, elements are NetDescriptor orbjects
+        self.unnamed   = [] # elements are NetDescriptor orbjects
+#        self.xylookup  = dict()
+        self.net_cnt   = 0 # used in anonymous nets
+        self.expr_cnt  = 0 # used in anonymous inline expressions
+     
+    def addNode(self, node):
+        rawnetname  = node['label']['text']if 'label' in node else ''
+        netname = rawnetname.strip(' {}')
+        if netname:
+            if netname not in self.named:
+                self.named[netname] = NetDescriptor(node)
+            else:
+                self.named[netname].addNode(node)
+        else: # unnamed node
+            descriptor = NetDescriptor(node)
+            self.unnamed.append(descriptor)
+    
+    def addConnection(self, conn):
+        xy0, xy1 = (conn['x0'], conn['y0']), (conn['x1'], conn['y1'])
+        n0, n1 = None, None
+        for nm, nt in self.named.items():
+            if xy0 in nt.node_coords:
+                n0 = nt
+                if n1:
+                    break
+            if xy1 in nt.node_coords:
+                n1 = nt
+                if n0:
+                    break
+                
+        if n0 is None or n1 is None:
+            for nt in self.unnamed:
+                if xy0 in nt.node_coords:
+                    n0 = nt
+                    if n1:
+                        break
+                if xy1 in nt.node_coords:
+                    n1 = nt
+                    if n0:
+                        break
+
+        if n0:
+            nt = n0
+        elif n1:
+            nt = n1
+        else:
+            nt = NetDescriptor()
+
+
+        nt.connections.append(conn)
+        # put a 'node' on the ioport locations
+        nt.node_coords.add(xy0) 
+        nt.node_coords.add(xy1)
+
+        if n0 is None or n1 is None: # nothing to connect (yet)
+            self.unnamed.append(nt)
+            return
+            
+        if n0 in self.unnamed:
+           self.unnamed.remove(n0)
+        if n1 in self.unnamed:
+           self.unnamed.remove(n1)
+        
+        n = n0.merge(n1)
+        if not n.netname.strip(' {}'):
+            self.unnamed.append(n)
+            
+            
+    def name_all_nets(self, blocks):
+        '''promote tentative names, and assign names to anonymous nets'''
+        while self.unnamed:
+            nn = self.unnamed.pop()
+            if nn.netname == '{}': # anonymous inline expressions
+                while True:
+                    netname = '__anon__{}'.format(self.expr_cnt)
+                    self.expr_cnt += 1
+                    if netname not in self.named:
+                        break
+            else:
+                netname = ''
+                for conn in nn.connections:
+                    if 'p0' in conn:
+                        nn.driven = True
+                        instname, portname =  conn['p0'] # name net after driving block
+                        inst = blocks[instname]
+                    
+                        netname = 'w_{}'.format(instname.lower()) #instance_name
+                        i = 0
+                        while True:
+                            if netname not in self.named:
+                                break
+                            netname = 'w_{}{}'.format(instname.lower(), i)
+                            i += 1
+                    if netname:
+                        break
+                if netname == '': # anonymous net
+                    while True:
+                        netname = 'w_{}'.format(self.net_cnt)
+                        self.net_cnt += 1
+                        if netname not in self.named:
+                            break
+
+            if '{' in nn.netname:
+                netname = '{' + netname + '}'
+            nn.netname = netname
+            self.named[netname] = nn
+         
+        # connect blocks 
+        for netname, nn in self.named.items():
+            if not nn.sigtype:
+                nn.sigtype = 'bool(0)'
+            for conn in nn.connections:
+                for p in ['p0', 'p1']:
+                    if p in conn:
+                        blkname, pname = conn[p]
+                        inst = blocks[blkname]
+                        inst['conn'][pname] = (nn.netname, nn.sigtype)
+                        
+    def split_nets(self):
+        '''split into internal and external nets'''
+        internal_nets = dict()
+        external_nets = dict()
+        for netname, net in self.named.items():
+            if net.external:
+                external_nets[netname] = net
+            else:
+                internal_nets[netname] = net
+                
+        return internal_nets, external_nets
+           
 
 def fillTemplate(template, blockname, body, include):
     return template.format(body   = body,
@@ -133,7 +302,7 @@ def netlist(filename, properties=dict(), lang='myhdl', netlist_dir=const.netlist
     '''netlist a file in netlist_dir
     netlists contains a set of already netlisted blocks'''
     if debug:
-        print ('debug netlist' )
+        print ('debug netlist:' )
         print ('      filename   ', filename)
         print ('      properties ', properties)
         print ('      lang       ', lang)
@@ -261,7 +430,8 @@ def netlist(filename, properties=dict(), lang='myhdl', netlist_dir=const.netlist
             libdir = libraries.libprefix + libname if libname else libname
             initname = os.path.join(netlist_dir, libdir, '__init__.py')
             modname = os.path.join(netlist_dir, libdir, blockname+'.py')
-            imp_statement = 'from {p}{l}.{b} import {b}\n'.format(p=libraries.libprefix, l=libname, b=blockname)
+#            imp_statement = 'from {p}{l}.{b} import {b}\n'.format(p=libraries.libprefix, l=libname, b=blockname)
+            imp_statement = 'from .{b} import {b}\n'.format(p=libraries.libprefix, l=libname, b=blockname)
 
             if os.path.isfile(modname):
                 if os.path.isfile(initname):                    
@@ -348,7 +518,7 @@ def toMyhdl(block_name, blocks, internal_nets, external_nets, netlist_dir):
 
 #    hdr.append('TIME_UNIT = {}'.format(const.ticks_per_second))
     hdr.append('')
-    hdr.append('from myhdl import Signal, concat, delay, intbv, fixbv, instances, \\')
+    hdr.append('from myhdl import Signal, concat, delay, intbv, modbv, fixbv, instances, \\')
     hdr.append('           block, always, always_seq, always_comb, instance # decorators')
     hdr.append('')
 
@@ -399,23 +569,27 @@ def toMyhdl(block_name, blocks, internal_nets, external_nets, netlist_dir):
                     sig.append(signals_netlist)
         else:            
             main_netlist = r
-        
-        body.append(main_netlist)
+        if main_netlist:
+            body.append(main_netlist)
 
     if imports:
         imp.append('# import block libraries')
         for lib in imports:
-            imp.append('import {}'.format(lib))
+            imp.append('from . import {}'.format(lib))
         imp.append('')
 
     # internal_nets
     if internal_nets:
         sig.append('    # internal nets')
         for netname in sorted(internal_nets.keys()):
-            tp = internal_nets[netname]['signalType']
+#            tp = internal_nets[netname]['signalType']
+            tp = internal_nets[netname].sigtype
             if isidentifier(netname):
                 if tp:
-                    sig.append('    {} = Signal({})'.format(netname, tp))
+                    if 'Signal(' in tp:
+                        sig.append('    {} = {}'.format(netname, tp))
+                    else:                        
+                        sig.append('    {} = Signal({})'.format(netname, tp))
                 else:
                     sig.append('    {} = Signal(bool(0))'.format(netname))
         sig.append('')
@@ -503,16 +677,16 @@ def resolve_dgm_connectivity(filename, properties=dict()):
             for pname, px, py in inp:
                 inst['conn'][pname] = None
 
-        inst['outp'] = set() # used to set unnamed nets that are connected to an output
+#        inst['outp'] = set() # used to set unnamed nets that are connected to an output
         if isinstance(outp, int):
             for ix in range(outp):
                 pname = '.o_{}'.format(ix)
                 inst['conn'][pname] = None
-                inst['outp'].add(pname)
+#                inst['outp'].add(pname)
         else:
             for pname, px, py in outp:
                 inst['conn'][pname] = None
-                inst['outp'].add(pname)
+#                inst['outp'].add(pname)
 
         if isinstance(inout, int):
             for ix in range(inout):
@@ -523,159 +697,37 @@ def resolve_dgm_connectivity(filename, properties=dict()):
         # copy keys, to signalTypes 
 #        inst['signalType'].update(inst['conn'])
 
-
-
-    resolved   = dict()# resolved connections resolved[netname] == set(connections and nodes)
-    unresolved = set() # unresolved connections
-
-            
-    # create names for {} (anonymous inline expressions)
-    anon_exprs  = 0
-    for n in dgm.nodes:
-        if 'label' in n and n['porttype'] == 'node':
-            if n['label']['text'].strip(' {}') == '': # auto_name {} inline-expressions
-                n['label']['text'] = '{{__anon__{}}}'.format(anon_exprs)
-                anon_exprs += 1
-
-    # find pins because they are external nets
-    pinnames = set()            
-    nodes = dict()
-    for n in dgm.nodes:
-        xy  = n['x'], n['y']
-        nodes[xy] = NetObj(n)
-        if 'label' in n and n['porttype'] != 'node':
-            pinnames.add(n['label']['text'])
-
-    # create dummy connection for named nodes
-    for n in dgm.nodes:
-        if 'label' in n: 
-            x, y = n['x'], n['y']
-            dgm.connections.append(dict(x0=x, y0=y, x1=x, y1=y))
-
-    for c in dgm.connections:
-        conn = NetObj(c)
-        if debug:
-            print('connection', c)
-        for xy in [(c['x0'], c['y0']), (c['x1'], c['y1'])]:
-            if xy in nodes:
-                conn.stamp(nodes[xy])
-                nodes[xy].stamp(conn)
-        if conn.netname:
-            if conn.netname not in resolved:
-                resolved[conn.netname] = set()
-            resolved[conn.netname].add(conn)
-        else:
-            unresolved.add(conn)
-            
 #==============================================================================
-# propagate named nets
+#   Build connectivity network
 #==============================================================================
-    for netname in resolved.keys():
-        for conn in set(resolved[netname]):
-            propagateNets(conn, unresolved, resolved)
- 
-#==============================================================================
-#  propagate anonymous nets
-#==============================================================================
-    # build a set of driven nets    
-    driven_connections = set()
-    for conn in unresolved:
-        if 'p0' in conn.d:
-            driven_connections.add(conn)
+    dgm_nets = Nets() # dgm_nets hold all different nets
+    for node in dgm.nodes:
+        dgm_nets.addNode(node)
+    for conn in dgm.connections:      
+        dgm_nets.addConnection(conn)
+    dgm_nets.name_all_nets(blocks)
+    
 
-    n_nets = 0 # used to number anonymous nets
-    while unresolved:
-        
-        # check if there are driven conncetions
-        if driven_connections: # name after driving instance
-            conn = driven_connections.pop()
-            unresolved.discard(conn)                   
-            instname, portname =  conn.d['p0']
-            inst = blocks[instname]
-            
-            netname = 'w_{}'.format(instname.lower()) #instance_name
-            i = ''
-            # make sure it does not yet exists
-            while True:
-                n = '{}{}'.format(netname, i)
-                if n not in resolved:
-                    break
-                i = i+1 if i else 1
-                if i == 100:
-                    raise Exception('cannot generate unique name: '+netname)
-
-            netname = n
-            if portname in inst['outp']:
-               netname = 'w_{}'.format(instname.lower()) #instance_name
-               if len(inst['outp']) > 1: # not the only output
-                   netname += '_{}'.format(portname.lstrip('.').lower()) # + port_name
-            else:
-                if debug:
-                    print(inst)
-                    print('resolved')
-                    for c in resolved:
-                        print(c.netname)
-                raise Exception('{}: connection to {} pin {} is not an output of {}.{}'.format(filename, instname, portname, inst['libname'], inst['blockname']))
-                        
-        else: # choose arbitrary name
-            conn = unresolved.pop()
-            if debug:
-                print ('anonymous net in ', filename)
-                print ('   p0 = {}, {}'.format(conn.d['x0'],conn.d['y0']))
-                print ('   p1 = {}, {}'.format(conn.d['x1'],conn.d['y1']))
-            n_nets += 1
-            netname = 'net{}'.format(n_nets)
-            
-        conn.netname = netname
-        if conn.netname not in resolved:
-            resolved[conn.netname] = set()
-        resolved[conn.netname].add(conn)
-        propagateNets(conn, unresolved, resolved)
-
-   
 #==============================================================================
-# resolve connection to blocks
+# check that all block ports are connected
 #==============================================================================
-        
-    for netname, conns in resolved.items():
-        for conn in conns:
-            for p in ['p0', 'p1']:
-                if p in conn.d:
-                    blkname, pname = conn.d[p]
-                    inst = blocks[blkname]
-                    inst['conn'][pname] = (conn.netname, conn.type)
-       
-    # check that all block ports are connected
     for instname, inst in blocks.items():
         for pin, net in inst['conn'].items():
             if net is None:
                 if debug:
                     print ('debug', inst['conn'])
                 raise Exception('file {}: instance {}, pin {} is floating'.format(filename, instname, pin))
-#                print('file {}: instance {}, pin {} is not Connected'.format(filename, instname, pin))
 
-    internal_nets = dict()
-    external_nets = dict()
-    for netname in resolved:
-        # signal_type
-        st = None
-        for item in resolved[netname]:
-            if item.type:
-                if st is None:
-                    st = item.type
-                elif st != item.type:
-                    raise Exception('Type conflict: {}, {}\non {}'.format(\
-                                    st, item.type, item))
-        prop = dict(signalType = st)
-        for c in resolved[netname]:
-            if 'properties' in c.d:
-                prop.update(c.d['properties'])
+#==============================================================================
+# spit internal and external nets
+#==============================================================================
+    internal_nets, external_nets = dgm_nets.split_nets()
 
-        if netname in pinnames:
-            external_nets[netname] = prop
-        else:
-            internal_nets[netname] = prop
-    
+    if debug:
+         for netname, net in dgm_nets.named.items():
+            print('Net:', netname)
+            net.pprint() 
+
     return blocks, internal_nets, external_nets
   
         

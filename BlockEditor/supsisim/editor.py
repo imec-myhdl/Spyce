@@ -12,6 +12,7 @@ from  Qt import QtWidgets, QtCore # see https://github.com/mottosso/Qt.py
 
 import os
 from collections import OrderedDict
+from autopep8 import fix_code
 
 from supsisim.port import Port, isInPort, isOutPort, isPort, isNode
 from supsisim.connection import Connection, isConnection
@@ -71,10 +72,10 @@ class Editor(QtCore.QObject):
         self.subMenuConn = QtWidgets.QMenu()
         connDelAction   = self.subMenuConn.addAction('Delete connection')
         connInsAction   = self.subMenuConn.addAction('Insert node')
-        connLabelAction = self.subMenuConn.addAction('Add/Edit label')
+#        connLabelAction = self.subMenuConn.addAction('Add/Edit label')
         connDelAction.triggered.connect(self.deleteConn)
         connInsAction.triggered.connect(self.insConn)
-        connLabelAction.triggered.connect(self.addConnLabel)
+#        connLabelAction.triggered.connect(self.addConnLabel)
 
         self.subMenuText = QtWidgets.QMenu()
         textCloneAction  = self.subMenuText.addAction('Clone')
@@ -86,19 +87,19 @@ class Editor(QtCore.QObject):
 
     
     
-    def addConnLabel(self):
-        conn = self.scene.item
-        if conn.label:
-            dialog = textLineDialog('Label: ',content=conn.label.text())
-        else:
-            dialog = textLineDialog('Label: ')
-        ret = dialog.getLabel()
-        if ret:
-            if conn.label:
-                conn.label.setText(ret)
-            else:
-                conn.label = textItem(ret, anchor=3, parent=conn)
-                conn.label.setPos(conn.pos2.x(),conn.pos2.y())
+#    def addConnLabel(self):
+#        conn = self.scene.item
+#        if conn.label:
+#            dialog = textLineDialog('Label: ',content=conn.label.text())
+#        else:
+#            dialog = textLineDialog('Label: ')
+#        ret = dialog.getLabel()
+#        if ret:
+#            if conn.label:
+#                conn.label.setText(ret)
+#            else:
+#                conn.label = textItem(ret, anchor=3, parent=conn)
+#                conn.label.setPos(conn.pos[1].x(),conn.pos[1].y())
    
     
 
@@ -243,7 +244,8 @@ class Editor(QtCore.QObject):
             dialog = textLineDialog('Signal type: ','Signal type')
         ret = dialog.getLabel()
         if ret:
-            item.signalType = textItem(ret, anchor=8, parent=item)
+            txt = fix_code(ret).strip() # clean up using autopep8
+            item.signalType = textItem(txt, anchor=8, parent=item)
             item.signalType.setBrush(colors['signalType'])
             font = item.signalType.font()
             font.setItalic(True)

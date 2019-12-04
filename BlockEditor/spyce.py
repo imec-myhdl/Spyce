@@ -12,6 +12,8 @@ if 'QT_PREFERRED_BINDING' not in os.environ:
         if k in mods:
             os.environ['QT_PREFERRED_BINDING'] = k
             break
+    os.environ['QT_PREFERRED_BINDING'] =  os.pathsep.join(['PyQt4', 'PySide', 'PyQt5', 'PySide2'])   
+    
 
 import Qt # see https://github.com/mottosso/Qt.py     
 

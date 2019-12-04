@@ -494,7 +494,7 @@ class Block(QtWidgets.QGraphicsPathItem):
         viewvalue = os.path.relpath(viewvalue, dirname)
             
         views[viewname] = viewvalue
-        vv = self.getViews.copy()
+        vv = self.getViews().copy()
         if 'textSource' in vv:
             del vv['textSource']
         self.updateOnDisk(dd=dict(views=vv))

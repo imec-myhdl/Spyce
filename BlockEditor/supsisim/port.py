@@ -7,6 +7,7 @@ import sys
 if sys.version_info >= (3,0):
     basestring = str
 from collections import OrderedDict
+from autopep8 import fix_code
 
 # Third party imports
 from  Qt import QtGui, QtWidgets, QtCore # see https://github.com/mottosso/Qt.py
@@ -216,9 +217,6 @@ class Port(QtWidgets.QGraphicsPathItem):
             x, y = len(inout)*PD, top
             inout.append( (name, x, y))
             
-            
-            
-                
     def toData(self):
         data = OrderedDict(type='port')
         data['porttype'] = self.porttype
@@ -229,6 +227,8 @@ class Port(QtWidgets.QGraphicsPathItem):
         if self.label:
             data['label'] = self.label.toData()
         if self.signalType:
+            txt = fix_code(self.signalType.text()) # clean up using autopep8
+            self.signalType.setText(txt.strip())
             data['signalType'] = self.signalType.toData()
         if self.properties:
             data['properties'] = self.properties
