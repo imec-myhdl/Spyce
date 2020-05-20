@@ -28,6 +28,24 @@ if __name__ == "__main__":
         print ('inkscape present')
     else:
         print ('Warning: inkscape is not installed, you will not be able to edit icons')
+
+    cwd = os.getcwd()
+    library_path = os.path.join(cwd, 'libraries')
+
+    if not os.path.isdir(library_path):
+        print ('creating initial setup')
+        os.makedirs(library_path, mode=0o770)
+        source_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'libraries')
+        for fn in os.listdir(source_dir):
+            if fn.startswith('library_') or fn == '__init__.py':
+                src = os.path.join(source_dir, fn)
+                dst = os.path.join(library_path, fn)
+                os.symlink(src, dst)
+
+
+    if not os.path.isfile('settings.py'):
+        print('You do not have a configuration file. You might want to create "settings.py"')
+        print('it is used as an extension to the default file (.../Spyce/BlockEditor/supsisim/const.py)')
     if len(sys.argv) > 1:
         fname = sys.argv[1]
     else:
