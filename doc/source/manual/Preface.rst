@@ -36,9 +36,9 @@ Spyce requires:
 - inkscape to edit icons, and convert to png
 - openoffice is optional, but default configured as editor for documentation
 - spyder3 is optional, but default configured as python editor.
-- spinx and latex if you want to build the documentation
+- shpinx and latex if you want to build the documentation
 
-Spyce is developed on python 2.7 and PyQt5.5.1
+Spyce is developed on python 3.8 and Pyside2/PyQt5.5.1
 Multiple selection (by holding down control-key) has been incorporated in Qt5.5. 
 This functionality unfortunately was never backported to Qt4 (although a patch is available from
 https://asmaloney.com/2015/01/code/qt-patches-qgraphicsview-qimagewriter)
@@ -50,8 +50,21 @@ Installing
 Install source code::
 
     git clone https://github.com/imec-myhdl/Spyce.git
-    
+
+Install dependencies::
+   # if needed
+   sudo apt install -y inkscape
+
+   pip install Qt.py    # thin wrapper around PyQt3/5 Pyside/Pysisde2
+   pip install pyside2  # python interface to Qt5
+   pip install autopep8 # format block sources (on disk) conform pep8
+   pip install svgwrite # interface to inkscape
+   pip install lxml     # legacy blocks, will gradually be phased out
+
 Build documentation::
+
+    # install dependencies
+    sudo apt install -y python3-sphinx texlive-latex-recommended texlive-fonts-recommended texlive-latex-extra latexmk
 
     cd Spyce/doc
     make latexpdf # or html
