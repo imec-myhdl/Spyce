@@ -66,7 +66,7 @@ def getSymbol(param, properties,parent=None,scene=None):
     b = block.Block(attributes,param,properties, _name, _libname, parent, scene)
     # add circles for inverted outputs, and wires for non-inverted outputs
     pi = QtWidgets.QGraphicsPathItem(b)
-    pi.setPen(const.colors['block'])
+    pi.setPen(QtGui.QPen(const.colors['block']))
     pp = QtGui.QPainterPath()
     
     for n,x,y in outp:

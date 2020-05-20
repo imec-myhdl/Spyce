@@ -21,7 +21,7 @@ import libraries
 import myhdl_to_blk
 from .svg_utils import updateSvg
 
-import const
+import supsisim.const
 
 from .const import DB, respath, viewTypes, templates
 

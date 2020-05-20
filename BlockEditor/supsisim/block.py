@@ -348,6 +348,8 @@ class Block(QtWidgets.QGraphicsPathItem):
         if self.scene:
             self.setup()
             self.scene.blocks.add(self)
+
+
     
 #    def __str__(self):
 #        txt  = 'Name         :' + self.name.__str__() +'\n'
@@ -591,6 +593,8 @@ class Block(QtWidgets.QGraphicsPathItem):
         left, top, self.w, self.h = bbox
         self.center = QtCore.QPoint(int(left+self.w/2), int(top+self.h/2))
         p = QtGui.QPainterPath()
+
+
         p.addRect(-self.w/2 + PW/2, -self.h/2, self.w - PW, self.h)
 
         self.setPath(p)
@@ -614,6 +618,7 @@ class Block(QtWidgets.QGraphicsPathItem):
         self.setFlag(self.ItemIsMovable)
         self.setFlag(self.ItemIsSelectable)
         self.setLabel()
+        pi = QtWidgets.QGraphicsPathItem(self) # needed else no box is shown?!?
 
 
     def toData(self):

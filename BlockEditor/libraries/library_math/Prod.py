@@ -36,7 +36,7 @@ def getSymbol(param, properties,parent=None,scene=None,):
     
     # create a new pathitem with a plus and citcle
     pi = QtWidgets.QGraphicsPathItem(b)
-    pi.setPen(QtCore.Qt.black)
+    pi.setPen(QtGui.QPen(QtCore.Qt.black))
     pp = QtGui.QPainterPath()
     # draw x
     pp.moveTo(-8, 8)

@@ -36,9 +36,9 @@ def getSymbol(param, properties,parent=None,scene=None):
     attributes['output'] = outp
     b = supsisim.block.Block(attributes,param,properties, name, libname, parent, scene)
     
-    # create a new pathitem with a plus and citcle
+    # create a new pathitem with a plus and circle
     pi = QtWidgets.QGraphicsPathItem(b)
-    pi.setPen(QtCore.Qt.black)
+    pi.setPen(QtGui.QPen(QtCore.Qt.black))
     pp = QtGui.QPainterPath()
     # draw plus
     pp.moveTo(-11,0)

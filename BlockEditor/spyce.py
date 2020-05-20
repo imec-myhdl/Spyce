@@ -21,9 +21,6 @@ import Qt # see https://github.com/mottosso/Qt.py
 from supsisim.pysim import supsisimul
 
 # main
-
-
-
 if __name__ == "__main__":
     print ('using {}, python = {}.{}, Qt  = {}'.format(Qt.__binding__, sys.version_info[0], sys.version_info[1], Qt.__binding_version__ ))
     exist = subprocess.call('command -v '+ 'inkscape' + '>> /dev/null', shell=True)
