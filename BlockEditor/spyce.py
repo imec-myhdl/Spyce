@@ -1,13 +1,14 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 
 # Standard library imports
+from __future__ import print_function
 import os, sys
 import subprocess
 
 # Third party imports
 # check Qt if already loaded (e.g. when running inside spyder or other program)
 if 'QT_PREFERRED_BINDING' not in os.environ:
-    mods = ' '.join(sys.modules.keys())
+    mods = ' '.join(list(sys.modules.keys()))
     for k in ['PyQt4', 'PySide', 'PyQt5', 'PySide2']:
         if k in mods:
             os.environ['QT_PREFERRED_BINDING'] = k

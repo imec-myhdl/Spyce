@@ -57,11 +57,14 @@ The following commands are provided:
   can_gen_recvBlk     - Receive a generic can message
   
 """
+from builtins import str
+from builtins import range
+from builtins import object
 from control import *
 from scipy import mat, shape, size, array, zeros
 from numpy import reshape, hstack
 
-class RCPblk:
+class RCPblk(object):
     def __init__(self, *args):  
         if len(args) == 8:
             (fcn,pin,pout,nx,uy,realPar,intPar,str) = args

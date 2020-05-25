@@ -1,7 +1,9 @@
-#!/usr/bin/python
 # aim for python 2/3 compatibility
+
 from __future__ import (division, print_function, absolute_import,
                         unicode_literals)
+from builtins import str
+from builtins import range
 
 import Qt
 from  Qt import QtGui, QtWidgets, QtCore # see https://github.com/mottosso/Qt.py
@@ -67,7 +69,7 @@ class Scene(QtWidgets.QGraphicsScene):
         
     def saveUndo(self):
         #print(len(self.items()),self.undoLength)
-        if len(self.items()) == self.undoLength:
+        if len(list(self.items())) == self.undoLength:
             if self.lastPosition:
                 self.status.append(self.diagramToData())
                 if len(self.status) > 100:
@@ -80,7 +82,7 @@ class Scene(QtWidgets.QGraphicsScene):
             self.status.append(self.diagramToData())
             if len(self.status) > 100:
                 self.status.remove(self.status[0])
-            self.undoLength = len(self.items())
+            self.undoLength = len(list(self.items()))
             self.lastPosition = True
         
 
@@ -121,7 +123,7 @@ class Scene(QtWidgets.QGraphicsScene):
     def forceUniqueNames(self):
         self.nameList = dict()
         cc = [] # checkcheck: label != name
-        for child in self.items():
+        for child in list(self.items()):
             if isinstance(child, Block):
                 if child.label.text() != child.name:
                     cc.append(child)
@@ -184,7 +186,7 @@ class Scene(QtWidgets.QGraphicsScene):
                             b.setPos(pos)
 
     def newDgm(self):
-        items = self.items()
+        items = list(self.items())
         for item in items:
             for thing in item.childItems():
                 if isinstance(thing, Port):
@@ -200,7 +202,7 @@ class Scene(QtWidgets.QGraphicsScene):
     def getCenter(self):
         coordinatesX = []
         coordinatesY = []
-        for item in self.items():
+        for item in list(self.items()):
             if isinstance(item, Block) or isNode(item):
                 coordinatesX.append(item.x())
                 coordinatesY.append(item.y())
@@ -212,7 +214,7 @@ class Scene(QtWidgets.QGraphicsScene):
     
     
     def saveDgm(self,fname):
-        items = self.items()
+        items = list(self.items())
         dgmBlocks = []
         dgmNodes = []
         dgmConnections = []
@@ -322,7 +324,7 @@ class Scene(QtWidgets.QGraphicsScene):
         self.Tf = str(dialog.Tf.text())
         
     def codegen(self, flag):
-        items = self.items()
+        items = list(self.items())
         dgmBlocks = []
         for item in items:
             if isinstance(item, Block):
@@ -400,7 +402,7 @@ class Scene(QtWidgets.QGraphicsScene):
             except:
                 pass
         
-        items = self.items()
+        items = list(self.items())
         txt += 'from supsisim.RCPblk import *\n'
         txt += 'try:\n'
         txt += '    from supsisim.dsPICblk import *\n'
@@ -467,7 +469,7 @@ class Scene(QtWidgets.QGraphicsScene):
             print('Simulate system -> run -i tmp.py')
          
     def debugInfo(self):
-        items = self.items()
+        items = list(self.items())
         dgmBlocks = []
         dgmNodes = []
         dgmConnections = []

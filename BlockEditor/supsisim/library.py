@@ -3,6 +3,7 @@
 """
 # aim for python 2/3 compatibility
 from __future__ import (division, print_function, unicode_literals)
+from builtins import str
 # Standard library imports
 import os, sys, getpass
 if sys.version_info >= (3,4):
@@ -30,7 +31,7 @@ from .block import Block, getBlock, getBlockModule, getViews, \
                             
 from .dialg import txtDialog, \
                    textLineDialog, createBlockDialog, error, \
-                   addViewDialog, editPinsDialog
+                   addViewDialog, editPinsDialog, fileDialog
 
 class CompViewer(QtWidgets.QGraphicsScene):
     '''mini diagram used in symbolView tabs'''
@@ -89,7 +90,7 @@ class CompViewer(QtWidgets.QGraphicsScene):
 
     def addViewMenu(self):
         views = self.actComp.getViews()
-        for key in views.keys():
+        for key in list(views.keys()):
             if key == 'icon':
                 pass
             elif key == 'diagram':
@@ -305,7 +306,7 @@ class Library(QtWidgets.QMainWindow):
                         line[ix] = line[ix] + 'bbox = {}\n'.format(bbox)
                         break
                 src = ''.join(lines)
-                with open(fname, 'wb') as f:
+                with open(fname, 'w') as f:
                     f.write(src)
                 reload('libraries.library_{}.{}'.format(libname, blockname))
             
@@ -353,7 +354,7 @@ class Library(QtWidgets.QMainWindow):
             error('view not found')
             
         cmd = None
-        for tp, (editor, extension) in viewTypes.items():
+        for tp, (editor, extension) in list(viewTypes.items()):
             if source.endswith(extension):
                 cmd = editor
                 break
@@ -385,7 +386,7 @@ class Library(QtWidgets.QMainWindow):
         
         # fill libs column
         self.libs = libraries.libs
-        libnames = sorted(self.libs.keys(), key=lambda s: s.lower())
+        libnames = sorted(list(self.libs.keys()), key=lambda s: s.lower())
         self.libraries.addItems(libnames)
          
         
@@ -469,7 +470,7 @@ class Library(QtWidgets.QMainWindow):
             libname = self.libraries.currentItem().text()
             blockname = self.cells.currentItem().text()
             views = getViews(libname, blockname)
-            for key in views.keys():
+            for key in list(views.keys()):
                 if key == 'diagram':
                     action = self.viewMenu.addAction(key+" view")
                     action.triggered.connect(self.openDiagram)
@@ -579,7 +580,7 @@ def {name}({args}):
             views = actComp.getViews()
             if not 'myhdl' in views:
                 return []
-            with open(views['myhdl'], 'rb') as f:
+            with open(views['myhdl'], 'r') as f:
                 for line in f.readlines():
                     k, sep, v = line.partition('=')
                     k = k.strip()
@@ -603,7 +604,7 @@ def {name}({args}):
             if libname != self.copiedBlockLibname:
                 filenames = []
                 views = getViews(self.copiedBlockLibname, self.copiedBlock)
-                for key in views.keys():
+                for key in list(views.keys()):
                     if key != 'icon' or views[key].endswith('.svg'):
                         filenames.append(views[key])
                 for filename in filenames:
@@ -783,7 +784,7 @@ def {name}({args}):
         
         libs = libraries.libs
         # case insensitive sorting
-        libnames = sorted(libs.keys(), key=lambda s: s.lower())
+        libnames = sorted(list(libs.keys()), key=lambda s: s.lower())
         self.quickSelTab.addItems(libnames)
         for libname in libnames:
             

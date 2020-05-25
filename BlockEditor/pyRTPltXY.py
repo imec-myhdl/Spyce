@@ -1,5 +1,8 @@
-#!/usr/bin/python
 
+from __future__ import division
+from builtins import str
+from builtins import range
+from past.utils import old_div
 import sys
 from qwt.qt import QtGui, QtCore, uic
 from qwt.qt.QtGui import *
@@ -86,7 +89,7 @@ class MainWindow(QMainWindow, form_class):
             for n in range(0,self.N):
                 self.x.append([])
                 
-            for n in range(0,int(self.N/2)):
+            for n in range(0,int(old_div(self.N,2))):
                 cv = QwtPlotCurve()
                 pen = QPen(QColor(self.colors[n]))
                 cv.setPen(pen)
@@ -117,7 +120,7 @@ class MainWindow(QMainWindow, form_class):
             pass
 
     def pltRefresh(self):
-        for n in range(0,int(self.N/2)):
+        for n in range(0,int(old_div(self.N,2))):
             self.c[n].setData(self.x[2*n], self.x[2*n+1])
             
         if not(self.ckAutoscale.isChecked()):

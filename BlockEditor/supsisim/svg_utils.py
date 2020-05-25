@@ -27,8 +27,10 @@ scalable vector graphics utilities
      '''generate svg file (if not yet existing)'''
 
 """
+
 from __future__ import (division, print_function, absolute_import,
                         unicode_literals)
+from builtins import str
 
 import os, tempfile, subprocess
 import svgwrite
@@ -124,7 +126,7 @@ def createSvgMirrorTxt(svgfilename):
                 #else middle -> unchanged (dont know what to do with inherit)
             else:
                 st['text-anchor'] = 'end'
-            style = [k+':'+vv for k,vv in st.items()]
+            style = [k+':'+vv for k,vv in list(st.items())]
             e.attrib['style'] = ';'.join(style)
         else:
             e.attrib['style'] = 'text-anchor:end'
@@ -286,7 +288,7 @@ def checkAndCreateSvgIcon(block, svgfilename):
     '''generate svg file (if not yet existing)'''
     # find bounding box
     if os.path.exists(svgfilename):
-        with open(svgfilename, 'rb') as f:
+        with open(svgfilename, 'r') as f:
             if '<svg' in f.read():
                 return
     # create empty svg frame

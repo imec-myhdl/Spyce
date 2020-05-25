@@ -1,3 +1,4 @@
+from __future__ import print_function
 import os, sys
 from collections import OrderedDict
 from .template_files import _templates

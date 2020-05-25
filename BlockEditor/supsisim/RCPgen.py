@@ -15,13 +15,17 @@ The following commands are provided:
   sch2blks       - Generate block list fron schematic
   
 """
+from __future__ import print_function
+from builtins import str
+from builtins import range
+from builtins import object
 from scipy import mat, size, array, zeros
 from numpy import  nonzero, ones
 from os import environ
 import sys
 from supsisim.RCPblk import RCPblk
 
-class RCPblk:
+class RCPblk(object):
     def __init__(self, *args):  
         if len(args) == 8:
             (fcn,pin,pout,nx,uy,realPar,intPar,str) = args
@@ -339,7 +343,7 @@ def detBlkSeq(Nodes, blocks):
     Blocks    : List with the ordered blocks
     
 """
-    class blkDep:
+    class blkDep(object):
         def __init__(self, block, blkL, nodeL):
             self.block = block
             self.block_in = []
@@ -358,7 +362,7 @@ def detBlkSeq(Nodes, blocks):
             txt += '\n'
             return txt
 
-    class nodeClass:
+    class nodeClass(object):
         def __init__(self, N):
             self.PN = N
             self.block_in = []

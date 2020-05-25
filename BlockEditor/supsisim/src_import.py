@@ -2,6 +2,7 @@
 """
 utility to streamline the (re) importing of files
 """
+from __future__ import print_function
 
 import os, sys
 

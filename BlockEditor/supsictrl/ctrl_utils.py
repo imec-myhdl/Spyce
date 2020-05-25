@@ -13,6 +13,7 @@ Design and plot commands
   set_aw      - introduce anti-windup into controller
   grstep      - graphical step response
 """
+from __future__ import print_function
 
 from numpy import hstack, vstack, imag, zeros, eye, mat, shape
 from scipy import poly 

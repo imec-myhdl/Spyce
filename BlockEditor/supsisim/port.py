@@ -1,7 +1,8 @@
-#!/usr/bin/python
-# aim for python 2/3 compatibility
-from __future__ import (division, print_function, unicode_literals)
 
+# aim for python 2/3 compatibility
+
+from __future__ import (division, print_function, unicode_literals)
+from past.builtins import basestring
 # Standard library imports
 import sys
 if sys.version_info >= (3,0):
@@ -45,7 +46,7 @@ class Port(QtWidgets.QGraphicsPathItem):
         self.setup()
         self.setLabel()
         self.setFlip()
-        if self not in self.scene.items(): # added since pins/nodes were not auta added in Qt5? 
+        if self not in list(self.scene.items()): # added since pins/nodes were not auta added in Qt5? 
             self.scene.addItem(self)
 
     def setup(self):

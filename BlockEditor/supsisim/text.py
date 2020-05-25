@@ -3,6 +3,8 @@
 TextItem Class
 """
 from __future__ import (division, print_function, unicode_literals)
+from builtins import str
+from past.builtins import basestring
 
 # Standard library imports
 import sys

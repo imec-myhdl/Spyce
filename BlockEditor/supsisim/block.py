@@ -23,6 +23,8 @@ Block
 """
 # aim for python 2/3 compatibility
 from __future__ import (division, print_function, unicode_literals)
+from builtins import str
+from builtins import range
 
 # Standard library imports
 import os
@@ -67,7 +69,7 @@ def _addBlockModuleDefaults(libname, blockname):
         raise Exception('Block {}.{} raised error {}'.format(libname,blockname, str(e)) )
 
     p = libraries.libpath(libname)
-    for viewname, (ed, ext) in viewTypes.items():
+    for viewname, (ed, ext) in list(viewTypes.items()):
         fn = os.path.join(p, blockname + ext)
         if os.path.isfile(fn):
             blk.views[viewname] = fn        
@@ -181,7 +183,7 @@ def getViews(libname, blockname):
 def rmBlock(libname, blockname):
     # first remove views (one of them is the file itself)
     blk = block_modules[libname + '/'+ blockname]
-    for type, filename in blk.views.items():
+    for type, filename in list(blk.views.items()):
         if filename:
             fn1 = os.path.join(libraries.libpath(libname), filename)
             fn2 = os.path.join(os.getcwd(), filename)
@@ -298,7 +300,7 @@ def updateOnDisk(libname, blockname, dd=dict(), writeback=True):
 
     src = ''.join(src)
     if writeback:
-        with open(fname, 'wb') as f:
+        with open(fname, 'w') as f:
             f.write(src)
             
     getBlockModule(libname, blockname) # update module

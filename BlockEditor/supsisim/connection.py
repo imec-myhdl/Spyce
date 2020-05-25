@@ -1,4 +1,4 @@
-#!/usr/bin/python
+
 # aim for python 2/3 compatibility
 from __future__ import (division, print_function, unicode_literals)
 
@@ -85,7 +85,7 @@ class Connection(QtWidgets.QGraphicsPathItem):
         self.pos[0] = QtCore.QPointF(data['x0'], data['y0'])
         self.pos[1] = QtCore.QPointF(data['x1'], data['y1'])
         if 'p0' in data or 'p1' in data:
-            for item in self.scene().items():
+            for item in list(self.scene().items()):
                 if isPort(item, 'block'):
                     pinname = item.label.text()
                     blkname = item.parent.label.text()

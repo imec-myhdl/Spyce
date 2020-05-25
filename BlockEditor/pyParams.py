@@ -1,5 +1,7 @@
-#!/usr/bin/python
+
 # aim for python 2/3 compatibility
+from builtins import str
+from builtins import range
 from __future__ import (division, print_function, absolute_import,
                         unicode_literals)
 
@@ -32,7 +34,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.sock = sk.open_client('/tmp/ssock')
 
     def add_widgets(self):
-        for i in reversed(range(self.ui.gridLayout.count())): 
+        for i in reversed(list(range(self.ui.gridLayout.count()))): 
             self.ui.gridLayout.itemAt(i).widget().setParent(None)           
 
         self.ui.gridLayout.setRowStretch(12,1)

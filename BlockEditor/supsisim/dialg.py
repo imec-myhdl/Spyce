@@ -1,6 +1,10 @@
-#!/usr/bin/python
+
 # aim for python 2/3 compatibility
 from __future__ import (division, print_function, unicode_literals)
+from builtins import zip
+from builtins import str
+from builtins import range
+from past.builtins import basestring
 
 # Standard library imports
 import sys, os, re
@@ -12,8 +16,31 @@ from collections import OrderedDict
 from  Qt import QtGui, QtWidgets, QtCore # see https://github.com/mottosso/Qt.py
 
 # Local application imports
-from .const import path,respath
+from .const import path, respath
 import libraries
+
+default_paths = dict()
+
+def fileDialog(parent, caption, directory=None, filter='*.*', filename=None):
+    '''generic QFileDialog, but one that remembers the last path.
+    if filename is supplied, a save dialog is presented, otherwise a file select dialog'''
+    hash = str(caption) + str(directory) + str(filter)
+    if directory is None:
+        directory = os.getcwd()
+    dirname = default_paths[hash ]if hash in default_paths else directory
+    if filename:
+        # print ('debug: save filename', os.path.join(directory, filename))
+        filename = QtWidgets.QFileDialog.getSaveFileName(parent, caption, os.path.join(directory, filename), filter=filter, options=QtWidgets.QFileDialog.DontUseNativeDialog)
+        # print ('debug: save filename returns', filename)
+    else:
+        filename = QtWidgets.QFileDialog.getOpenFileName(parent, caption, dirname, filter=filter, options=QtWidgets.QFileDialog.DontUseNativeDialog)
+    if isinstance(filename, tuple): # PqQt5 returns a tuple (filename, filter), PyQt4 apparently not
+        filename = filename[0]
+    if filename:
+        dirname = os.path.abspath(os.path.dirname(filename))
+        default_paths[hash] = dirname
+    # print('debug: return filename', filename)
+    return filename
 
 
 class editPinsDialog(QtWidgets.QDialog):
@@ -241,7 +268,7 @@ class editPinsDialog(QtWidgets.QDialog):
     
     
     def selectIcon(self):
-        self.filename = QtWidgets.QFileDialog.getOpenFileName(self, 'Open',respath + '/blocks/', filter='*.svg')
+        self.filename = fileDialog(self, 'Open', respath + '/blocks/', filter='*.svg')
     
     def getRet(self):
         if self.exec_():
@@ -491,7 +518,7 @@ class propertiesDialog(QtWidgets.QDialog):
     def getRet(self):
         if self.exec_():
             dd = dict()
-            for k, ix in self.keyix.items():
+            for k, ix in list(self.keyix.items()):
                 if isinstance(self.dd[k], (list, tuple)) and len(self.dd[k]) == 2:
                     if isinstance(self.dd[k][1],(list, tuple)):
                         tp = type(self.dd[k][1][0])
@@ -521,7 +548,7 @@ class propertiesDialog(QtWidgets.QDialog):
                     except ValueError:
                         dd[k] = v
             properties = dict()
-            for k, ix in self.propix.items():
+            for k, ix in list(self.propix.items()):
                 val = self.w[ix].text()
                 try:
                     v = eval(val)
@@ -600,28 +627,19 @@ class RTgenDlg(QtWidgets.QDialog):
         self.setLayout(grid)
 
     def getTemplate(self):
-        fname = QtWidgets.QFileDialog.getOpenFileName(self,'Open Template Makefile',
-                                                  os.path.join(path,'CodeGen','templates'), 'Template (*.tmf)')
-        if isinstance(fname, tuple): # PqQt5 returns a tuple (filename, filter), PyQt4 apparently not
-            fname = fname[0]
+        fname = fileDialog(self,'Open Template Makefile', os.path.join(path,'CodeGen','templates'), 'Template (*.tmf)')
         if len(fname) != 0:
             head, templ = os.path.split(fname)
             self.template.setText(templ)
 
     def getObjs(self):
-        fname = QtWidgets.QFileDialog.getOpenFileName(self,'Additional libraries',
-                                                  '.','Dynamic libraries (*.so)')
-        if isinstance(fname, tuple): # PqQt5 returns a tuple (filename, filter)
-            fname = fname[0]
+        fname = fileDialog(self,'Additional libraries', '.', 'Dynamic libraries (*.so)')
         if len(fname) != 0:
             head, libname = os.path.split(fname)
             self.addObjs.setText(libname)
 
     def getScript(self):
-        fname = QtWidgets.QFileDialog.getOpenFileName(self,'Open Python script',
-                                                  '.', 'Python file (*.py)')
-        if isinstance(fname, tuple): # PqQt5 returns a tuple (filename, filter)
-            fname = fname[0]
+        fname = fileDialog(self,'Open Python script', '.', 'Python file (*.py)')
         if len(fname) != 0:
             head, script = os.path.split(fname)
             self.parscript.setText(script)
@@ -762,7 +780,7 @@ class viewConfigDialog(QtWidgets.QDialog):
         self.layout.addWidget(QtWidgets.QLabel("editor command:"),0,1)
         self.layout.addWidget(QtWidgets.QLabel("extension:"),0,2)
         # edit widget
-        for viewtype, (viewEditor, extension) in viewTypes.items():
+        for viewtype, (viewEditor, extension) in list(viewTypes.items()):
             
             view_w = QtWidgets.QLabel(viewtype )
             self.layout.addWidget(view_w,self.n,0)
@@ -829,7 +847,7 @@ class addViewDialog(QtWidgets.QDialog):
         reload(supsisim.const)
         from supsisim.const import viewTypes         
         
-        for viewtype, (ed, ext) in viewTypes.items():
+        for viewtype, (ed, ext) in list(viewTypes.items()):
             self.selectView.addItem(viewtype)
     
         self.grid.addWidget(self.selectView,0,0)
@@ -1116,7 +1134,7 @@ class createBlockDialog(QtWidgets.QDialog):
     
     
     def selectIcon(self):
-        self.filename = QtWidgets.QFileDialog.getOpenFileName(self, 'Open',respath + '/blocks/', filter='*.svg')
+        self.filename = fileDialog(self, 'Open',respath + '/blocks/', filter='*.svg')
     
     def getRet(self):
         if self.exec_():
@@ -1158,12 +1176,12 @@ class createBlockDialog(QtWidgets.QDialog):
             ret['inout'] = []
             
             newProperties = dict()
-            for key in self.values.keys():
+            for key in list(self.values.keys()):
                 newProperties[key] = eval(self.values[key].text())
             ret['properties'] = newProperties     
             
             parameters = dict()
-            for key in self.valuesPar.keys():
+            for key in list(self.valuesPar.keys()):
                 parameters[key] = eval(self.valuesPar[key].text())
             ret['parameters'] = parameters     
                 
@@ -1259,7 +1277,7 @@ class convertSymDialog(QtWidgets.QDialog):
         self.filename = (0,0)  
     
     def selectIcon(self):
-        self.filename = QtWidgets.QFileDialog.getOpenFileName(self, 'Open',respath + '/blocks/', filter='*.svg')
+        self.filename = fileDialog(self, 'Open',respath + '/blocks/', filter='*.svg')
     
     
     
@@ -1290,7 +1308,7 @@ class convertSymDialog(QtWidgets.QDialog):
             ret['name'] = self.text_name.text()
             
             newProperties = dict()
-            for key in self.values.keys():
+            for key in list(self.values.keys()):
                 newProperties[key] = self.values[key].text()
             ret['properties'] = newProperties            
                

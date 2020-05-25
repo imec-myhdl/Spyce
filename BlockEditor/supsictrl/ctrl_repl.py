@@ -10,6 +10,9 @@ Design and plot commands
   dlqr        - Discrete linear quadratic regulator
   d2c         - discrete to continous time conversion  
 """
+from __future__ import print_function
+from __future__ import division
+from past.utils import old_div
 from numpy import hstack, vstack, imag, zeros, eye, mat, sort, \
      array, shape, real, sort, around, inf, sqrt, size, nonzero
 from scipy.linalg import inv, eigvals, eig, logm, norm
@@ -55,7 +58,7 @@ def d2c(sys,method='zoh'):
         if n==1:
             if b[0,0]==1:
                 A=0
-                B=b/sys.dt
+                B=old_div(b,sys.dt)
                 C=c
                 D=d
         else:
@@ -63,7 +66,7 @@ def d2c(sys,method='zoh'):
             tmp2=hstack((zeros((nb,n)),eye(nb)))
             tmp=vstack((tmp1,tmp2))
             s=logm(tmp)
-            s=s/Ts
+            s=old_div(s,Ts)
             if norm(imag(s),inf) > sqrt(sp.finfo(float).eps):
                 print('Warning: accuracy may be poor')
             s=real(s)
@@ -77,14 +80,14 @@ def d2c(sys,method='zoh'):
         c=mat(c)
         d=mat(d)
         Id = mat(eye(n))
-        A = logm(a)/Ts
+        A = old_div(logm(a),Ts)
         A = real(around(A,12))
         Amat = mat(A)
         B = (a-Id)**(-2)*Amat**2*b*Ts
         B = real(around(B,12))
         Bmat = mat(B)
         C = c
-        D = d - C*(Amat**(-2)/Ts*(a-Id)-Amat**(-1))*Bmat
+        D = d - C*(old_div(Amat**(-2),Ts)*(a-Id)-Amat**(-1))*Bmat
         D = real(around(D,12))
     elif method=='tustin':
         a=mat(a)
@@ -96,8 +99,8 @@ def d2c(sys,method='zoh'):
             print('d2c: some poles very close to one. May get bad results.')
         
         I=mat(eye(n,n))
-        tk = 2 / sqrt (Ts)
-        A = (2/Ts)*(a-I)*inv(a+I)
+        tk = old_div(2, sqrt (Ts))
+        A = (old_div(2,Ts))*(a-I)*inv(a+I)
         iab = inv(I+a)*b
         B = tk*iab
         C = tk*(c*inv(I+a))

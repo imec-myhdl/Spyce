@@ -1,8 +1,10 @@
-#!/usr/bin/python
+
 # aim for python 2/3 compatibility
 from __future__ import (division, print_function, absolute_import,
                         unicode_literals)
-                        
+from builtins import str
+from builtins import range
+
 import sys, traceback
 
 from  Qt import QtGui, QtWidgets, QtCore # see https://github.com/mottosso/Qt.py
@@ -15,16 +17,16 @@ from collections import OrderedDict
 #    sip.setapi('QString', 1)
 
 
-from supsisim.block import Block, getBlock, getBlockModule, isBlock, gridPos
-from supsisim.text import isComment, textItem, Comment
-from supsisim.editor import Editor
-from supsisim.scene import Scene, GraphicsView
-from supsisim.dialg import IO_Dialog, convertSymDialog, viewConfigDialog,error
-from supsisim.const import respath, pycmd, PD,PW,BWmin, templates, viewTypes, pythonEditor
-from supsisim.port import Port, isInPort, isOutPort, isNode, isPort
-from supsisim.connection import isConnection, Connection
-from supsisim.src_import import import_module_from_source_file
-from supsisim.netlist import netlist
+from .block import Block, getBlock, getBlockModule, isBlock, gridPos
+from .text import isComment, textItem, Comment
+from .editor import Editor
+from .scene import Scene, GraphicsView
+from .dialg import IO_Dialog, convertSymDialog, viewConfigDialog, error, fileDialog
+from .const import respath, pycmd, PD,PW,BWmin, templates, viewTypes, pythonEditor
+from .port import Port, isInPort, isOutPort, isNode, isPort
+from .connection import isConnection, Connection
+from .src_import import import_module_from_source_file
+from .netlist import netlist
 import libraries
 
 DEBUG = False
@@ -35,7 +37,7 @@ def strip_ext(fname, ext):
 def d2s(d):
     '''dict to string'''
     items = []
-    for k, v in d.items():
+    for k, v in list(d.items()):
         if k != 'type': # suppress 'type' attributes
             if isinstance(v, (dict, OrderedDict)):
                 items.append('{}={}'.format(k, d2s(v)))
@@ -98,7 +100,7 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
                                                 triggered = self.newTab)
         
         self.openFileAction = QtWidgets.QAction(QtGui.QIcon(mypath+'fileopen.png'),
-                                                '&Open', self,
+                                                '&Open Diagram', self,
                                                 shortcut = 'Ctrl+O',
                                                 statusTip = 'Open File',
                                                 triggered = self.openDiagram)
@@ -391,7 +393,7 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
     def update_blocks(self, libname=None, blockname=None):
         for i in range(self.centralWidget.count()):
             scene = self.centralWidget.widget(i).scene()
-            for item in scene.items():
+            for item in list(scene.items()):
                 if isBlock(item):
                     if libname and item.libname != libname:
                         continue
@@ -679,7 +681,7 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
             error('Select what you want to convert')
     
     def updateAct(self):
-        items = self.scene.items()
+        items = list(self.scene.items())
         for item in items:
             if isConnection(item):
                 self.scene.removeItem(item)
@@ -692,7 +694,7 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
     def askSaving(self,whole=False):
         if whole:
             for i in range(self.centralWidget.count()):              
-                items = self.centralWidget.widget(i).scene().items()
+                items = list(self.centralWidget.widget(i).scene().items())
                 fname = self.centralWidget.widget(i).fname
                 if len(items) != 0:
                     self.centralWidget.setCurrentIndex(i)
@@ -712,7 +714,7 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
             
             
         else:
-            items = self.scene.items()
+            items = list(self.scene.items())
             if len(items) == 0:
                 return QtWidgets.QMessageBox.Discard
         
@@ -770,8 +772,9 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
 #        self.setWindowTitle(self.filename)
         
     def openDiagram(self, filename=None):
-        if filename in [None, False]: 
-            filename = QtWidgets.QFileDialog.getOpenFileName(self, 'Open', self.path+'/saves/', filter='Diagram (*.py *.diagram);;All (*.*)')
+        if filename in [None, False]:
+            filename = fileDialog(self, 'Open Diagram', self.path, filter='Diagram (*.py *.diagram);;All (*.*)')
+
             if isinstance(filename, tuple):
                 filename = filename[0]
         if filename:
@@ -809,14 +812,15 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
             ix = self.centralWidget.currentIndex()
             fname = self.centralWidget.widget(ix).fname
 #            fname = os.path.join(self.path, 'saves', self.filename)
-            filename = QtWidgets.QFileDialog.getSaveFileName(self, 'Save', fname, filter='Diagram (*.py *.diagram);;All (*.*)')
-            if isinstance(filename, tuple): #Qt5
-                filename = filename[0]
+            filename = fileDialog(self, 'Save Diagram', filename=fname, filter='Diagram (*.py *.diagram);;All (*.*)')
+            print (filename)
+
 
         if filename:
             fn, ext = os.path.splitext(filename)
+            print ('filename', fn, '; ext', ext)
             if ext not in [viewTypes['diagram'][1], '.py']: # add extension if missing
-                filename += '.py' 
+                filename += viewTypes['diagram'][1]
             filename = os.path.abspath(filename)
             ix = self.centralWidget.currentIndex()
             self.centralWidget.widget(ix).fname = filename # store full path
@@ -844,7 +848,7 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
         comments = []
         for block in self.scene.blocks: # force unique names
             block.setLabel(verbose=True)
-        items = selection if selection else self.scene.items()
+        items = selection if selection else list(self.scene.items())
         for item in items:
             if isBlock(item):
                 d = item.toData()

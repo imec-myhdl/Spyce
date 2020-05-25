@@ -6,6 +6,9 @@
 #
 # WARNING! All changes made in this file will be lost!
 
+from future import standard_library
+standard_library.install_aliases()
+from builtins import object
 from PyQt5 import QtCore, QtGui, QtWidgets
 
 class Ui_Dialog(object):

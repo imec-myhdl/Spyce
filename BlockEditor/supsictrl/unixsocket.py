@@ -8,6 +8,7 @@ The following commands are provided:
     close_server  -  Close the unix server
   
 """
+from __future__ import print_function
 
 import os
 import sys

@@ -12,7 +12,7 @@ import libraries
 
 def get_defs(filename):
     defs = []
-    with open(filename, 'rb') as f:
+    with open(filename, 'r') as f:
         tt = f.readlines()
     ix = 0
     while ix < len(tt):
@@ -134,13 +134,13 @@ def toBlk(filename, libname):
         views = dict(myhdl=name + ext)        
         with open(filename) as f:
             t = f.read()
-        with open(fndgm, 'wb') as f:
+        with open(fndgm, 'w') as f:
             f.write(t)
 
             
         fnblk = os.path.join(p, name + '.py')
         # write block
-        with open(fnblk, 'wb') as f:
+        with open(fnblk, 'w') as f:
             f.write(fmt.format(name=name, libname=libname, 
                         inp=_fmt(inputs), 
                         outp=_fmt(outputs), 

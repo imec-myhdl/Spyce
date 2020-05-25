@@ -1,6 +1,9 @@
 
+
 from __future__ import (division, print_function, absolute_import,
                         unicode_literals)
+from builtins import range
+from builtins import object
 
 import os, sys, string, math
 import keyword
@@ -21,7 +24,7 @@ debug=False
 def isidentifier(ident):
     """Determines if string is valid Python identifier."""
 
-    if not isinstance(ident, (str, unicode)):
+    if not isinstance(ident, (str, str)):
         raise TypeError("expected str, but got {!r}".format(type(ident)))
 
     if not ident:
@@ -170,7 +173,7 @@ class Nets(object):
     def addConnection(self, conn):
         xy0, xy1 = (conn['x0'], conn['y0']), (conn['x1'], conn['y1'])
         n0, n1 = None, None
-        for nm, nt in self.named.items():
+        for nm, nt in list(self.named.items()):
             if xy0 in nt.node_coords:
                 n0 = nt
                 if n1:
@@ -258,7 +261,7 @@ class Nets(object):
             self.named[netname] = nn
          
         # connect blocks 
-        for netname, nn in self.named.items():
+        for netname, nn in list(self.named.items()):
             if not nn.sigtype:
                 nn.sigtype = 'bool(0)'
             for conn in nn.connections:
@@ -272,7 +275,7 @@ class Nets(object):
         '''split into internal and external nets'''
         internal_nets = dict()
         external_nets = dict()
-        for netname, net in self.named.items():
+        for netname, net in list(self.named.items()):
             if net.external:
                 external_nets[netname] = net
             else:
@@ -334,7 +337,7 @@ def netlist(filename, properties=dict(), lang='myhdl', netlist_dir=const.netlist
         if not os.path.isdir(os.path.join(netlist_dir, subdir)):
             os.makedirs(os.path.join(netlist_dir, subdir))
             if lang == 'myhdl':
-                with open(os.path.join(netlist_dir, subdir, '__init__.py'), 'wb') as f:
+                with open(os.path.join(netlist_dir, subdir, '__init__.py'), 'w') as f:
                     f.write('# import blocks in name-space\n\n')
         
     outfile = os.path.join(netlist_dir, subdir, blockname + ext)
@@ -368,11 +371,11 @@ def netlist(filename, properties=dict(), lang='myhdl', netlist_dir=const.netlist
             # print('{} module already present in {}'.format(lang, outfile))
             return # do nothing if outfile newer than infile
 
-        with open(filename, 'rb') as fi:
+        with open(filename, 'r') as fi:
             body = fi.read()
             
         txt = fillTemplate(template, blockname, body, include)
-        with open(outfile, 'wb') as fo:
+        with open(outfile, 'w') as fo:
             fo.write(txt)
         print('{} module written to {}'.format(lang, outfile))
 
@@ -389,13 +392,13 @@ def netlist(filename, properties=dict(), lang='myhdl', netlist_dir=const.netlist
             os.makedirs(netlist_dir)
 
         if not dest_newer_than_source(dest=outfile, source=filename):
-            with open(outfile, 'wb') as fo:
+            with open(outfile, 'w') as fo:
                 fo.write('# diagram netlist generated from {}\n\n'.format(filename))
                 fo.write(txt)
             print('diagram netlist written to', outfile)
         
         # also netlist blocks in the diagram
-        for name, block in blocks.items():
+        for name, block in list(blocks.items()):
             libname, blockname = block['libname'], block['blockname']
 #            print ('subblock', libname, blockname)
             k = libname + '/' + blockname
@@ -435,7 +438,7 @@ def netlist(filename, properties=dict(), lang='myhdl', netlist_dir=const.netlist
 
             if os.path.isfile(modname):
                 if os.path.isfile(initname):                    
-                    with open(initname, 'rb') as f:
+                    with open(initname, 'r') as f:
                         t = f.read()
                     if not imp_statement in t:
                         t += imp_statement         
@@ -443,7 +446,7 @@ def netlist(filename, properties=dict(), lang='myhdl', netlist_dir=const.netlist
                     t = '# import blocks in name-space\n\n'
                     t += imp_statement 
                     
-                with open(initname, 'wb') as f:
+                with open(initname, 'w') as f:
                    f.write(t)
 
 
@@ -490,7 +493,7 @@ def instToMyhdl(inst):
     if not instance_netlist: # normal cell netlist
         #instance_netlist = defaultMyHdlInstance(name, libname, blkname, args)
         conns = []
-        for pinname,netname in args.items():
+        for pinname,netname in list(args.items()):
             if isinstance(netname, (list, tuple)):
                 netname = netname[0]
             conns.append('{} = {}'.format(pinname, netname))
@@ -527,7 +530,7 @@ def toMyhdl(block_name, blocks, internal_nets, external_nets, netlist_dir):
     bdef.append('@block\ndef {}({}):'.format(block_name, ', '.join(external_nets)))
 
     body.append('    # body')
-    for name, inst in blocks.items():
+    for name, inst in list(blocks.items()):
         r, isimport = instToMyhdl(inst)
         if isimport:
             imports.add(libraries.libprefix + inst['libname'])
@@ -542,22 +545,22 @@ def toMyhdl(block_name, blocks, internal_nets, external_nets, netlist_dir):
 
             if '__expr__' in r:
                 netnames = r.pop('__expr__')
-                for netname, expression in netnames.items():
+                for netname, expression in list(netnames.items()):
                     netname = netname.lstrip('{').rstrip('}').strip()
                     exprs[netname] = expression
             
-            for path, txt in r.items():
+            for path, txt in list(r.items()):
                 dirname, fn = os.path.split(path)
                 if not os.path.isabs(dirname):
                     dirname = os.path.join(netlist_dir, dirname)
                 if dirname and not os.path.isdir(dirname):
                     os.makedirs(dirname)
-                    with open(os.path.join(dirname, '__init__.py'), 'wb') as f:
+                    with open(os.path.join(dirname, '__init__.py'), 'w') as f:
                         f.write('# auto generated by netlist procedure')
                 fmt = const.templates['myhdl'].lstrip()
                 incl = const.templates['myhdl_include']
                 txt = fillTemplate(fmt, block_name, txt, incl)
-                with open(os.path.join(dirname,fn), 'wb') as f:
+                with open(os.path.join(dirname,fn), 'w') as f:
                     f.write(txt)
                 if signals_netlist:
                     for line in signals_netlist.splitlines():
@@ -607,7 +610,7 @@ def toMyhdl(block_name, blocks, internal_nets, external_nets, netlist_dir):
     
     while exprs:
         found = None
-        for netname, expression in exprs.items():
+        for netname, expression in list(exprs.items()):
             try:
                 s = expression.format(**known_nets)
                 known_nets[netname] = s
@@ -619,10 +622,10 @@ def toMyhdl(block_name, blocks, internal_nets, external_nets, netlist_dir):
         if found:
             exprs.pop(found)
         else:
-            for netname, expression in exprs.items():
+            for netname, expression in list(exprs.items()):
                 print ('unresolved {} = {}'.format(netname, expression))
             print ('\n')
-            for netname, expression in known_nets.items():
+            for netname, expression in list(known_nets.items()):
                 print ('  resolved {} = {}'.format(netname, expression))
                 
             raise Exception('Not able to resolve expressions')
@@ -711,8 +714,8 @@ def resolve_dgm_connectivity(filename, properties=dict()):
 #==============================================================================
 # check that all block ports are connected
 #==============================================================================
-    for instname, inst in blocks.items():
-        for pin, net in inst['conn'].items():
+    for instname, inst in list(blocks.items()):
+        for pin, net in list(inst['conn'].items()):
             if net is None:
                 if debug:
                     print ('debug', inst['conn'])
@@ -724,7 +727,7 @@ def resolve_dgm_connectivity(filename, properties=dict()):
     internal_nets, external_nets = dgm_nets.split_nets()
 
     if debug:
-         for netname, net in dgm_nets.named.items():
+         for netname, net in list(dgm_nets.named.items()):
             print('Net:', netname)
             net.pprint() 
 

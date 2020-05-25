@@ -1,7 +1,8 @@
-#!/usr/bin/python
+
 # aim for python 2/3 compatibility
 from __future__ import (division, print_function, absolute_import,
                         unicode_literals)
+from builtins import str
 
 from Qt import QtGui, QtWidgets, QtCore  # see https://github.com/mottosso/Qt.py
 

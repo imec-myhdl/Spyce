@@ -1,5 +1,7 @@
-#!/usr/bin/python
 
+
+from builtins import str
+from builtins import range
 import sys
 import os
 

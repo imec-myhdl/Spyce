@@ -1,4 +1,4 @@
-#!/usr/bin/python
+
 # aim for python 2/3 compatibility
 from __future__ import (division, print_function, absolute_import,
                         unicode_literals)
@@ -375,7 +375,7 @@ class Editor(QtCore.QObject):
         blockname = self.scene.item.blockname
         libname = self.scene.item.libname
         fname = 'libraries.library_{}.{}'.format(libname,blockname)
-        exec('import ' + fname) in globals(),locals()
+        exec(('import ' + fname), globals(),locals())
         reload(eval(fname))
         attributes = dir(eval(fname))
         netlistFunctions = []
@@ -403,14 +403,14 @@ class Editor(QtCore.QObject):
                 views = item.getViews()
                 fname = None
                 if len(views) == 1:
-                    viewtype, fname = views.items()[0]
+                    viewtype, fname = list(views.items())[0]
                 elif len(views) > 1:
-                    d = selectionDialog(views.keys(), title='Select view')
+                    d = selectionDialog(list(views.keys()), title='Select view')
                     ret = d.getRet()
                     if ret:
                         fname = views[ret]
                 if fname:
-                    for tp, (editor, extension) in viewTypes.items():
+                    for tp, (editor, extension) in list(viewTypes.items()):
                         if fname.endswith(extension):
                             cmd = editor
                             break
