@@ -33,7 +33,7 @@ def isidentifier(ident):
     if keyword.iskeyword(ident):
         return False
 
-    first = '_' + string.lowercase + string.uppercase
+    first = '_' + string.ascii_letters
     if ident[0] not in first:
         return False
 
@@ -96,7 +96,7 @@ class NetDescriptor(object):
         print('  node_coords       = {}'.format(self.node_coords))
         
     def addNode(self, node):
-        '''add a node to a net and merge properties'''
+        '''add a node to a net and merge it's properties'''
         porttype = node['porttype']
         netname  = node['label']['text'].strip() if 'label' in node else ''
         sigtype  = node['signalType']['text'].strip() if 'signalType' in node else None
@@ -107,8 +107,7 @@ class NetDescriptor(object):
             if self.netname and netname != self.netname:
                 raise Exception('name conflict on net {} while adding ()'.format(self.netname, node))
             else:
-                if netname:
-                    self.netname = netname
+                self.netname = netname
                 
         # driven?
         if porttype in ['ipin', 'iopin', 'opin']:
@@ -145,80 +144,72 @@ class NetDescriptor(object):
         self.nodes += othernet.nodes
         self.connections += othernet.connections
         self.node_coords |= othernet.node_coords
-        return self
+
         
 
 class Nets(object):
-    '''holds all nets (in a diagram'''
+    '''holds all nets in a diagram'''
     
     def __init__(self):
-        self.named     = dict() # names must be unique, so use dict for easy lookup, elements are NetDescriptor orbjects
-        self.unnamed   = [] # elements are NetDescriptor orbjects
+        self.named     = dict() # named nets names must be unique, so use dict for easy lookup, elements are NetDescriptor objects
+        self.unnamed   = [] # unnamed nets elements are NetDescriptor objects
 #        self.xylookup  = dict()
         self.net_cnt   = 0 # used in anonymous nets
         self.expr_cnt  = 0 # used in anonymous inline expressions
      
     def addNode(self, node):
+        '''create a new net (if needed)'''
         rawnetname  = node['label']['text']if 'label' in node else ''
         netname = rawnetname.strip(' {}')
         if netname:
             if netname not in self.named:
-                self.named[netname] = NetDescriptor(node)
+                self.named[netname] = NetDescriptor(node)# create a new unnamed net containing this node
             else:
-                self.named[netname].addNode(node)
-        else: # unnamed node
-            descriptor = NetDescriptor(node)
-            self.unnamed.append(descriptor)
+                self.named[netname].addNode(node) # just add the node
+        else: # create a new unnamed net containing this node
+            self.unnamed.append(NetDescriptor(node))
     
     def addConnection(self, conn):
         xy0, xy1 = (conn['x0'], conn['y0']), (conn['x1'], conn['y1'])
-        n0, n1 = None, None
-        for nm, nt in list(self.named.items()):
-            if xy0 in nt.node_coords:
+        n0, n1 = None, None # NetDescriptors
+        for nt in list(self.named.values()) + self.unnamed:
+            if n0 is None and xy0 in nt.node_coords:
                 n0 = nt
                 if n1:
-                    break
-            if xy1 in nt.node_coords:
+                    break # if both ends resolved
+            if n1 is None and xy1 in nt.node_coords:
                 n1 = nt
                 if n0:
-                    break
-                
-        if n0 is None or n1 is None:
-            for nt in self.unnamed:
-                if xy0 in nt.node_coords:
-                    n0 = nt
-                    if n1:
-                        break
-                if xy1 in nt.node_coords:
-                    n1 = nt
-                    if n0:
-                        break
+                    break # if both ends resolved
 
+        # select one of the connected nets (if found) or make a new one otherwise
         if n0:
             nt = n0
         elif n1:
             nt = n1
         else:
             nt = NetDescriptor()
+            self.unnamed.append(nt)
 
 
         nt.connections.append(conn)
-        # put a 'node' on the ioport locations
+        # put a virtual 'node' on the ioport locations
         nt.node_coords.add(xy0) 
         nt.node_coords.add(xy1)
 
-        if n0 is None or n1 is None: # nothing to connect (yet)
-            self.unnamed.append(nt)
+        if n0 is None or n1 is None: # nothing to merge (yet)
             return
-            
+
+        # remove from the unnamed lists (if needed)
         if n0 in self.unnamed:
            self.unnamed.remove(n0)
         if n1 in self.unnamed:
            self.unnamed.remove(n1)
-        
-        n = n0.merge(n1)
-        if not n.netname.strip(' {}'):
-            self.unnamed.append(n)
+
+        # do actual merge (returns a NetDescriptor of the merged net)
+        n0.merge(n1)
+        if not n0.netname.strip(' {}'):
+            self.unnamed.append(n0) # still unnamed
             
             
     def name_all_nets(self, blocks):
@@ -583,19 +574,25 @@ def toMyhdl(block_name, blocks, internal_nets, external_nets, netlist_dir):
 
     # internal_nets
     if internal_nets:
-        sig.append('    # internal nets')
+        internal_sig = []
+        #internal_sig.append('    # internal nets')
         for netname in sorted(internal_nets.keys()):
 #            tp = internal_nets[netname]['signalType']
             tp = internal_nets[netname].sigtype
             if isidentifier(netname):
                 if tp:
                     if 'Signal(' in tp:
-                        sig.append('    {} = {}'.format(netname, tp))
+                        internal_sig.append('    {} = {}'.format(netname, tp))
                     else:                        
-                        sig.append('    {} = Signal({})'.format(netname, tp))
+                        internal_sig.append('    {} = Signal({})'.format(netname, tp))
                 else:
-                    sig.append('    {} = Signal(bool(0))'.format(netname))
-        sig.append('')
+                    internal_sig.append('    {} = Signal(bool(0))'.format(netname))
+        if internal_sig:
+            sig.append('    # internal nets')
+            sig += internal_sig
+            sig.append('')
+        else:
+            sig = []
 
     body.append('    return instances()')
     bdef.append('')

@@ -11,13 +11,13 @@ properties = {'name': 'sumBlk'} #voor netlisten
 #view variables:
 
 def ports(param):
-   gains = param['A'] if 'A' in param else '++'
+   polarities = param['A'] if 'A' in param else '++'
    inp, outp, inout = [], [], []
-   spacing = 2*const.PD if len(gains) <= 2 else const.PD
+   spacing = 2*const.PD if len(polarities) <= 2 else const.PD
    w2 = 40
-   for ix in range(len(gains)):
+   for ix in range(len(polarities)):
        inp.append(('.a{}'.format(ix), -w2, ix*spacing))
-   yy = int(spacing*(len(gains)-1)/2/const.GRID)*const.GRID
+   yy = int(spacing*(len(polarities)-1)/2/const.GRID)*const.GRID
    outp.append(('.z', w2, yy))
    return inp, outp, inout
 
@@ -26,7 +26,7 @@ def ports(param):
 def getSymbol(param, properties,parent=None,scene=None):
     import supsisim.block
     from  Qt import QtGui, QtWidgets, QtCore # see https://github.com/mottosso/Qt.py
-    gains = param['A'] if 'A' in param else '++'
+    polarities = param['A'] if 'A' in param else '++'
     inp, outp, inout = ports(param)    
     
     attributes = dict()
@@ -54,7 +54,7 @@ def getSymbol(param, properties,parent=None,scene=None):
     for port in b.ports():
         portname = port.label.text()
         if portname.startswith('.a'):
-            sign = gains[int(portname[2:])]
+            sign = polarities[int(portname[2:])]
             port.p.moveTo(10, 0)
             port.p.lineTo(20, 0)
             if sign == '+':
@@ -66,14 +66,15 @@ def getSymbol(param, properties,parent=None,scene=None):
     
 def toMyhdlInstance(instname, connectdict, param):
     # properties end up in the connectdict
-    gains = param['A'] if 'A' in param else '++' 
+    polarities = param['A'] if 'A' in param else '++' 
     inputs = []
     z, zp = connectdict['.z']
-    
+
     shift = dict()
     for c in connectdict:
         if c.startswith('.a'):
             net,tp = connectdict[c]
+            shift[net] = 0
             tp = tp.strip()
             if tp.strip().startswith('Signal'):
                 tp = tp[6:].strip('() ')
@@ -85,10 +86,9 @@ def toMyhdlInstance(instname, connectdict, param):
                 else:
                     s = int(tp.split(',')[1])
                 shift[net] = s
-    print('Sum debug: shift = ', shift)
     target_shift = min(shift.values())
     
-    for ix, s in enumerate(gains):
+    for ix, s in enumerate(polarities):
         net,tp = connectdict['.a{}'.format(ix)]
         ds = shift[net] - target_shift
         shnet = '({}<<{})'.format(net, ds) if ds else net
