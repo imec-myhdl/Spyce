@@ -12,7 +12,7 @@ parameters = {'A':'++','Z':'+'} # pcell if not empty
 properties = {'delay':0.0, 'op':['&', '& | ^ ~ << >>'.split()]} # netlist properties
 
 def ports(param):
-   from supsisim import const
+   from spycelib import const
    A = param['A'] if 'A' in param else '++'
    Z = param['Z'] if 'Z' in param else '+'
    inp, outp, inout = [], [], []
@@ -34,7 +34,7 @@ def ports(param):
    
 def getSymbol(param, properties,parent=None,scene=None):
     global name, libname
-    from supsisim import block, const, text
+    from spycelib import block, const, text
     from  Qt import QtGui, QtWidgets, QtCore # see https://github.com/mottosso/Qt.py
     A = param['A'] if 'A' in param else '++'
     Z = param['Z'] if 'Z' in param else '+'

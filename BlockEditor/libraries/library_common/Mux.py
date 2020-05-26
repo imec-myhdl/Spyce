@@ -15,7 +15,7 @@ outp = 1
 parameters = dict(sel='0 1')
 properties = {} #voor netlisten
 
-from  supsisim import const
+from  spycelib import const
 
 def ports(param):
     '''return inputs, outputs and inouts'''
@@ -38,7 +38,7 @@ def ports(param):
     return inp, outp, inout
 
 def getSymbol(param, properties, parent=None, scene=None,):
-    from  supsisim import block, text
+    from  spycelib import block, text
     if 'sel' in param:
         sel =  [eval(i) for i in param['sel'].split()]
     else:

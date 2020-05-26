@@ -10,7 +10,7 @@ optional carry:
 
 
 
-from  supsisim import const
+from  spycelib import const
 
 inp = 1
 outp = 1
@@ -33,7 +33,7 @@ def ports(param):
     return inp, outp, inout
 
 def getSymbol(param, properties,parent=None,scene=None,):
-    from  supsisim import block, text
+    from  spycelib import block, text
     carry = param['carry'] if 'carry' in param else 0
     tmin = str(properties['min']) if 'min' in properties else '0'
     tmax = str(properties['max']) if 'max' in properties else '1'

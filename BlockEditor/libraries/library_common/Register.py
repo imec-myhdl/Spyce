@@ -2,7 +2,7 @@
 # name = 'Register'
 # libname = 'common'
 
-from  supsisim import const
+from  spycelib import const
 
 tooltip = '''Register (clocked process)
 
@@ -86,7 +86,7 @@ def ports(param):
     return inp, outp, inout
 
 def getSymbol(param, properties, parent=None, scene=None,):
-    import supsisim
+    import spycelib
     from  Qt import QtGui, QtWidgets, QtCore # see https://github.com/mottosso/Qt.py
     inp, outp, _ = ports(param)
     attributes = dict()
@@ -96,19 +96,19 @@ def getSymbol(param, properties, parent=None, scene=None,):
     attributes['output'] = outp
     _, left, bottom     = inp[-1]
     _, right, top = outp[0]
-    pw = supsisim.const.PW
+    pw = spycelib.const.PW
     d  = 8 # size of circle
     w, h = right-left, bottom-top + 20
-    if h < supsisim.const.BHmin:
-        dh = supsisim.const.BHmin - h
+    if h < spycelib.const.BHmin:
+        dh = spycelib.const.BHmin - h
     else:
         dh = 0
 #    print (left+pw/2.0, top-10-dh/2.0, w-pw, h+dh)
     attributes['bbox'] = (left+d, top-10-dh/2.0, w-2*d, h+dh)
-    b = supsisim.block.Block(attributes,param,properties, name, libname, parent, scene)
+    b = spycelib.block.Block(attributes,param,properties, name, libname, parent, scene)
     # add circles for inverted outputs, and wires for non-inverted outputs
     pi = QtWidgets.QGraphicsPathItem(b)
-    pi.setPen(QtGui.QPen(supsisim.const.colors['block']))
+    pi.setPen(QtGui.QPen(spycelib.const.colors['block']))
     pp = QtGui.QPainterPath()
     
     for n,x,y in outp:

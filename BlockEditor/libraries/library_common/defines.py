@@ -19,7 +19,7 @@ parameters = {} # pcell if not empty
 properties = {} # netlist properties
 
 def getSymbol(param, properties,parent=None,scene=None,):
-    from  supsisim import block, text
+    from  spycelib import block, text
     attributes = dict()
     attributes['name'] = name
     attributes['libname'] = libname

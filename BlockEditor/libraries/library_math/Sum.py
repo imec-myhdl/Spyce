@@ -1,7 +1,7 @@
 # cell definition
 # name = 'Sum'
 # libname = 'common'
-from  supsisim import const
+from  spycelib import const
 
 inp = 2
 outp = 1
@@ -24,7 +24,7 @@ def ports(param):
 
 
 def getSymbol(param, properties,parent=None,scene=None):
-    import supsisim.block
+    import spycelib.block
     from  Qt import QtGui, QtWidgets, QtCore # see https://github.com/mottosso/Qt.py
     polarities = param['A'] if 'A' in param else '++'
     inp, outp, inout = ports(param)    
@@ -34,7 +34,7 @@ def getSymbol(param, properties,parent=None,scene=None):
     attributes['libname'] = libname
     attributes['input'] = inp
     attributes['output'] = outp
-    b = supsisim.block.Block(attributes,param,properties, name, libname, parent, scene)
+    b = spycelib.block.Block(attributes,param,properties, name, libname, parent, scene)
     
     # create a new pathitem with a plus and circle
     pi = QtWidgets.QGraphicsPathItem(b)

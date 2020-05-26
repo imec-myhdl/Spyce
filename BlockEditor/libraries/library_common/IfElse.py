@@ -19,7 +19,7 @@ outp = 1
 parameters = dict(n_if_inp=1, ifcond='{i0} == 1', channels=1, clk_edge = ('None', ['None', 'pos', 'neg']), reset=('False', ['False', 'True']))
 properties = {} #voor netlisten
 
-from  supsisim import const
+from  spycelib import const
 
 def ports(param):
     '''return inputs, outputs and inouts'''
@@ -59,7 +59,7 @@ def ports(param):
     return inp, outp, inout
 
 def getSymbol(param, properties, parent=None, scene=None,):
-    from  supsisim import block, text
+    from  spycelib import block, text
     ifcond =  param['ifcond'] if 'ifcond' in param else '{i0} == 1'
     ifcond = [i.strip() for i in ifcond.split(',')]
     ncond = len(ifcond)

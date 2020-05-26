@@ -24,11 +24,11 @@ import Qt
 from Qt import QtGui, QtWidgets, QtCore  # see https://github.com/mottosso/Qt.py
 
 # local imports
-from supsisim.pyEdit import SupsiSimMainWindow
-from supsisim.library import Library
+from spycelib.pyEdit import SupsiSimMainWindow
+from spycelib.library import Library
 
 
-class supsisimul(threading.Thread):
+class SpyceSession(threading.Thread):
     def __init__(self, filename='untitled', runflag=False):
         threading.Thread.__init__(self)
         if filename != 'untitled':
@@ -55,10 +55,6 @@ class supsisimul(threading.Thread):
         app.deleteLater()
 
 
-def supsim(fn='untitled'):
-    th = supsisimul(fn)
-    th.start()
-
 # main
 if __name__ == "__main__":
     print ('using {}, python = {}.{}, Qt  = {}'.format(Qt.__binding__, sys.version_info[0], sys.version_info[1], Qt.__binding_version__ ))
@@ -84,12 +80,12 @@ if __name__ == "__main__":
 
     if not os.path.isfile('settings.py'):
         print('You do not have a configuration file. You might want to create "settings.py"')
-        print('it is used as an extension to the default file (.../Spyce/BlockEditor/supsisim/const.py)')
+        print('it is used as an extension to the default file (.../Spyce/BlockEditor/spycelib/const.py)')
     if len(sys.argv) > 1:
         fname = sys.argv[1]
     else:
         fname = 'untitled'
-    th = supsisimul(fname, runflag = True)
+    th = SpyceSession(fname, runflag = True)
     th.start()
     th.join()
 

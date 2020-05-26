@@ -9,7 +9,7 @@ reg_names specifies which names should be extracted"""
 # cell definition
 # name = 'Interface'
 # libname = 'common'
-from  supsisim import const
+from  spycelib import const
 
 inp = []
 outp = []
@@ -34,14 +34,14 @@ def ports(param):
     
 
 def getSymbol(param, properties,parent=None,scene=None,):
-    import supsisim.block
+    import spycelib.block
     attributes = dict()
     attributes['name'] = name
     attributes['libname'] = libname
     inp, outp, _ = ports(param)
     attributes['input'] = inp
     attributes['output'] = outp
-    b = supsisim.block.Block(attributes,param,properties, name, libname, parent, scene)
+    b = spycelib.block.Block(attributes,param,properties, name, libname, parent, scene)
                  
     return b
     

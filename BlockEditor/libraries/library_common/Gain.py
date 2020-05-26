@@ -12,7 +12,7 @@ iconSource = 'MULT'
 
 
 
-import supsisim.block 
+import spycelib.block 
 
 def getSymbol(param, properties,parent=None,scene=None,):
     attributes = dict()
@@ -23,7 +23,7 @@ def getSymbol(param, properties,parent=None,scene=None,):
     attributes['icon'] = iconSource
     
     
-    return supsisim.block.Block(attributes,param,properties,name,libname,parent,scene)
+    return spycelib.block.Block(attributes,param,properties,name,libname,parent,scene)
     
 
 views = {'icon':iconSource}

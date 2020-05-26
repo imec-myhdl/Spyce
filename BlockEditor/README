@@ -1,30 +1,15 @@
-pyCodeGenCenter.py is a utility which allows t0 generate 
-realtime code starting from a gEDA schematic and a script
-with variables initialization.
+Original code by Roberto Bucher, 12.04.2014, roberto.bucher@supsi.ch
+Heavily modified to allow for myhdl netlisting
 
-Special blocks have been developped for generating control
-schematic in the gEDA schem environment.
-
-HOW TO USE THE TOOL
-1) pyCodeGenCenter
-2) 2 Menus are available:
-   SCH->PY: 
-      gEDA schem:open the gEDA schematic gschem
-      gEDA attrib: open the gEDA gattrib application
-      Code Generation: open a dialog to generate the executable by passing:
-      	   the gschem schematic file
-	   the sampling time
-	   additionals python scripts (for example with var initialization)
-	   the template makefile (sim.tmf for simulation or rt.tmf for RT code)
-	 The configuration on the dialog can be saved and loaded (.cfg file)
-
-   File:
-     Open:Open a schematic file and write the python corresponding code
-          into the text window; the text can be modified
-     Save: Save the code into a python script
-     Save As: Save the code into a python script
-
-
-
-Roberto Bucher, 12.04.2014
-roberto.bucher@supsi.ch
+contents:
+block.py            contains block class and block import/export
+connection.py       contains all code to draw connections
+dialg.py            contains all dialog routines
+editor.py           contains diagram editor (scene) code, used in pyEdit.py
+libary.py           import/export of all libraries
+netlist.py          generate myhdl netlist (also works as stand-alone script)
+port.py             draw in/output pins and nodes
+pyEdit.py           mainwindow for diagram editor
+src_import.py       dynamic python module import from an arbitrary filename
+svg_utils.py        svg support (used for icon edit with inkscape)
+template_files.py   templates for netlisting/block-creation etc.

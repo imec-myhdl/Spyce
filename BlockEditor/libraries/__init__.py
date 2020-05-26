@@ -9,8 +9,8 @@
 """
 import os
 
-from supsisim.const import viewTypes
-#from supsisim.dialg import error
+from spycelib.const import viewTypes
+#from spycelib.dialg import error
 
 libs = dict()  # key = library name (minus the 'library_' prefix)
 #                value = a set containing all blocknames

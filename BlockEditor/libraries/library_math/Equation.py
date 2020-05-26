@@ -2,7 +2,7 @@
 # name = 'Equation'
 # libname = 'math'
 
-from supsisim import const
+from spycelib import const
 
 inp = 1
 outp = 1
@@ -22,7 +22,7 @@ def ports(param):
         
 
 def getSymbol(param, properties,parent=None,scene=None,):
-    from  supsisim import const, block, text
+    from  spycelib import const, block, text
     eq  = properties['eq'] if 'eq' in properties else '{i0} == 0'
     attributes = dict()
     attributes['name'] = name

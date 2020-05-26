@@ -6,8 +6,8 @@ Created on Wed Nov 21 13:25:13 2018
 """
 import sys, os
 
-from supsisim.const import templates, PD, viewTypes
-from supsisim.block import _fmt
+from spycelib.const import templates, PD, viewTypes
+from spycelib.block import _fmt
 import libraries
 
 def get_defs(filename):
