@@ -1,18 +1,19 @@
 Spyce, Simple python circuit editor
 =============
 A simulink like editor with MyHDL netlist support. Heavily borrowed from a project for pycontrol by Roberto Bucher
-http://robertobucher.dti.supsi.ch/python/ for the SUPSI university. You will find many references to supsi :) and also
+http://robertobucher.dti.supsi.ch/python/ for the SUPSI university. You will find some references to supsi :) and maybe
 some remaining packages that we did not yet update or remove
 
 The following packages should be installed on your PC
 
-* Python 2.7+ or Python 3.5+
+* pyenv (https://github.com/pyenv/pyenv) if you want an environment with any non-default python version. Highly recommended!
+* Python 2.7+ or Python 3.5+ (best via pyenv)
 * PySide, PySide2, PyQt4 or PyQt5
 * Qt.py wrapper around PySide, PySide2, PyQt4 or PyQt5(see https://github.com/mottosso/Qt.py)
 * MyHDL (best with fixbv extension, see https://github.com/imec-myhdl/myhdl)
 * LateX if you want to build the pdf documentation
 
-* our setup is based on anaconda python 2.7 and PyQt4 
+* our setup is based on python 3.8.1 and PySide2 
 
 
 Installing as normal user:
@@ -23,8 +24,9 @@ Installing as normal user:
 ```
 2) install the  dependencies with pip (assuming you are on python3):
 ```
-   pip install Qt.py    # thin wrapper around PyQt3/5 Pyside/Pysisde2
+   pyenv shell 3.8.1    # select your environment
    pip install pyside2  # python interface to Qt5
+   pip install Qt.py    # thin wrapper around PyQt3/5 Pyside/Pysisde2
    pip install autopep8 # format block sources (on disk) conform pep8
    pip install svgwrite # interface to inkscape
    pip install lxml     # legacy blocks, will gradually be phased out
@@ -38,11 +40,9 @@ Workspace preparation
    cd workdir
    
    # optional: create settings.py
-   # use this file to make local modifications to the defaults (in supsisim/const.py)
+   # use this file to make local modifications to the defaults (in spycelib/const.py)
    
-   # link common libraries
-   mkdir libraries
-   ln -s <path-to-spyce>/Spyce/BlockEditor/libraries/* libraries
+   
 ```
 
 Editor (standalone)
