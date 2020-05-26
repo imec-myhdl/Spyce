@@ -77,7 +77,7 @@ _templates['myhdl'] = """
 #             *** {copyrightPolicy} ***
 #---------------------------------------------------------------------------------------------------
 
-TIME_UNIT = {ticks_per_second}
+TIME_UNIT = {ticks_per_second:g}
 {include}
 
 {body}

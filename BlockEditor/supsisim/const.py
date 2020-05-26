@@ -28,7 +28,8 @@ respath = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__)
 if not os.path.isdir(respath):
     raise Exception('resource path ({}) not found'.format(respath))
 
-pycmd = 'ipython3 qtconsole &'
+#pycmd = 'ipython3 qtconsole &'
+pycmd = 'jupyter qtconsole &'
 pyrun = 'python'
 
 #==============================================================================

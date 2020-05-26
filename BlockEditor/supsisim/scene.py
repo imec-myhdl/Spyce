@@ -18,7 +18,9 @@ from supsisim.block import Block, isBlock, getBlock, gridPos
 from supsisim.text  import textItem, Comment, isComment
 from supsisim.port  import Port, isInPort, isOutPort, isNode, isPort
 from supsisim.connection import Connection, isConnection
-from supsisim.dialg import RTgenDlg, error
+# from supsisim.dialg import RTgenDlg, error
+from supsisim.dialg import error
+
 from supsisim.const import pyrun, netlist_dir, DB
 import libraries
 
@@ -213,41 +215,41 @@ class Scene(QtWidgets.QGraphicsScene):
             return point.x(),point.y()
     
     
-    def saveDgm(self,fname):
-        items = list(self.items())
-        dgmBlocks = []
-        dgmNodes = []
-        dgmConnections = []
-        for item in items:
-            if isinstance(item, Block):
-                dgmBlocks.append(item)
-            elif isNode(item):
-                dgmNodes.append(item)
-            elif isConnection(item):
-                dgmConnections.append(item)
-            else:
-                pass
-
-        root = etree.Element('root')
-        now = etree.SubElement(root,'Date')
-        etree.SubElement(now, 'SavingDate').text = time.strftime("%d.%m.%Y - %H:%M:%S")
-        sim = etree.SubElement(root,'Simulation')
-        etree.SubElement(sim,'Template').text = self.template
-        etree.SubElement(sim,'Ts').text = self.Ts
-        etree.SubElement(sim,'AddObj').text = self.addObjs
-        etree.SubElement(sim,'ParScript').text = self.script
-        etree.SubElement(sim,'Tf').text = self.Tf
-        for item in dgmBlocks:
-            item.save(root)
-        for item in dgmNodes:
-            item.save(root)
-        for item in dgmConnections:
-            item.save(root)
-        f = open(fname,'w')
-        msg = etree.tostring(root, pretty_print=True)
-        msg = msg.decode()
-        f.write(msg)
-        f.close()
+    # def saveDgm(self,fname):
+    #     items = list(self.items())
+    #     dgmBlocks = []
+    #     dgmNodes = []
+    #     dgmConnections = []
+    #     for item in items:
+    #         if isinstance(item, Block):
+    #             dgmBlocks.append(item)
+    #         elif isNode(item):
+    #             dgmNodes.append(item)
+    #         elif isConnection(item):
+    #             dgmConnections.append(item)
+    #         else:
+    #             pass
+    #
+    #     root = etree.Element('root')
+    #     now = etree.SubElement(root,'Date')
+    #     etree.SubElement(now, 'SavingDate').text = time.strftime("%d.%m.%Y - %H:%M:%S")
+    #     sim = etree.SubElement(root,'Simulation')
+    #     etree.SubElement(sim,'Template').text = self.template
+    #     etree.SubElement(sim,'Ts').text = self.Ts
+    #     etree.SubElement(sim,'AddObj').text = self.addObjs
+    #     etree.SubElement(sim,'ParScript').text = self.script
+    #     etree.SubElement(sim,'Tf').text = self.Tf
+    #     for item in dgmBlocks:
+    #         item.save(root)
+    #     for item in dgmNodes:
+    #         item.save(root)
+    #     for item in dgmConnections:
+    #         item.save(root)
+    #     f = open(fname,'w')
+    #     msg = etree.tostring(root, pretty_print=True)
+    #     msg = msg.decode()
+    #     f.write(msg)
+    #     f.close()
 
     def loadDgm(self, fname):
         tree = etree.parse(fname)
@@ -306,63 +308,63 @@ class Scene(QtWidgets.QGraphicsScene):
     def setParamsBlk(self):
         self.mainw.paramsBlock()
 
-    def codegenDlg(self):
-        dialog = RTgenDlg(self)
-        dialog.template.setText(self.template)
-        dialog.addObjs.setText(self.addObjs)
-        dialog.Ts.setText(self.Ts)
-        dialog.parscript.setText(self.script)
-        dialog.Tf.setText(self.Tf)
-        res = dialog.exec_()
-        if res != 1:
-            return
-
-        self.template = str(dialog.template.text())
-        self.addObjs = str(dialog.addObjs.text())
-        self.Ts = str(dialog.Ts.text())
-        self.script = str(dialog.parscript.text())
-        self.Tf = str(dialog.Tf.text())
+    # def codegenDlg(self):
+    #     dialog = RTgenDlg(self)
+    #     dialog.template.setText(self.template)
+    #     dialog.addObjs.setText(self.addObjs)
+    #     dialog.Ts.setText(self.Ts)
+    #     dialog.parscript.setText(self.script)
+    #     dialog.Tf.setText(self.Tf)
+    #     res = dialog.exec_()
+    #     if res != 1:
+    #         return
+    #
+    #     self.template = str(dialog.template.text())
+    #     self.addObjs = str(dialog.addObjs.text())
+    #     self.Ts = str(dialog.Ts.text())
+    #     self.script = str(dialog.parscript.text())
+    #     self.Tf = str(dialog.Tf.text())
         
-    def codegen(self, flag):
-        items = list(self.items())
-        dgmBlocks = []
-        for item in items:
-            if isinstance(item, Block):
-                dgmBlocks.append(item)
-            else:
-                pass
-        
-        nid = 1
-        for item in dgmBlocks:
-            for thing in item.childItems():
-                if isOutPort(thing):
-                    thing.nodeID = str(nid)
-                    nid += 1
-        for item in dgmBlocks:
-            for thing in item.childItems():
-                if isInPort(thing):
-                    c = thing.connections[0]
-                    while not isOutPort(c.port1):
-                        try:
-                            c = c.port1.parent.connections[0]
-                        except (AttributeError, ValueError):
-                            raise ValueError('Problem in diagram: outputs connected together!')
-                    thing.nodeID = c.port1.nodeID
-        self.generateCCode()
-        try:
-            os.mkdir('./' + self.mainw.filename + '_gen')
-        except:
-            pass
-        if flag:
-            if self.mainw.runflag:
-                cmd = pyrun + ' tmp.py'
-                try:
-                    p = subprocess.Popen(cmd, shell=True)
-                except:
-                    pass
-                p.wait()
-            else:
-                print('Generate code -> run -i tmp.py')
+    # def codegen(self, flag):
+    #     items = list(self.items())
+    #     dgmBlocks = []
+    #     for item in items:
+    #         if isinstance(item, Block):
+    #             dgmBlocks.append(item)
+    #         else:
+    #             pass
+    #
+    #     nid = 1
+    #     for item in dgmBlocks:
+    #         for thing in item.childItems():
+    #             if isOutPort(thing):
+    #                 thing.nodeID = str(nid)
+    #                 nid += 1
+    #     for item in dgmBlocks:
+    #         for thing in item.childItems():
+    #             if isInPort(thing):
+    #                 c = thing.connections[0]
+    #                 while not isOutPort(c.port1):
+    #                     try:
+    #                         c = c.port1.parent.connections[0]
+    #                     except (AttributeError, ValueError):
+    #                         raise ValueError('Problem in diagram: outputs connected together!')
+    #                 thing.nodeID = c.port1.nodeID
+    #     self.generateCCode()
+    #     try:
+    #         os.mkdir('./' + self.mainw.filename + '_gen')
+    #     except:
+    #         pass
+    #     if flag:
+    #         if self.mainw.runflag:
+    #             cmd = pyrun + ' tmp.py'
+    #             try:
+    #                 p = subprocess.Popen(cmd, shell=True)
+    #             except:
+    #                 pass
+    #             p.wait()
+    #         else:
+    #             print('Generate code -> run -i tmp.py')
         
     def blkInstance(self, item):
         ln = item.parameters.split('|')
@@ -391,104 +393,104 @@ class Scene(QtWidgets.QGraphicsScene):
         txt += ')'
         return txt
     
-    def generateCCode(self):
-        txt = ''
-        if self.mainw.runflag:
-            try:
-                f = open(self.script,'r')
-                txt = f.read()
-                f.close()
-                txt += '\n'
-            except:
-                pass
-        
-        items = list(self.items())
-        txt += 'from supsisim.RCPblk import *\n'
-        txt += 'try:\n'
-        txt += '    from supsisim.dsPICblk import *\n'
-        txt += 'except:\n'
-        txt += '    pass\n'        
-        txt += 'from supsisim.RCPgen import *\n'
-        txt += 'from control import *\n'
-        txt += 'import os\n'
-        blkList = []
-        for item in items:
-            if isinstance(item, Block):
-                blkList.append(item.name.replace(' ','_'))
-                txt += self.blkInstance(item) + '\n'
-        fname = self.mainw.filename
-        fn = open('tmp.py','w')
-        fn.write(txt)
-        fn.write('\n')
-        txt = 'blks = ['
-        for item in blkList:
-            txt += item + ','
-        txt += ']\n'
-        fn.write(txt)
-        fnm = './' + fname + '_gen'
-                
-        fn.write('fname = ' + "'" + fname + "'\n")
-        fn.write('os.chdir("'+ fnm +'")\n')
-        fn.write('genCode(fname, ' + self.Ts + ', blks)\n')
-        fn.write("genMake(fname, '" + self.template + "', addObj = '" + self.addObjs + "')\n")
-        fn.write('\nimport os\n')
-        fn.write('os.system("make")\n')
-        fn.write('os.chdir("..")\n')
-        fn.close()
-
-    def simrun(self):
-        self.codegen(False)
-        cmd  = '\n'
-        cmd += 'import matplotlib.pyplot as plt\n'
-        cmd += 'import numpy as np\n\n'
-        cmd += 'os.system("./' + self.mainw.filename + ' -f ' + self.Tf + '>x.x")\n'
-        cmd += 'x = np.loadtxt("x.x")\n'
-        cmd += 'N = shape(x)[1]\n'
-        cmd += 'if len(x) != 0:\n'
-        cmd += '    plt.plot(x[:,0],x[:,1:N])\n'
-        cmd += '    plt.grid(), plt.show()\n'
-        cmd += 'try:\n'
-        cmd += '    os.remove("x.x")\n'
-        cmd += 'except:\n'
-        cmd += '    pass\n'
-        
-        try:
-            os.mkdir(netlist_dir + '/' + self.mainw.filename + '_gen')
-        except:
-            pass
-        f = open('tmp.py','a')
-        f.write(cmd)
-        f.close()
-        if self.mainw.runflag:
-            cmd = pyrun + ' tmp.py'
-            try:
-                subprocess.Popen(cmd, shell=True)
-            except:
-                pass
-        else:
-            print('Simulate system -> run -i tmp.py')
-         
-    def debugInfo(self):
-        items = list(self.items())
-        dgmBlocks = []
-        dgmNodes = []
-        dgmConnections = []
-        for item in items:
-            if isinstance(item, Block):
-                dgmBlocks.append(item)
-            elif isNode(item):
-                dgmNodes.append(item)
-            elif isConnection(item):
-                dgmConnections.append(item)
-            else:
-                pass
-        print('Blocks:')
-        for item in dgmBlocks:
-            print(item)
-        print('\nNodes:')
-        for item in dgmNodes:
-            print(item)
-        print('\nConnections:')
-        for item in dgmConnections:
-            print(item)
-       
+    # def generateCCode(self):
+    #     txt = ''
+    #     if self.mainw.runflag:
+    #         try:
+    #             f = open(self.script,'r')
+    #             txt = f.read()
+    #             f.close()
+    #             txt += '\n'
+    #         except:
+    #             pass
+    #
+    #     items = list(self.items())
+    #     txt += 'from supsisim.RCPblk import *\n'
+    #     txt += 'try:\n'
+    #     txt += '    from supsisim.dsPICblk import *\n'
+    #     txt += 'except:\n'
+    #     txt += '    pass\n'
+    #     txt += 'from supsisim.RCPgen import *\n'
+    #     txt += 'from control import *\n'
+    #     txt += 'import os\n'
+    #     blkList = []
+    #     for item in items:
+    #         if isinstance(item, Block):
+    #             blkList.append(item.name.replace(' ','_'))
+    #             txt += self.blkInstance(item) + '\n'
+    #     fname = self.mainw.filename
+    #     fn = open('tmp.py','w')
+    #     fn.write(txt)
+    #     fn.write('\n')
+    #     txt = 'blks = ['
+    #     for item in blkList:
+    #         txt += item + ','
+    #     txt += ']\n'
+    #     fn.write(txt)
+    #     fnm = './' + fname + '_gen'
+    #
+    #     fn.write('fname = ' + "'" + fname + "'\n")
+    #     fn.write('os.chdir("'+ fnm +'")\n')
+    #     fn.write('genCode(fname, ' + self.Ts + ', blks)\n')
+    #     fn.write("genMake(fname, '" + self.template + "', addObj = '" + self.addObjs + "')\n")
+    #     fn.write('\nimport os\n')
+    #     fn.write('os.system("make")\n')
+    #     fn.write('os.chdir("..")\n')
+    #     fn.close()
+    #
+    # def simrun(self):
+    #     self.codegen(False)
+    #     cmd  = '\n'
+    #     cmd += 'import matplotlib.pyplot as plt\n'
+    #     cmd += 'import numpy as np\n\n'
+    #     cmd += 'os.system("./' + self.mainw.filename + ' -f ' + self.Tf + '>x.x")\n'
+    #     cmd += 'x = np.loadtxt("x.x")\n'
+    #     cmd += 'N = shape(x)[1]\n'
+    #     cmd += 'if len(x) != 0:\n'
+    #     cmd += '    plt.plot(x[:,0],x[:,1:N])\n'
+    #     cmd += '    plt.grid(), plt.show()\n'
+    #     cmd += 'try:\n'
+    #     cmd += '    os.remove("x.x")\n'
+    #     cmd += 'except:\n'
+    #     cmd += '    pass\n'
+    #
+    #     try:
+    #         os.mkdir(netlist_dir + '/' + self.mainw.filename + '_gen')
+    #     except:
+    #         pass
+    #     f = open('tmp.py','a')
+    #     f.write(cmd)
+    #     f.close()
+    #     if self.mainw.runflag:
+    #         cmd = pyrun + ' tmp.py'
+    #         try:
+    #             subprocess.Popen(cmd, shell=True)
+    #         except:
+    #             pass
+    #     else:
+    #         print('Simulate system -> run -i tmp.py')
+    #
+    # def debugInfo(self):
+    #     items = list(self.items())
+    #     dgmBlocks = []
+    #     dgmNodes = []
+    #     dgmConnections = []
+    #     for item in items:
+    #         if isinstance(item, Block):
+    #             dgmBlocks.append(item)
+    #         elif isNode(item):
+    #             dgmNodes.append(item)
+    #         elif isConnection(item):
+    #             dgmConnections.append(item)
+    #         else:
+    #             pass
+    #     print('Blocks:')
+    #     for item in dgmBlocks:
+    #         print(item)
+    #     print('\nNodes:')
+    #     for item in dgmNodes:
+    #         print(item)
+    #     print('\nConnections:')
+    #     for item in dgmConnections:
+    #         print(item)
+    #

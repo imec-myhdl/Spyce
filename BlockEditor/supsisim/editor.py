@@ -20,7 +20,7 @@ from supsisim.block import isBlock, gridPos, getBlock
 from supsisim.text  import textItem, Comment, isTextItem, isComment
 from supsisim.dialg import BlockName_Dialog, textLineDialog, overWriteNetlist, \
                            error, propertiesDialog, selectionDialog
-import supsisim.RCPDlg as pDlg
+# import supsisim.RCPDlg as pDlg
 from supsisim.const import DB, colors, viewTypes
 import libraries
 
@@ -85,22 +85,6 @@ class Editor(QtCore.QObject):
         nodeInsAction   = self.subMenuNothing.addAction('Insert node')
         nodeInsAction.triggered.connect(self.createNode)
 
-    
-    
-#    def addConnLabel(self):
-#        conn = self.scene.item
-#        if conn.label:
-#            dialog = textLineDialog('Label: ',content=conn.label.text())
-#        else:
-#            dialog = textLineDialog('Label: ')
-#        ret = dialog.getLabel()
-#        if ret:
-#            if conn.label:
-#                conn.label.setText(ret)
-#            else:
-#                conn.label = textItem(ret, anchor=3, parent=conn)
-#                conn.label.setPos(conn.pos[1].x(),conn.pos[1].y())
-   
     
 
 

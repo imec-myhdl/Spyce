@@ -177,10 +177,10 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
                                            statusTip = 'Simulate',
                                            triggered = self.runAct)
 
-        self.codegenAction = QtWidgets.QAction(QtGui.QIcon(mypath+'codegen.png'),
-                                               'Generate C-code',self,
-                                               statusTip = 'Generate C-Code',
-                                               triggered = self.codegenAct)
+        # self.codegenAction = QtWidgets.QAction(QtGui.QIcon(mypath+'codegen.png'),
+        #                                        'Generate C-code',self,
+        #                                        statusTip = 'Generate C-Code',
+        #                                        triggered = self.codegenAct)
 
         self.netlistMyhdlAction = QtWidgets.QAction(QtGui.QIcon(mypath+'codegen.png'),
                                                'Generate mydhl netlist',self,
@@ -225,6 +225,7 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
         toolbarF.addAction(self.printAction)
         toolbarF.addAction(self.exitAction)
 
+        # toolbar Edit
         toolbarE = self.addToolBar('Edit')
         toolbarE.addAction(self.copyAction)
         toolbarE.addAction(self.pasteAction)
@@ -234,13 +235,12 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
         toolbarE.addAction(self.undoAction)
 #        toolbarE.addAction(self.importPinsAction)
 
+        # toolbar Simulate
         toolbarS = self.addToolBar('Simuation')
         toolbarS.addAction(self.runAction)
-        toolbarS.addAction(self.codegenAction)
-#        toolbarS.addAction(self.setBlockAction)
-#        toolbarS.addAction(self.setNetlistAction)
-       
+        toolbarS.addAction(self.netlistMyhdlAction)
 
+        # toolbar Python
         toolbarP = self.addToolBar('Python')
         toolbarP.addAction(self.startPythonAction)
         #toolbarP.addAction(self.testIndex)
@@ -347,7 +347,7 @@ class SupsiSimMainWindow(QtWidgets.QMainWindow):
 
         simMenu = menubar.addMenu('&Simulation')
         simMenu.addAction(self.runAction)
-        simMenu.addAction(self.codegenAction)
+        # simMenu.addAction(self.codegenAction)
         simMenu.addAction(self.netlistMyhdlAction)
 
         setMenu = menubar.addMenu('&Settings')

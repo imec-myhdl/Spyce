@@ -1,9 +1,14 @@
 #!/usr/bin/env python
 
 # Standard library imports
-from __future__ import print_function
-import os, sys
+from __future__ import (division, print_function, absolute_import,
+                        unicode_literals)
+from builtins import str
+
+import sys
+import os
 import subprocess
+import threading
 
 # Third party imports
 # check Qt if already loaded (e.g. when running inside spyder or other program)
@@ -13,13 +18,46 @@ if 'QT_PREFERRED_BINDING' not in os.environ:
         if k in mods:
             os.environ['QT_PREFERRED_BINDING'] = k
             break
-    os.environ['QT_PREFERRED_BINDING'] =  os.pathsep.join(['PyQt4', 'PySide', 'PyQt5', 'PySide2'])   
-    
+    os.environ['QT_PREFERRED_BINDING'] = os.pathsep.join(['PyQt4', 'PySide', 'PyQt5', 'PySide2'])
 
-import Qt # see https://github.com/mottosso/Qt.py     
+import Qt
+from Qt import QtGui, QtWidgets, QtCore  # see https://github.com/mottosso/Qt.py
 
-# Local application imports
-from supsisim.pysim import supsisimul
+# local imports
+from supsisim.pyEdit import SupsiSimMainWindow
+from supsisim.library import Library
+
+
+class supsisimul(threading.Thread):
+    def __init__(self, filename='untitled', runflag=False):
+        threading.Thread.__init__(self)
+        if filename != 'untitled':
+            self.fname = QtCore.QFileInfo(filename)
+            self.mypath = str(self.fname.absolutePath())
+            self.fname = str(self.fname.baseName())
+        else:
+            self.fname = 'untitled'
+            self.mypath = os.getcwd()
+        self.runflag = runflag
+
+    def run(self):
+        app = QtWidgets.QApplication(sys.argv)
+
+        library = Library()
+        library.setGeometry(20, 100, 400, 768)
+        library.show()
+
+        main = SupsiSimMainWindow(library, self.fname, self.mypath, self.runflag)
+        main.setGeometry(500, 100, 1024, 768)
+        main.show()
+
+        ret = app.exec_()
+        app.deleteLater()
+
+
+def supsim(fn='untitled'):
+    th = supsisimul(fn)
+    th.start()
 
 # main
 if __name__ == "__main__":
