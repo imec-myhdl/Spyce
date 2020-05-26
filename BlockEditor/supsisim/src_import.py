@@ -34,10 +34,12 @@ def import_module_from_source_file(filepath, errors = []):
     elif sys.version_info >= (3,5):
         # python 3.5+
         try:
-            import importlib.util
+            import importlib.util, importlib.machinery
+            importlib.machinery.SOURCE_SUFFIXES.append('')  # empty string to allow any file
             spec = importlib.util.spec_from_file_location(modname, fullpath)
             mod = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(mod)    
+            spec.loader.exec_module(mod)
+            importlib.machinery.SOURCE_SUFFIXES.pop() # remove empty string to allow any file
         except:
             mod = None
             raise Exception('loading of {} caused error:\n{}'.format(fullpath, sys.exc_info()))

@@ -125,6 +125,7 @@ There are several special cases:
 - '__main__': the entry contains a properly indented string (4 leading spaces) containing code to be included in the main section of the netlist,
   that normally contains the instances.
 - '__expr__': the entry is a dictionary where the keys are the netnames and the values are the expressions that need to be evaluated.
+  This is only useful for signals that are combinatorial expressions of other signals. As an example how to use this look at the Sum block in the math library.
 
 note: spyce always netlists with the *pin_name = connected_signal_name* syntax to remove all ambiguity
 
