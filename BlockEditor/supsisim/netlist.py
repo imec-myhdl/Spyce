@@ -210,6 +210,8 @@ class Nets(object):
         n0.merge(n1)
         if not n0.netname.strip(' {}'):
             self.unnamed.append(n0) # still unnamed
+        else:
+            self.named[n0.netname] = n0
             
             
     def name_all_nets(self, blocks):
