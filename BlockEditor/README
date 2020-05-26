@@ -7,7 +7,6 @@ connection.py       contains all code to draw connections
 dialg.py            contains all dialog routines
 editor.py           contains diagram editor (scene) code, used in pyEdit.py
 libary.py           import/export of all libraries
-netlist.py          generate myhdl netlist (also works as stand-alone script)
 port.py             draw in/output pins and nodes
 pyEdit.py           mainwindow for diagram editor
 src_import.py       dynamic python module import from an arbitrary filename
