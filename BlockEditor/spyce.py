@@ -8,7 +8,7 @@ from builtins import str
 import sys
 import os
 import subprocess
-import threading
+# import threading
 
 # Third party imports
 # check Qt if already loaded (e.g. when running inside spyder or other program)
@@ -24,35 +24,31 @@ import Qt
 from Qt import QtGui, QtWidgets, QtCore  # see https://github.com/mottosso/Qt.py
 
 # local imports
-from spycelib.pyEdit import SupsiSimMainWindow
-from spycelib.library import Library
+from spycelib.pyEdit import EditorWindow
+from spycelib.library import LibraryWindow
 
 
-class SpyceSession(threading.Thread):
-    def __init__(self, filename='untitled', runflag=False):
-        threading.Thread.__init__(self)
-        if filename != 'untitled':
-            self.fname = QtCore.QFileInfo(filename)
-            self.mypath = str(self.fname.absolutePath())
-            self.fname = str(self.fname.baseName())
-        else:
-            self.fname = 'untitled'
-            self.mypath = os.getcwd()
-        self.runflag = runflag
+def SpyceSession(filename='untitled', runflag=False):
+    if filename != 'untitled':
+        fname = QtCore.QFileInfo(filename)
+        mypath = str(fname.absolutePath())
+        fname = str(fname.baseName())
+    else:
+        fname = 'untitled'
+        mypath = os.getcwd()
 
-    def run(self):
-        app = QtWidgets.QApplication(sys.argv)
+    app = QtWidgets.QApplication(sys.argv)
 
-        library = Library()
-        library.setGeometry(20, 100, 400, 768)
-        library.show()
+    library = LibraryWindow()
+    library.setGeometry(20, 100, 400, 768)
+    library.show()
 
-        main = SupsiSimMainWindow(library, self.fname, self.mypath, self.runflag)
-        main.setGeometry(500, 100, 1024, 768)
-        main.show()
+    main = EditorWindow(library, fname, mypath, runflag)
+    main.setGeometry(500, 100, 1024, 768)
+    main.show()
 
-        ret = app.exec_()
-        app.deleteLater()
+    ret = app.exec_()
+    app.deleteLater()
 
 
 # main
@@ -85,7 +81,6 @@ if __name__ == "__main__":
         fname = sys.argv[1]
     else:
         fname = 'untitled'
-    th = SpyceSession(fname, runflag = True)
-    th.start()
-    th.join()
+    SpyceSession(fname, runflag = True)
+
 

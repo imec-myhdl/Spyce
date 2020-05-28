@@ -171,11 +171,11 @@ class CompViewer(QtWidgets.QGraphicsScene):
 #        '''should returns a unique name, but this is the only occurence (in the library viewer)'''
 #        return block.name 
         
-class Library(QtWidgets.QMainWindow):
+class LibraryWindow(QtWidgets.QMainWindow):
     '''
     '''
     def __init__(self,parent=None):
-        super(Library, self).__init__(parent)
+        super(LibraryWindow, self).__init__(parent)
 
         self.resize(800, 500)
         self.setWindowTitle('Library')
@@ -787,19 +787,19 @@ def {name}({args}):
         libnames = sorted(list(libs.keys()), key=lambda s: s.lower())
         self.quickSelTab.addItems(libnames)
         for libname in libnames:
-            
             lib = libs[libname]
-            scene = CompViewer(self)
-            scene.clear()
-            view = QtWidgets.QGraphicsView(scene)
-            scene.compLock = True
+            tab = QtWidgets.QWidget()
+            tab.scene =  CompViewer(self)
+            tab.scene.clear()
+            view = QtWidgets.QGraphicsView(tab.scene)
+            tab.scene.compLock = True
             for i, blockname in enumerate(sorted(lib)):
                 # add block to scene
-                block = getBlock(libname, blockname, scene=scene)
+                block = getBlock(libname, blockname, scene=tab.scene)
                 if block:
                     px = i % 2
                     py = i/2
-                    block.scene = scene
+                    block.scene = tab.scene
                     block.setPos(px*150,py*150)
 #                    block.setup()
                     w = block.boundingRect().width()
@@ -811,7 +811,7 @@ def {name}({args}):
                         block.label.scale = 1.0/scale
                         block.label.setNormal() # normal orientation, but will also set scale
                     block.label.show()
-            tab = QtWidgets.QWidget()
+
 #            if libname == 'symbols':
 #                self.symbolTab = tab
             layout = QtWidgets.QVBoxLayout()
@@ -820,7 +820,8 @@ def {name}({args}):
 
             self.tabs.addTab(tab, libname)
             self.tabs.currentChanged.connect(self.setCurrentTab)           
-            self.quickSelTab.currentIndexChanged.connect(self.setCurrentTab)           
+            self.quickSelTab.currentIndexChanged.connect(self.setCurrentTab)
+
         if curr_ix >= 0:
             self.setCurrentTab(curr_ix)
         layout = QtWidgets.QHBoxLayout()
@@ -832,6 +833,7 @@ def {name}({args}):
         ix = self.quickSelTab.findText(libraries.default)
         self.tabs.setCurrentIndex(ix)
         self.quickSelTab.setCurrentIndex (ix)
+
         
     def clickLibrary(self):
         library = self.libraries.currentItem()

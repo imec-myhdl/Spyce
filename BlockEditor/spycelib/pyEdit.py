@@ -46,9 +46,9 @@ def d2s(d):
     return 'dict({})'.format(', '.join(items))
 
 
-class SupsiSimMainWindow(QtWidgets.QMainWindow):
+class EditorWindow(QtWidgets.QMainWindow):
     def __init__(self, library, fname, mypath, runflag, parent=None):
-        super(SupsiSimMainWindow, self).__init__(parent)
+        super(EditorWindow, self).__init__(parent)
         self.resize(1024, 768)
         self.centralWidget = QtWidgets.QTabWidget()
         self.centralWidget.setTabsClosable(True)
