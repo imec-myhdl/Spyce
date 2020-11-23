@@ -7,7 +7,7 @@ from builtins import object
 
 import os, sys, string, math
 import keyword
-import string
+
 from collections import OrderedDict
 
 d = os.path.dirname(os.path.dirname(__file__))
@@ -78,7 +78,7 @@ class NetDescriptor(object):
         self.netname     = '' # net name, or tentative name
         self.sigtype     = None # signal type
         self.driven      = False # True if driven by ipin, iopin or block output
-        self.external    = False # True if connected to pin
+        self.external    = '' # if connected to pin this will be set to 'ipin'/'iopin'/'opin'
         self.nodes       = [] # nodes on this net
         self.connections = [] # connections on this net
         self.node_coords = set() # (x,y) tuples where the net is connected (nodes)
@@ -111,7 +111,7 @@ class NetDescriptor(object):
                 
         # driven?
         if porttype in ['ipin', 'iopin', 'opin']:
-            self.external = True
+            self.external = porttype
         if porttype in ['ipin', 'iopin']:
             self.driven =True
             
@@ -138,12 +138,17 @@ class NetDescriptor(object):
                 raise Exception('net {} has conflicting types ({}, {})'.format(self.netname, self.sigtype, othernet.sigtype))
         else:
             self.sigtype = othernet.sigtype
-        
+                    
         #merge
         self.driven |= othernet.driven
         self.nodes += othernet.nodes
         self.connections += othernet.connections
         self.node_coords |= othernet.node_coords
+        if othernet.external:
+            if self.external == '':
+                self.external = othernet.external
+            if self.external != othernet.external:
+                raise Exception('merge failed, pin type mismatch ({}, {})'.format(self.external, othernet.external))
 
         
 
@@ -520,7 +525,18 @@ def toMyhdl(block_name, blocks, internal_nets, external_nets, netlist_dir):
 
 
     # block definition
-    bdef.append('@block\ndef {}({}):'.format(block_name, ', '.join(external_nets)))
+    # order pins
+    ipins, iopins, opins = [], [], []
+    for pname, ppp in external_nets.items():
+        if ppp.external == 'ipin':
+            ipins.append(pname)
+        elif ppp.external == 'opin':
+            opins.append(pname)
+        else:
+            iopins.append(pname)
+    pinlist = sorted(ipins) + sorted(iopins) + sorted(opins)
+            
+    bdef.append('@block\ndef {}({}):'.format(block_name, ', '.join(pinlist)))
 
     body.append('    # body')
     for name, inst in list(blocks.items()):
