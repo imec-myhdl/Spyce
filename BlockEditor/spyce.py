@@ -27,7 +27,6 @@ from Qt import QtGui, QtWidgets, QtCore  # see https://github.com/mottosso/Qt.py
 from spycelib.pyEdit import EditorWindow
 from spycelib.library import LibraryWindow
 
-
 def SpyceSession(filename='untitled', runflag=False):
     if filename != 'untitled':
         fname = QtCore.QFileInfo(filename)
